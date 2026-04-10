@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import static net.ukrcom.asblockwar.ASBlockWar.LOGGER;
 
 /**
  *
@@ -20,20 +21,17 @@ public class Config {
 
     private String configPath;
     private final String listFile;
-    private final boolean progressSleep;
-    private final int progressPublish;
-    private final String whoisLiteLocalFile;
+    private final String whoisLiteLocalURI;
 
     public Config(String[] args) throws IOException {
         this.properties = new Properties();
         this.args = args;
-        parseArgs();
-        loadProperties();
+        this.parseArgs();
+        this.loadProperties();
 
         this.listFile = this.properties.getProperty("ListFile", "list.txt").trim();
-        this.progressSleep = Boolean.parseBoolean(properties.getProperty("ProgressSleep", "true"));
-        this.progressPublish = Integer.parseInt(properties.getProperty("ProgressPublish", "100"));
-        this.whoisLiteLocalFile = properties.getProperty("WhoisLiteLocalFile", "whoislitelocal.db").trim();
+        this.whoisLiteLocalURI = properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+
     }
 
     private void parseArgs() {
@@ -48,20 +46,22 @@ public class Config {
     }
 
     private void loadProperties() throws IOException {
-        if (configPath != null) {
+        if (this.configPath != null) {
             // Load from specified file path
-            try (InputStream input = new FileInputStream(configPath)) {
-                properties.load(input);
+            try (InputStream input = new FileInputStream(this.configPath)) {
+                this.properties.load(input);
             } catch (IOException e) {
-                throw new IOException("Не можу завантажити конфігураційний файл: " + configPath, e);
+                LOGGER.warn("Не можу завантажити конфігураційний файл: " + this.configPath, e);
+                throw new IOException("Не можу завантажити конфігураційний файл: " + this.configPath, e);
             }
         } else {
             // Load from default resource
             try (InputStream input = getClass().getClassLoader().getResourceAsStream("asblockwar.properties")) {
                 if (input == null) {
-                    throw new IOException("Конфігураційний файл за-замовчуванням asblockwar.properties не доступний. ");
+                    LOGGER.warn("Конфігураційний файл за-замовчуванням asblockwar.properties не доступний.");
+                    throw new IOException("Конфігураційний файл за-замовчуванням asblockwar.properties не доступний.");
                 }
-                properties.load(input);
+                this.properties.load(input);
             }
         }
     }
@@ -70,15 +70,7 @@ public class Config {
         return this.listFile;
     }
 
-    public boolean getProgressSleep() {
-        return this.progressSleep;
-    }
-
-    public int getProgressPublish() {
-        return this.progressPublish;
-    }
-
-    public String getWhoisLiteLocalFile() {
-        return this.whoisLiteLocalFile;
+    public String getWhoisLiteLocalURI() {
+        return this.whoisLiteLocalURI;
     }
 }
