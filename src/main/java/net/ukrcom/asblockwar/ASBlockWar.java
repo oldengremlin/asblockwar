@@ -3,6 +3,7 @@ package net.ukrcom.asblockwar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,9 +23,15 @@ public class ASBlockWar {
             LOGGER.info("listFile: " + listFile);
             LOGGER.info("whoisLiteLocalURI: " + whoisLiteLocalURI);
 
-            Files.lines(Path.of(listFile)).forEach(str -> {
-                LOGGER.info("AS" + str);
-            });
+            try (Stream<String> lines = Files.lines(Path.of(listFile))) {
+                lines
+                        .map(str -> "AS" + str)
+                        .forEach(str -> {
+                            LOGGER.info(str);
+                        });
+            } catch (IOException e) {
+                LOGGER.error("Помилка читання файлу", e);
+            }
 
         } catch (IOException ex) {
             LOGGER.error("Помилка: " + ex);
