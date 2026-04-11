@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 public class ASBlockWar {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(ASBlockWar.class);
-    public static final int THEREAD_POOLS = 10;
+    public static final int THREAD_POOL_SIZE = 10;
 
     public static void main(String[] args) {
         try {
@@ -29,11 +29,11 @@ public class ASBlockWar {
             LOGGER.info("listFile: " + listFile);
             LOGGER.info("whoisLiteLocalURI: " + whoisLiteLocalURI);
 
-            ExecutorService executor = Executors.newFixedThreadPool(THEREAD_POOLS);
+            ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
             Map<String, String> results = new ConcurrentHashMap<>();
 
-            try (Stream<String> lines = Files.lines(Path.of(listFile))) {
+            try (Stream<String> lines = Files.lines(Path.of(listFile)).parallel()) {
                 lines
                         .filter(line -> !line.matches("^\\s*[#;].*")) // Пропускаємо коментарі
                         .filter(line -> line.matches("^[1-9]\\d*$")) // Залишаємо тільки числа (номер AS)
@@ -52,14 +52,14 @@ public class ASBlockWar {
             executor.shutdown();
             if (executor.awaitTermination(1, TimeUnit.HOURS)) {
                 LOGGER.info("Всі потоки завершили роботу. Результатів: " + results.size());
-                results.entrySet().stream()
+                results.entrySet().stream().parallel()
                         .sorted((e1, e2) -> {
                             // Витягуємо тільки цифри з рядка "AS12345"
                             Integer id1 = Integer.valueOf(e1.getKey().replaceAll("\\D", ""));
                             Integer id2 = Integer.valueOf(e2.getKey().replaceAll("\\D", ""));
                             return id1.compareTo(id2);
                         })
-                        .forEach(entry -> {
+                        .forEachOrdered(entry -> {
                             LOGGER.info("Ключ: {}, Значення: {}", entry.getKey(), entry.getValue());
                         });
             }
