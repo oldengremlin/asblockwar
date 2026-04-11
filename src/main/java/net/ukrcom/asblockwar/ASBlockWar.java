@@ -38,7 +38,7 @@ public class ASBlockWar {
                 // 2. Семафор — наш "контролер трафіку" для SQLite
                 Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
 
-                try (Stream<String> lines = Files.lines(Path.of(listFile))) {
+                try (Stream<String> lines = Files.lines(Path.of(listFile)).parallel()) {
                     lines
                             .filter(line -> !line.matches("^\\s*[#;].*"))
                             .filter(line -> line.matches("^[1-9]\\d*$"))
