@@ -29,12 +29,12 @@ import org.slf4j.Logger;
  */
 public class retrieveOrganisation {
 
-    private StringBuilder sb;
-    private String autNum;
-    private String autNumBlock;
-
     private final Config config;
     private final Logger logger;
+    private StringBuilder sb;
+
+    private final String autNum;
+    private String autNumBlock;
 
     private Connection conn;
 
@@ -57,6 +57,7 @@ public class retrieveOrganisation {
     }
 
     public String get() {
+        logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, this.sb.toString());
         return this.sb.toString();
     }
 
