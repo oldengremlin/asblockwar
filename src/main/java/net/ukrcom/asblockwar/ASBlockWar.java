@@ -79,7 +79,8 @@ public class ASBlockWar {
             LOGGER.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
             LOGGER.info("Починаємо фільтрацію...");
 
-            Stream<Map.Entry<String, String>> filterAggressorAsnResources = filterAggressorAsnResources(aggressorAsnResources);
+            Stream<Map.Entry<String, String>> filterAggressorAsnResources = 
+                    filterAggressorAsnResources(aggressorAsnResources);
 //            filterAggressorAsnResources
 //                    .sorted((e1, e2) -> {
 //                        // Витягуємо тільки цифри з рядка "AS12345"
@@ -199,7 +200,8 @@ public class ASBlockWar {
     }
 
     private static Stream<Map.Entry<String, String>> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
-        Stream<Map.Entry<String, String>> streamMapEntry = aggressorAsnResources.entrySet().parallelStream()
+        Stream<Map.Entry<String, String>> streamMapEntry = 
+                aggressorAsnResources.entrySet().parallelStream()
                 .peek(entry -> {
                     // Якщо значення НЕ відповідає паттерну — додаємо в мапу вилучених
                     if (!entry.getValue().matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
