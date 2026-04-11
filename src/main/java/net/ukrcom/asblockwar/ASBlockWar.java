@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,17 +80,9 @@ public class ASBlockWar {
             LOGGER.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
             LOGGER.info("Починаємо фільтрацію...");
 
-            Stream<Map.Entry<String, String>> filterAggressorAsnResources = 
-                    filterAggressorAsnResources(aggressorAsnResources);
-//            filterAggressorAsnResources
-//                    .sorted((e1, e2) -> {
-//                        // Витягуємо тільки цифри з рядка "AS12345"
-//                        Integer id1 = Integer.valueOf(e1.getKey().replaceAll("\\D", ""));
-//                        Integer id2 = Integer.valueOf(e2.getKey().replaceAll("\\D", ""));
-//                        return id1.compareTo(id2);
-//                    });
+            aggressorAsnResources = filterAggressorAsnResources(aggressorAsnResources);
 
-            LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size() - resourcesForVerification.size(), resourcesForVerification.size());
+            LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
 
         } catch (IOException ex) {
             LOGGER.error("Помилка вводу-виводу: ", ex);
@@ -199,24 +192,23 @@ public class ASBlockWar {
         return aggressorMntbyResources;
     }
 
-    private static Stream<Map.Entry<String, String>> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
-        Stream<Map.Entry<String, String>> streamMapEntry = 
-                aggressorAsnResources.entrySet().parallelStream()
-                .peek(entry -> {
-                    // Якщо значення НЕ відповідає паттерну — додаємо в мапу вилучених
-                    if (!entry.getValue().matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
-                        // Тут нюанс: matches має перевіряти весь текст, 
-                        // тому додаємо .* навколо для пошуку всередині блоку
-                        resourcesForVerification.put(
-                                entry.getKey(),
-                                new ASN(Action.remove, entry.getKey(), entry.getValue())
-                        );
-                        LOGGER.warn("Вилучено елемент: {}", entry.getKey());
+    private static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
+        return aggressorAsnResources.entrySet().parallelStream()
+                .filter(entry -> {
+                    if (entry.getValue().matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
+                        return true;
                     }
+                    resourcesForVerification.put(
+                            entry.getKey(),
+                            new ASN(Action.remove, entry.getKey(), entry.getValue())
+                    );
+                    LOGGER.warn("Вилучено елемент: {}", entry.getKey());
+                    return false;
                 })
-                .filter(entry -> entry.getValue().matches("(?s).*" + AGGRESSOR_PATTERN + ".*"));
-
-        return streamMapEntry;
+                .collect(Collectors.toConcurrentMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue
+                ));
     }
 
 }
