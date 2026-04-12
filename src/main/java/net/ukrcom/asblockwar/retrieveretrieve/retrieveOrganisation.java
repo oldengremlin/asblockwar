@@ -20,6 +20,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.ukrcom.asblockwar.Config;
 import org.slf4j.Logger;
 
@@ -28,6 +30,8 @@ import org.slf4j.Logger;
  * @author olden
  */
 public class retrieveOrganisation {
+
+    private static final Map<String, String> cache = new ConcurrentHashMap<>();
 
     private final Config config;
     private final Logger logger;
@@ -41,24 +45,33 @@ public class retrieveOrganisation {
     public retrieveOrganisation(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.sb = new StringBuilder();
-
         this.autNum = autNum;
 
-        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI());) {
-            this.conn = connection;
+        if (cache.containsKey(autNum)) {
+            logger.debug("retrieveOrganisation({}) — cache hit", autNum);
+            return;
+        }
 
+        this.sb = new StringBuilder();
+        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
+            this.conn = connection;
             this.loadAsn();
             this.loadOrg();
-
         } catch (SQLException ex) {
             this.logger.error("Помилка при отриманні Organisation", ex);
         }
+        cache.put(autNum, this.sb.toString());
     }
 
     public String get() {
-        logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, this.sb.toString());
-        return this.sb.toString();
+        String cached = cache.get(this.autNum);
+        if (cached != null) {
+            return cached;
+        }
+        // fallback: значення не потрапило в cache (наприклад, помилка SQL)
+        String result = this.sb != null ? this.sb.toString() : "";
+        cache.put(this.autNum, result);
+        return result;
     }
 
     private void loadAsn() {
