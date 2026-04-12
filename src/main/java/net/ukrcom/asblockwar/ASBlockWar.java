@@ -81,8 +81,12 @@ public class ASBlockWar {
             LOGGER.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
             LOGGER.info("Починаємо фільтрацію...");
 
-            aggressorAsnResources = filterAggressorAsnResources(aggressorAsnResources);
-            aggressorAsnResources = makeAggressorResources(aggressorMntbyResources, aggressorAsnResources);
+            aggressorAsnResources = filterAggressorAsnResources(
+                    makeAggressorResources(
+                            aggressorMntbyResources,
+                            filterAggressorAsnResources(aggressorAsnResources)
+                    )
+            );
 
             LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
 

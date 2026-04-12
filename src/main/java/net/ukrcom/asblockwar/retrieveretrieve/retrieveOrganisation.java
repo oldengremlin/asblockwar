@@ -66,7 +66,7 @@ public class retrieveOrganisation {
     public String get() {
         String cached = cache.get(this.autNum);
         if (cached != null) {
-            logger.debug("retrieveOrganisation({}).get()[cache]: {}", this.autNum, cached);
+            logger.debug("retrieveOrganisation({}).get(): [cache]", this.autNum);
             return cached;
         }
         // fallback: значення не потрапило в cache (наприклад, помилка SQL)
