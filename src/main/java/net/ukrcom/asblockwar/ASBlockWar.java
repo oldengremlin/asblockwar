@@ -22,6 +22,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -289,9 +290,39 @@ public class ASBlockWar {
     }
 
     private static void report(Map<String, String> aggressorAsnResources) {
-//        LOGGER.info("Роботу завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
         LOGGER.info("Роботу завершено. Залишилось: {}", aggressorAsnResources.size());
 
+        Comparator<ASN> byAsn = Comparator.comparingLong(a -> Long.parseLong(a.asn().substring(2)));
+
+        List<ASN> removed = resourcesForVerification.values().stream()
+                .filter(a -> a.action() == Action.remove)
+                .sorted(byAsn)
+                .toList();
+        List<ASN> added = resourcesForVerification.values().stream()
+                .filter(a -> a.action() == Action.add)
+                .sorted(byAsn)
+                .toList();
+        List<ASN> modified = resourcesForVerification.values().stream()
+                .filter(a -> a.action() == Action.modify)
+                .sorted(byAsn)
+                .toList();
+
+        // "AS4294967295" = 12 chars = "Модифіковано" = 12 chars
+        final int COL = 12;
+        final String FMT = "%-" + COL + "s | %-" + COL + "s | %-" + COL + "s";
+        final String SEP = "-".repeat(COL * 3 + 6);
+
+        LOGGER.info(String.format(FMT, "Вилучено", "Додано", "Модифіковано"));
+        LOGGER.info(String.format(FMT, removed.size(), added.size(), modified.size()));
+        LOGGER.info(SEP);
+
+        int rows = Math.max(removed.size(), Math.max(added.size(), modified.size()));
+        for (int i = 0; i < rows; i++) {
+            String r = i < removed.size()  ? removed.get(i).asn()  : "";
+            String a = i < added.size()    ? added.get(i).asn()    : "";
+            String m = i < modified.size() ? modified.get(i).asn() : "";
+            LOGGER.info(String.format(FMT, r, a, m));
+        }
     }
 
 }
