@@ -20,6 +20,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.ukrcom.asblockwar.Config;
 import org.slf4j.Logger;
 
@@ -28,6 +30,8 @@ import org.slf4j.Logger;
  * @author olden
  */
 public class retrieveOrganisation {
+
+    private final static Map<String, String> cache = new ConcurrentHashMap<>();
 
     private final Config config;
     private final Logger logger;
@@ -58,6 +62,7 @@ public class retrieveOrganisation {
 
     public String get() {
         logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, this.sb.toString());
+        cache.put(this.autNum, this.sb.toString());
         return this.sb.toString();
     }
 
