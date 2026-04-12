@@ -66,14 +66,13 @@ public class retrieveOrganisation {
     public String get() {
         String cached = cache.get(this.autNum);
         if (cached != null) {
-              logger.debug("retrieveOrganisation({}).get()[cache]: {}", this.autNum, result);
+            logger.debug("retrieveOrganisation({}).get()[cache]: {}", this.autNum, cached);
             return cached;
         }
         // fallback: значення не потрапило в cache (наприклад, помилка SQL)
         String result = this.sb != null ? this.sb.toString() : "";
         cache.put(this.autNum, result);
-              logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, result);
-
+        logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, result);
         return result;
     }
 
