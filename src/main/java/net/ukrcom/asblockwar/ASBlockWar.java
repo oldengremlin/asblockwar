@@ -252,6 +252,8 @@ public class ASBlockWar {
                                 new ASN(Action.add, asn, block)
                         );
                         aggressorAsnResources.put(asn, block);
+                        LOGGER.debug("Додано новий ASN: {}", asn);
+                    } else {
                         LOGGER.debug("Знайдено новий ASN: {}", asn);
                     }
                 } catch (InterruptedException e) {
@@ -290,7 +292,7 @@ public class ASBlockWar {
     }
 
     private static void report(Map<String, String> aggressorAsnResources) {
-        LOGGER.info("Роботу завершено. Залишилось: {}", aggressorAsnResources.size());
+        LOGGER.info("Роботу завершено. Всього ASN: {}", aggressorAsnResources.size());
 
         Comparator<ASN> byAsn = Comparator.comparingLong(a -> Long.parseLong(a.asn().substring(2)));
 
@@ -307,21 +309,29 @@ public class ASBlockWar {
                 .sorted(byAsn)
                 .toList();
 
-        // "AS4294967295" = 12 chars = "Модифіковано" = 12 chars
-        final int COL = 12;
-        final String FMT = "%-" + COL + "s | %-" + COL + "s | %-" + COL + "s";
-        final String SEP = "-".repeat(COL * 3 + 6);
+        if (removed.size() > 0 || added.size() > 0 || modified.size() > 0) {
+            // "AS4294967295" = 12 chars = "Модифіковано" = 12 chars
+            final int COL = 12;
+            final String FMT = "%-" + COL + "s │ %-" + COL + "s │ %-" + COL + "s";
+            final String SEP
+                    = "━".repeat(COL + 1)
+                            .concat("┿")
+                            .concat("━".repeat(COL + 2))
+                            .concat("┿")
+                            .concat("━".repeat(COL + 1));
 
-        LOGGER.info(String.format(FMT, "Вилучено", "Додано", "Модифіковано"));
-        LOGGER.info(String.format(FMT, removed.size(), added.size(), modified.size()));
-        LOGGER.info(SEP);
+            LOGGER.info("");
+            LOGGER.info(String.format(FMT, "Вилучено", "Додано", "Модифіковано"));
+            LOGGER.info(String.format(FMT, removed.size(), added.size(), modified.size()));
+            LOGGER.info(SEP);
 
-        int rows = Math.max(removed.size(), Math.max(added.size(), modified.size()));
-        for (int i = 0; i < rows; i++) {
-            String r = i < removed.size()  ? removed.get(i).asn()  : "";
-            String a = i < added.size()    ? added.get(i).asn()    : "";
-            String m = i < modified.size() ? modified.get(i).asn() : "";
-            LOGGER.info(String.format(FMT, r, a, m));
+            int rows = Math.max(removed.size(), Math.max(added.size(), modified.size()));
+            for (int i = 0; i < rows; i++) {
+                String r = i < removed.size() ? removed.get(i).asn() : "";
+                String a = i < added.size() ? added.get(i).asn() : "";
+                String m = i < modified.size() ? modified.get(i).asn() : "";
+                LOGGER.info(String.format(FMT, r, a, m));
+            }
         }
     }
 
