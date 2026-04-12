@@ -225,24 +225,33 @@ public class ASBlockWar {
                     .filter(parts -> parts.length == 2)
                     .map(parts -> parts[1].trim())
                     .filter(asn -> asn.matches("^AS\\d+$"))
-                    .filter(asn -> !aggressorAsnResources.containsKey(asn))
                     .distinct()
                     .forEach(asn -> executor.submit(() -> {
-                        try {
-                            dbLimit.acquire();
-                            String block = new retrieveOrganisation(asn).get();
+                try {
+                    dbLimit.acquire();
+                    String block = new retrieveOrganisation(asn).get();
+                    if (aggressorAsnResources.containsKey(asn)) {
+                        if (!block.equals(aggressorAsnResources.get(asn))) {
                             resourcesForVerification.put(
                                     asn,
-                                    new ASN(Action.add, asn, block)
+                                    new ASN(Action.modify, asn, block)
                             );
-                            aggressorAsnResources.put(asn, block);
-                            LOGGER.info("Знайдено новий ASN: {}", asn);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        } finally {
-                            dbLimit.release();
+                            LOGGER.debug("Змінено ASN: {}", asn);
                         }
-                    }));
+                    } else {
+                        resourcesForVerification.put(
+                                asn,
+                                new ASN(Action.add, asn, block)
+                        );
+                        aggressorAsnResources.put(asn, block);
+                        LOGGER.debug("Знайдено новий ASN: {}", asn);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    dbLimit.release();
+                }
+            }));
         }
 
         return aggressorAsnResources;
