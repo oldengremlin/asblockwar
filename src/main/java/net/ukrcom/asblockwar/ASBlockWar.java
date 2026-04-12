@@ -81,6 +81,7 @@ public class ASBlockWar {
             LOGGER.info("Починаємо фільтрацію...");
 
             aggressorAsnResources = filterAggressorAsnResources(aggressorAsnResources);
+            makeAggressorResources(aggressorMntbyResources, aggressorAsnResources);
 
             LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
 
@@ -211,4 +212,9 @@ public class ASBlockWar {
                 ));
     }
 
+    private static Map<String, String> makeAggressorResources(Map<String, String> aggressorMntbyResources, Map<String, String> aggressorAsnResources) {
+        Map<String, String> resultAggressorASNs = new ConcurrentHashMap<>();
+
+        return resultAggressorASNs;
+    }
 }
