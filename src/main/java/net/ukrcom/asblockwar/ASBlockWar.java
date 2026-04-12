@@ -91,8 +91,7 @@ public class ASBlockWar {
                     )
             );
             storeAggressorAsnResources(aggressorAsnResources);
-
-            LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
+            report(aggressorAsnResources);
 
         } catch (IOException ex) {
             LOGGER.error("Помилка вводу-виводу: ", ex);
@@ -288,4 +287,11 @@ public class ASBlockWar {
         Files.writeString(source, content);
         LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
     }
+
+    private static void report(Map<String, String> aggressorAsnResources) {
+//        LOGGER.info("Роботу завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
+        LOGGER.info("Роботу завершено. Залишилось: {}", aggressorAsnResources.size());
+
+    }
+
 }
