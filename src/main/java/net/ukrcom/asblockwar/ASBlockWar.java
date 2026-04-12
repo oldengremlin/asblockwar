@@ -18,7 +18,10 @@ package net.ukrcom.asblockwar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -262,7 +265,27 @@ public class ASBlockWar {
         return aggressorAsnResources;
     }
 
-    private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) {
+    private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
+        Path source = Path.of(listFile);
 
+        // Резервна копія: list.txt → list.2026-04-12T13:29:06+03:00.txt
+        String filename = source.getFileName().toString();
+        int dotIdx = filename.lastIndexOf('.');
+        String timestamp = ZonedDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx"));
+        String backupFilename = dotIdx >= 0
+                ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
+                : filename + "." + timestamp;
+        Path backup = source.resolveSibling(backupFilename);
+        Files.move(source, backup);
+        LOGGER.info("Резервна копія: {}", backup);
+
+        // Записуємо відсортований список (тільки числа, по одному на рядок)
+        String content = aggressorAsnResources.keySet().stream()
+                .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
+                .map(asn -> asn.substring(2))
+                .collect(Collectors.joining("\n", "", "\n"));
+        Files.writeString(source, content);
+        LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
     }
 }
