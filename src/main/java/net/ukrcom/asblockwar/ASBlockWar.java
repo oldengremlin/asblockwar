@@ -18,6 +18,7 @@ package net.ukrcom.asblockwar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -81,7 +82,7 @@ public class ASBlockWar {
             LOGGER.info("Починаємо фільтрацію...");
 
             aggressorAsnResources = filterAggressorAsnResources(aggressorAsnResources);
-            makeAggressorResources(aggressorMntbyResources, aggressorAsnResources);
+            aggressorAsnResources = makeAggressorResources(aggressorMntbyResources, aggressorAsnResources);
 
             LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
 
@@ -213,8 +214,37 @@ public class ASBlockWar {
     }
 
     private static Map<String, String> makeAggressorResources(Map<String, String> aggressorMntbyResources, Map<String, String> aggressorAsnResources) {
-        Map<String, String> resultAggressorASNs = new ConcurrentHashMap<>();
 
-        return resultAggressorASNs;
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+
+            aggressorMntbyResources.values().parallelStream()
+                    .flatMap(block -> Arrays.stream(block.split("\n")))
+                    .filter(line -> line.matches("^(members|aut-num):.*"))
+                    .map(line -> line.split("\\s+", 2))
+                    .filter(parts -> parts.length == 2)
+                    .map(parts -> parts[1].trim())
+                    .filter(asn -> asn.matches("^AS\\d+$"))
+                    .filter(asn -> !aggressorAsnResources.containsKey(asn))
+                    .distinct()
+                    .forEach(asn -> executor.submit(() -> {
+                        try {
+                            dbLimit.acquire();
+                            String block = new retrieveOrganisation(asn).get();
+                            resourcesForVerification.put(
+                                    asn,
+                                    new ASN(Action.add, asn, block)
+                            );
+                            aggressorAsnResources.put(asn, block);
+                            LOGGER.info("Знайдено новий ASN: {}", asn);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            dbLimit.release();
+                        }
+                    }));
+        }
+
+        return aggressorAsnResources;
     }
 }
