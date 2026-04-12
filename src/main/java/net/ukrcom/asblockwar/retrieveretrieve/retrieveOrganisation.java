@@ -45,25 +45,36 @@ public class retrieveOrganisation {
     public retrieveOrganisation(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.sb = new StringBuilder();
-
         this.autNum = autNum;
 
-        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI());) {
-            this.conn = connection;
+        if (cache.containsKey(autNum)) {
+            logger.debug("retrieveOrganisation({}) — cache hit", autNum);
+            return;
+        }
 
+        this.sb = new StringBuilder();
+        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
+            this.conn = connection;
             this.loadAsn();
             this.loadOrg();
-
         } catch (SQLException ex) {
             this.logger.error("Помилка при отриманні Organisation", ex);
         }
+        cache.put(autNum, this.sb.toString());
     }
 
     public String get() {
-        logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, this.sb.toString());
-        cache.put(this.autNum, this.sb.toString());
-        return this.sb.toString();
+        String cached = cache.get(this.autNum);
+        if (cached != null) {
+              logger.debug("retrieveOrganisation({}).get()[cache]: {}", this.autNum, result);
+            return cached;
+        }
+        // fallback: значення не потрапило в cache (наприклад, помилка SQL)
+        String result = this.sb != null ? this.sb.toString() : "";
+        cache.put(this.autNum, result);
+              logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, result);
+
+        return result;
     }
 
     private void loadAsn() {
