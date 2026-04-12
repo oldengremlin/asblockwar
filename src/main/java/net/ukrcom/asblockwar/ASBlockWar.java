@@ -246,7 +246,7 @@ public class ASBlockWar {
                             );
                             LOGGER.debug("Змінено ASN: {}", asn);
                         }
-                    } else {
+                    } else if (block.matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
                         resourcesForVerification.put(
                                 asn,
                                 new ASN(Action.add, asn, block)
