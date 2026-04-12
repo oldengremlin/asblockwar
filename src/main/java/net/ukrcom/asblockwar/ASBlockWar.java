@@ -225,18 +225,27 @@ public class ASBlockWar {
                     .filter(parts -> parts.length == 2)
                     .map(parts -> parts[1].trim())
                     .filter(asn -> asn.matches("^AS\\d+$"))
-                    .filter(asn -> !aggressorAsnResources.containsKey(asn))
                     .distinct()
                     .forEach(asn -> executor.submit(() -> {
                         try {
                             dbLimit.acquire();
                             String block = new retrieveOrganisation(asn).get();
-                            resourcesForVerification.put(
-                                    asn,
-                                    new ASN(Action.add, asn, block)
-                            );
-                            aggressorAsnResources.put(asn, block);
-                            LOGGER.info("Знайдено новий ASN: {}", asn);
+                            if (aggressorAsnResources.containsKey(asn)) {
+                                if (!block.equals(aggressorAsnResources.get(asn))) {
+                                    resourcesForVerification.put(
+                                            asn,
+                                            new ASN(Action.modify, asn, block)
+                                    );
+                                    LOGGER.info("Змінено ASN: {}", asn);
+                                }
+                            } else {
+                                resourcesForVerification.put(
+                                        asn,
+                                        new ASN(Action.add, asn, block)
+                                );
+                                aggressorAsnResources.put(asn, block);
+                                LOGGER.info("Знайдено новий ASN: {}", asn);
+                            }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         } finally {
