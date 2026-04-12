@@ -87,6 +87,7 @@ public class ASBlockWar {
                             filterAggressorAsnResources(aggressorAsnResources)
                     )
             );
+            storeAggressorAsnResources(aggressorAsnResources);
 
             LOGGER.info("Фільтрацію завершено. Залишилось: {}, Вилучено: {}", aggressorAsnResources.size(), resourcesForVerification.size());
 
@@ -259,5 +260,9 @@ public class ASBlockWar {
         }
 
         return aggressorAsnResources;
+    }
+
+    private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) {
+
     }
 }
