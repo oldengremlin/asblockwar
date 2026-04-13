@@ -259,7 +259,7 @@ public class ASBlockWar {
                                     new ASN(Action.add, asn, block)
                             );
                             aggressorAsnResources.put(asn, block);
-                            LOGGER.debug("Додано новий ASN: {}", asn);
+                            LOGGER.debug("Додано новий ASN: {}:\n{}\n", asn, block);
                         }
                     } else {
                         if (aggressorAsnResources.containsKey(asn)) {
