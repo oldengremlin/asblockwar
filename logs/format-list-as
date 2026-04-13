@@ -1,0 +1,118 @@
+#!/bin/sh
+
+CURDIR=$( pwd )
+cd /home/olden/NetBeansProjects/AS-BLOCK-WAR/AS-BLOCK-WAR/
+
+NAME=list.txt
+LIST_CUSTOM=list.custom
+NAME_MNTBY=list.mnt-by
+TMPNAME=/tmp/${NAME}.$$
+CUSTOM_MNTBY=format-list-as.mnt-by
+AS12593_CACHE=../../AS12593-BLOCK
+
+echo "=== Get and save information from whois." 2>/dev/stderr
+
+CPNAME=$( echo list.$(date --iso-8601=seconds).txt )
+#cp ${NAME} list.$(date --iso-8601=seconds).txt
+cp ${NAME} ${CPNAME}
+cp /dev/null ${NAME}
+cp /dev/null ${NAME_MNTBY}
+
+echo "=== Checking the primary block list." 2>/dev/stderr
+for AS in $( cat list.as ); do
+    echo AS${AS} >/dev/stderr;
+
+#    ASINFO="/home/olden/bin/WhoisLiteLocal.sh -ran AS${AS}"
+    ASINFO="/home/olden/bin/WhoisLiteLocal.sh -ro AS${AS}"
+    FILE="${AS12593_CACHE}/AS/${AS}.txt"
+    if [ -r ${FILE} ]; then
+        egrep -q "^organisation:" ${FILE} && ASINFO="cat ${FILE}"
+    fi
+
+    ${ASINFO} | \
+        egrep -qi "^(org-name:.*(Kaspersky|Qrator)|country:.*ru|address:.*(moscow|russia)|abuse-mailbox: .*\\.ru\$)" && echo ${AS} >> ${NAME}
+##        sed '/^organisation:/,/^$/!d;/^$/,$d' | \
+
+done
+
+echo "=== Blocking by as-set and mnt-by." 2>/dev/stderr
+(
+    for ASSET in AS-MAILRU AS-VKONTAKTE AS-VK AS-YANDEX AS-MAILRU AS-M100 AS-VK AS-VKONTAKTE; do
+        echo ${ASSET} >/dev/stderr
+        ASINFO="/home/olden/bin/WhoisLiteLocal.sh -ras ${ASSET}"
+        FILE="${AS12593_CACHE}/MNT-SET-AS/${ASSET}.txt"
+        if [ -r ${FILE} ]; then
+            egrep -q "^members:" ${FILE} && ASINFO="cat ${FILE}"
+        fi
+        ${ASINFO} | awk '$1~/^members:/ && $2~/^[Aa][Ss][0-9]+/ { print $2 }' | sed "s/:.*$//" | tee -a ${NAME_MNTBY}
+    done
+
+#---    for ASSET in $( grep "accept AS-" ~/NetBeansProjects/AS12593-BLOCK/AS/* | sed "s/^.* accept \(AS-[^ ]*\).*/\1/" | tr -d \; | sort -u ); do #"
+#---        if [ -r ~/NetBeansProjects/AS12593-BLOCK/AS-SET/${ASSET}.txt ]; then
+#---            echo ${ASSET} >/dev/stderr
+#---#            egrep -qi "^(org-name:.*(Kaspersky|Qrator)|country:.*ru|address:.*(mos[ck]ow|russia)|phone:[^0-9]*+7|abuse-mailbox: .*\\.ru\$)" ~/NetBeansProjects/AS12593-BLOCK/AS-SET/${ASSET}.txt && \
+#---            egrep -qi "^(org-name:.*(Kaspersky|Qrator)|country:.*ru|address:.*(mos[ck]ow|russia)|abuse-mailbox: .*\\.ru\$)" ~/NetBeansProjects/AS12593-BLOCK/AS-SET/${ASSET}.txt && \
+#---                awk '$1~/^members:/ && $2~/^[Aa][Ss][0-9]+$/ { print $2 }' ~/NetBeansProjects/AS12593-BLOCK/AS-SET/${ASSET}.txt
+#---        fi
+#---    done
+
+#    for MNTBY in YANDEX-MNT KL-MNT MNT-QRATOR-LIR MNT-NETBRIDGE VKONTAKTE-NET-MNT VKCOMPANY-MNT MNT-M100 RU1C-MNT $( cat ${CUSTOM_MNTBY} ); do
+    for MNTBY in $( cat ${CUSTOM_MNTBY} ); do
+        echo ${MNTBY} >/dev/stderr
+        ASINFO="/home/olden/bin/WhoisLiteLocal.sh -rmb ${MNTBY}"
+        FILE="${AS12593_CACHE}/MNT-SET-AS/${MNTBY}.txt"
+        if [ -r ${FILE} ]; then
+            egrep -q "^aut-num:" ${FILE} && ASINFO="cat ${FILE}"
+        fi
+        ${ASINFO} | awk '$1~/^aut-num:/ { print $2 }' | tee -a ${NAME_MNTBY}
+    done
+
+) | awk '/^[As][Ss][0-9]+/' | sed "s/^[Aa][Ss]//" | sort -nu >> ${NAME}
+
+sed "s/^[Aa][Ss]//;s/[^0-9]//g" ${NAME_MNTBY} | sort -nu > ${NAME_MNTBY}~
+mv ${NAME_MNTBY}~ ${NAME_MNTBY}
+
+echo "=== Removal from the list of non-Russian resources." 2>/dev/stderr
+cat ${NAME_MNTBY} >> ${NAME}
+sort -nu ${NAME} > ${NAME}~
+mv ${NAME}~ ${NAME}
+
+cp /dev/null ${NAME}~
+for AS in $( cat ${NAME} | sort -nu ); do
+    echo AS${AS} > /dev/stderr
+    ASINFO="/home/olden/bin/WhoisLiteLocal.sh -ro AS${AS}"
+    FILE="${AS12593_CACHE}/AS/${AS}.txt"
+    if [ -r ${FILE} ]; then
+        egrep -q "^organisation:" ${FILE} && ASINFO="cat ${FILE}"
+    fi
+    ${ASINFO} | \
+        egrep -qi "^(org-name:.*(Kaspersky|Qrator)|country:.*ru|address:.*(mos[ck]ow|russia)|abuse-mailbox: .*\\.ru\$)" && echo ${AS} >> ${NAME}~
+##        sed '/^organisation:/,/^$/!d;/^$/,$d' | \
+done
+mv ${NAME}~ ${NAME}
+
+echo "=== We add to the list user resources for blocking." 2>/dev/stderr
+awk '/^[0-9]/ { print $1 }' ${LIST_CUSTOM} | sort -nu  > ${LIST_CUSTOM}~
+cat ${LIST_CUSTOM}~ >> ${NAME}
+rm ${LIST_CUSTOM}~
+
+echo "=== We are forming the final version of the blocking list." 2>/dev/stderr
+sort -nu ${NAME} > ${NAME}~
+mv ${NAME}~ ${NAME}
+
+echo "=== Get and save information from whois." 2>/dev/stderr
+
+git add *
+git commit -m "$( date --rfc-email )"
+git push
+
+diff -u ${CPNAME} list.txt
+echo
+for AS in $( diff -u ${CPNAME} list.txt | awk '$1~/^-[1-9]/ { print $1 }' | sed "s/^\-//" ); do
+    echo AS${AS}
+    echo "--------"
+    /home/olden/bin/WhoisLiteLocal.sh -ran AS${AS}
+    echo "========"
+done
+
+cd ${CURDIR}

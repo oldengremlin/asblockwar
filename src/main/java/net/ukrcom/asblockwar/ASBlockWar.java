@@ -56,7 +56,7 @@ public class ASBlockWar {
     // MULTILINE (?m) дозволяє ^ та $ працювати з кожним рядком у багаторядковому значенні
     // $ зовні групи — всі альтернативи прив'язані до кінця рядка
     // .* після ключових слів — дозволяє довільний текст після збігу в тому ж рядку
-    public static String AGGRESSOR_PATTERN = "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|address:.*(moscow|russia).*|abuse-mailbox:.*\\.ru)$";
+    public static String AGGRESSOR_PATTERN = "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
     // Скомпільований патерн для використання з find() — без (?s), щоб .* не перетинав рядки
     public static final Pattern AGGRESSOR_COMPILED = Pattern.compile(AGGRESSOR_PATTERN);
 
