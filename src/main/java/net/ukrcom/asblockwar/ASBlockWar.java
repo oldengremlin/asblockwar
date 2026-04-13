@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -54,6 +55,8 @@ public class ASBlockWar {
     // (?i) робить пошук регістронезалежним
     // MULTILINE (?m) дозволяє ^ та $ працювати з кожним рядком у багаторядковому значенні
     public static String AGGRESSOR_PATTERN = "(?im)^(org-name:.*(Kaspersky|Qrator)|country:.*ru|address:.*(moscow|russia)|abuse-mailbox:.*\\.ru$)";
+    // Скомпільований патерн для використання з find() — без (?s), щоб .* не перетинав рядки
+    public static final Pattern AGGRESSOR_COMPILED = Pattern.compile(AGGRESSOR_PATTERN);
 
     private static final String[] blockedAsSet = {
         "AS-MAILRU",
@@ -205,7 +208,7 @@ public class ASBlockWar {
     private static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
-                    if (entry.getValue().matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
+                    if (AGGRESSOR_COMPILED.matcher(entry.getValue()).find()) {
                         return true;
                     }
                     resourcesForVerification.put(
@@ -238,7 +241,7 @@ public class ASBlockWar {
                 try {
                     dbLimit.acquire();
                     String block = new retrieveOrganisation(asn).get();
-                    if (block.matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
+                    if (AGGRESSOR_COMPILED.matcher(block).find()) {
                         if (aggressorAsnResources.containsKey(asn)) {
                             if (!block.equals(aggressorAsnResources.get(asn))) {
                                 resourcesForVerification.put(
