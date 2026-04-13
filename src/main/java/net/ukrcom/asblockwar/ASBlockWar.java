@@ -238,23 +238,35 @@ public class ASBlockWar {
                 try {
                     dbLimit.acquire();
                     String block = new retrieveOrganisation(asn).get();
-                    if (aggressorAsnResources.containsKey(asn)) {
-                        if (!block.equals(aggressorAsnResources.get(asn))) {
+                    if (block.matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
+                        if (aggressorAsnResources.containsKey(asn)) {
+                            if (!block.equals(aggressorAsnResources.get(asn))) {
+                                resourcesForVerification.put(
+                                        asn,
+                                        new ASN(Action.modify, asn, block)
+                                );
+                                aggressorAsnResources.put(asn, block);
+                                LOGGER.debug("Змінено ASN: {}", asn);
+                            }
+                        } else {
                             resourcesForVerification.put(
                                     asn,
-                                    new ASN(Action.modify, asn, block)
+                                    new ASN(Action.add, asn, block)
                             );
-                            LOGGER.debug("Змінено ASN: {}", asn);
+                            aggressorAsnResources.put(asn, block);
+                            LOGGER.debug("Додано новий ASN: {}", asn);
                         }
-                    } else if (block.matches("(?s).*" + AGGRESSOR_PATTERN + ".*")) {
-                        resourcesForVerification.put(
-                                asn,
-                                new ASN(Action.add, asn, block)
-                        );
-                        aggressorAsnResources.put(asn, block);
-                        LOGGER.debug("Додано новий ASN: {}", asn);
                     } else {
-                        LOGGER.debug("Знайдено новий ASN: {}", asn);
+                        if (aggressorAsnResources.containsKey(asn)) {
+                            resourcesForVerification.put(
+                                    asn,
+                                    new ASN(Action.remove, asn, aggressorAsnResources.get(asn))
+                            );
+                            aggressorAsnResources.remove(asn);
+                            LOGGER.debug("Видалено ASN: {}", asn);
+                        } else {
+                            LOGGER.debug("Знайдено ASN: {}", asn);
+                        }
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
