@@ -61,13 +61,13 @@ public class retrieveMntBy {
 
     private void loadMntBy() {
         try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT value FROM rpsl_mntby WHERE key IN (\"aut-num\", \"as-set\") AND mntby = ?"
+                "SELECT key FROM rpsl_mntby WHERE mntby IN (\"aut-num\", \"as-set\") AND value = ?"
         );) {
 
             selectStmt.setString(1, this.mntBy);
             ResultSet rs = selectStmt.executeQuery();
             while (rs.next()) {
-                getMntByBlock(rs.getString("value"));
+                getMntByBlock(rs.getString("key"));
                 this.sb.append("\n");
             }
 
