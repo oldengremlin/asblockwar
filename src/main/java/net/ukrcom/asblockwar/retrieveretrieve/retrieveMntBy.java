@@ -61,13 +61,13 @@ public class retrieveMntBy {
 
     private void loadMntBy() {
         try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT key FROM rpsl_mntby WHERE mntby IN (\"aut-num\", \"as-set\") AND value = ?"
+                "SELECT value FROM rpsl_mntby WHERE key IN (\"aut-num\", \"as-set\") AND mntby = ?"
         );) {
 
             selectStmt.setString(1, this.mntBy);
             ResultSet rs = selectStmt.executeQuery();
             while (rs.next()) {
-                getMntByBlock(rs.getString("key"));
+                getMntByBlock(rs.getString("value"));
                 this.sb.append("\n");
             }
 
@@ -76,12 +76,12 @@ public class retrieveMntBy {
         }
     }
 
-    private void getMntByBlock(String mntByKey) {
+    private void getMntByBlock(String mntByValue) {
         try (PreparedStatement selectStmt = this.conn.prepareStatement(
                 "SELECT block FROM rpsl WHERE key IN (\"aut-num\", \"as-set\") AND value=?"
         );) {
 
-            selectStmt.setString(1, mntByKey);
+            selectStmt.setString(1, mntByValue);
             ResultSet rs = selectStmt.executeQuery();
             while (rs.next()) {
                 this.sb.append(rs.getString("block"));
