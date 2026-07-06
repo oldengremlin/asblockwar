@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntBy;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveImportExportAsSets;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
@@ -96,6 +99,7 @@ public class ASBlockWar {
                             filterAggressorAsnResources(aggressorAsnResources)
                     )
             );
+            discoverCooperatingAsnResources(aggressorAsnResources);
             storeAggressorAsnResources(aggressorAsnResources);
             report(aggressorAsnResources);
 
@@ -282,6 +286,54 @@ public class ASBlockWar {
         }
 
         return aggressorAsnResources;
+    }
+
+    private static void discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
+        int depth = Math.max(config.getRecursiveAsset(), 0);
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+
+            aggressorAsnResources.keySet().parallelStream()
+                    .forEach(asn -> executor.submit(() -> {
+                try {
+                    Set<String> asSets;
+                    dbLimit.acquire();
+                    try {
+                        asSets = new retrieveImportExportAsSets(asn).get();
+                    } finally {
+                        dbLimit.release();
+                    }
+
+                    for (String asSet : asSets) {
+                        Set<String> memberAsns;
+                        dbLimit.acquire();
+                        try {
+                            memberAsns = new retrieveAsSetMembers(asSet, depth).get();
+                        } finally {
+                            dbLimit.release();
+                        }
+
+                        for (String memberAsn : memberAsns) {
+                            if (aggressorAsnResources.containsKey(memberAsn)) {
+                                continue;
+                            }
+                            dbLimit.acquire();
+                            try {
+                                String block = new retrieveOrganisation(memberAsn).get();
+                                if (AGGRESSOR_COMPILED.matcher(block).find()) {
+                                    LOGGER.debug("discoverCooperating: {} -> {} -> {}", asn, asSet, memberAsn);
+                                }
+                            } finally {
+                                dbLimit.release();
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+        }
     }
 
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {

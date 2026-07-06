@@ -34,6 +34,8 @@ public class Config {
     private final String listFile;
     private final String listMntbyFile;
     private final String whoisLiteLocalURI;
+    // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
+    private int recursiveAsset = -1;
 
     public Config(String[] args) throws IOException {
         this.properties = new Properties();
@@ -54,6 +56,15 @@ public class Config {
         for (String arg : this.args) {
             if (arg.startsWith("--config=")) {
                 this.configPath = arg.substring("--config=".length()).trim();
+            } else if (arg.equals("--recursive-asset")) {
+                this.recursiveAsset = 1;
+            } else if (arg.startsWith("--recursive-asset=")) {
+                String val = arg.substring("--recursive-asset=".length()).trim();
+                try {
+                    this.recursiveAsset = Integer.parseInt(val);
+                } catch (NumberFormatException e) {
+                    this.recursiveAsset = 1;
+                }
             }
         }
     }
@@ -89,5 +100,9 @@ public class Config {
 
     public String getWhoisLiteLocalURI() {
         return this.whoisLiteLocalURI;
+    }
+
+    public int getRecursiveAsset() {
+        return this.recursiveAsset;
     }
 }
