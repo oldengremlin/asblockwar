@@ -20,6 +20,10 @@
 
 ## Збірка
 
+Є два варіанти збірки.
+
+### Варіант 1: fat-JAR (`mvn clean package`)
+
 ```bash
 mvn clean package
 ```
@@ -30,9 +34,33 @@ mvn clean package
 target/ASBlockWar-1.0.0-<buildNumber>.jar
 ```
 
+Запуск потребує встановленої JRE 21+ на цільовій машині:
+
+```bash
+java -jar target/ASBlockWar-1.0.0-00000001.jar [параметри]
+```
+
+### Варіант 2: native app image (`mvn clean verify`)
+
+```bash
+mvn clean verify
+```
+
+Окрім fat-JAR, збирається автономний образ застосунку (через jpackage-maven-plugin, тип `APP_IMAGE`) — директорія зі збудованим JRE та власним лаунчером:
+
+```
+target/ASBlockWar/
+```
+
+Запуск не потребує встановленої JRE:
+
+```bash
+target/ASBlockWar/bin/ASBlockWar [параметри]
+```
+
 > Якщо Maven не може завантажити залежності через проблеми з IPv6:
 > ```bash
-> MAVEN_OPTS="-Djava.net.preferIPv4Stack=true" mvn clean package
+> MAVEN_OPTS="-Djava.net.preferIPv4Stack=true" mvn clean verify
 > ```
 
 ---
