@@ -35,11 +35,31 @@ target/ASBlockWar-1.0.0-<buildNumber>.jar
 > MAVEN_OPTS="-Djava.net.preferIPv4Stack=true" mvn clean package
 > ```
 
+Альтернативно, для нативного застосунку (jpackage, фаза `verify`):
+
+```bash
+mvn clean verify
+```
+
+Збирається APP_IMAGE (через jpackage-maven-plugin) на основі fat-JAR-у:
+
+```
+target/ASBlockWar/
+```
+
 ---
 
 ## Конфігурація
 
-Перед збіркою створіть файл `src/main/resources/asblockwar.properties` на основі зразка нижче. Він вбудовується у JAR при `mvn package` і завантажується з classpath.
+Конфігураційний файл не є обов'язковим. Якщо він не заданий і не вбудований у JAR, використовуються значення за замовчуванням для всіх властивостей:
+
+```properties
+ListFile=list.txt
+ListMntbyFile=list.mnt-by.txt
+WhoisLiteLocalURI=jdbc:sqlite:whoislitelocal.db
+```
+
+За потреби перед збіркою можна створити файл `src/main/resources/asblockwar.properties` на основі зразка нижче — він вбудовується у JAR при `mvn package` і завантажується з classpath.
 
 ```properties
 # Шлях до файлу зі списком ASN (по одному числу на рядок)
