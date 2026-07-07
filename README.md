@@ -63,18 +63,6 @@ target/ASBlockWar/bin/ASBlockWar [параметри]
 > MAVEN_OPTS="-Djava.net.preferIPv4Stack=true" mvn clean verify
 > ```
 
-Альтернативно, для нативного застосунку (jpackage, фаза `verify`):
-
-```bash
-mvn clean verify
-```
-
-Збирається APP_IMAGE (через jpackage-maven-plugin) на основі fat-JAR-у:
-
-```
-target/ASBlockWar/
-```
-
 ---
 
 ## Конфігурація
