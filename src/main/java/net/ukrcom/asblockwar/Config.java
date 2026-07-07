@@ -79,11 +79,11 @@ public class Config {
                 throw new IOException("Не можу завантажити конфігураційний файл: " + this.configPath, e);
             }
         } else {
-            // Load from default resource
+            // Load from default resource, якщо він є; інакше — значення за замовчуванням для всіх властивостей
             try (InputStream input = getClass().getClassLoader().getResourceAsStream("asblockwar.properties")) {
                 if (input == null) {
-                    LOGGER.warn("Конфігураційний файл за-замовчуванням asblockwar.properties не доступний.");
-                    throw new IOException("Конфігураційний файл за-замовчуванням asblockwar.properties не доступний.");
+                    LOGGER.info("Конфігураційний файл asblockwar.properties не знайдено, використовуються значення за замовчуванням.");
+                    return;
                 }
                 this.properties.load(input);
             }
