@@ -139,35 +139,49 @@ java -jar target/ASBlockWar-1.0.0-00000001.jar [параметри]
 
 ## Алгоритм роботи
 
+```mermaid
+flowchart TD
+    Start([Старт])
+
+    Start --> M1
+    Start --> M2
+
+    M1["[1] makeAggressorAsnResources\nlist.txt → RPSL з DB для кожного ASN\nvirtual threads + semaphore"]
+    M2["[2] makeAggressorAssetAndMntbyResources\nlist.mnt-by.txt + blockedAsSet\nas-set / mnt-by → RPSL блоки"]
+
+    M1 --> F1["[3] filterAggressorAsnResources ①\nASN без ознак агресора → вилучити\n→ resourcesForVerification Action.remove"]
+
+    F1 --> MR
+    M2 --> MR
+
+    MR["[4] makeAggressorResources\nASN з mntby-блоків → AGGRESSOR_PATTERN\nadd / modify / remove"]
+
+    MR --> F2["[5] filterAggressorAsnResources ②\nфінальна фільтрація"]
+
+    F2 --> DC["[6] discoverCooperatingAsnResources\nimport/export → AS-SET → members\nворожі → add до списку + зібрати mnt-by:"]
+
+    DC --> ST["[7] storeAggressorAsnResources\nbackup list.txt → list.TIMESTAMP.txt\nзапис відсортованого списку ASN"]
+
+    ST --> RP["[8] report\nтаблиця: Вилучено / Додано / Модифіковано"]
+
+    RP --> End([Кінець])
+
+    classDef input   fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef filter  fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    classDef process fill:#dcfce7,stroke:#22c55e,color:#14532d
+    classDef output  fill:#f3e8ff,stroke:#a855f7,color:#581c87
+
+    class M1,M2 input
+    class F1,F2 filter
+    class MR,DC process
+    class ST,RP output
 ```
-list.txt ───────────────────────────────────────────────► [1] makeAggressorAsnResources
-                                                                  │ RPSL з DB по кожному ASN
-list.mnt-by.txt ──► [2] makeAggressorAssetAndMntbyResources       │
-blockedAsSet ────►       (as-set + mnt-by → RPSL блоки)           │
-                              │                                   ▼
-                              └─────────────────────────► [3] filterAggressorAsnResources (1й прохід)
-                                                                  │ вилучаємо ASN без ознак агресора
-                                                                  ▼
-                                                          [4] makeAggressorResources
-                                                                  │ з mntby-блоків витягаємо aut-num/members:
-                                                                  │ перевіряємо новознайдені ASN на патерн
-                                                                  │ add / modify / remove
-                                                                  ▼
-                                                          [5] filterAggressorAsnResources (2й прохід)
-                                                                  │
-                                                                  ▼
-                                                          [6] discoverCooperatingAsnResources
-                                                                  │ для кожного ворожого ASN:
-                                                                  │   import/export → AS-SET-и
-                                                                  │   members AS-SET → ASN
-                                                                  │   перевірка → DEBUG-лог
-                                                                  ▼
-                                                          [7] storeAggressorAsnResources
-                                                                  │ backup list.txt → list.TIMESTAMP.txt
-                                                                  │ запис оновленого list.txt
-                                                                  ▼
-                                                          [8] report (зміни у вигляді таблиці)
-```
+
+**Легенда:**
+🔵 синій — вхідні дані (M1, M2) &nbsp;
+🟡 жовтий — фільтри (F1, F2) &nbsp;
+🟢 зелений — обробка (MR, DC) &nbsp;
+🟣 фіолетовий — вивід (ST, RP)
 
 ### Патерн агресора
 
