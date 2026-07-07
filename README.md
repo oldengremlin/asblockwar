@@ -104,12 +104,12 @@ java -jar target/ASBlockWar-1.0.0-00000001.jar [параметри]
 ## Алгоритм роботи
 
 ```
-list.txt ──────────────────────────────────────────────────────► [1] makeAggressorAsnResources
-                                                                        │ RPSL з DB по кожному ASN
-list.mnt-by.txt ──► [2] makeAggressorAssetAndMntbyResources             │
-blockedAsSet ────►       (as-set + mnt-by → RPSL блоки)                │
-                              │                                          ▼
-                              └──────────────────────────► [3] filterAggressorAsnResources (1й прохід)
+list.txt ───────────────────────────────────────────────► [1] makeAggressorAsnResources
+                                                                  │ RPSL з DB по кожному ASN
+list.mnt-by.txt ──► [2] makeAggressorAssetAndMntbyResources       │
+blockedAsSet ────►       (as-set + mnt-by → RPSL блоки)           │
+                              │                                   ▼
+                              └─────────────────────────► [3] filterAggressorAsnResources (1й прохід)
                                                                   │ вилучаємо ASN без ознак агресора
                                                                   ▼
                                                           [4] makeAggressorResources
