@@ -99,7 +99,8 @@ public class ASBlockWar {
                             filterAggressorAsnResources(aggressorAsnResources)
                     )
             );
-            discoverCooperatingAsnResources(aggressorAsnResources);
+            Set<String> discoveredMntBy = discoverCooperatingAsnResources(aggressorAsnResources);
+            LOGGER.debug("discoverCooperatingAsnResources: зібрано mnt-by: {}", discoveredMntBy);
             storeAggressorAsnResources(aggressorAsnResources);
             report(aggressorAsnResources);
 
@@ -288,8 +289,9 @@ public class ASBlockWar {
         return aggressorAsnResources;
     }
 
-    private static void discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
+    private static Set<String> discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
         int depth = Math.max(config.getRecursiveAsset(), 0);
+        Set<String> discoveredMntBy = ConcurrentHashMap.newKeySet();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
@@ -323,6 +325,13 @@ public class ASBlockWar {
                                 String block = new retrieveOrganisation(memberAsn).get();
                                 if (AGGRESSOR_COMPILED.matcher(block).find()) {
                                     LOGGER.debug("discoverCooperating: {} -> {} -> {}", asn, asSet, memberAsn);
+                                    resourcesForVerification.put(memberAsn, new ASN(Action.add, memberAsn, block));
+                                    aggressorAsnResources.put(memberAsn, block);
+                                    block.lines()
+                                            .filter(l -> l.matches("(?i)^mnt-by:.*"))
+                                            .map(l -> l.replaceFirst("(?i)^mnt-by:\\s*", "").trim())
+                                            .filter(v -> !v.isEmpty())
+                                            .forEach(v -> discoveredMntBy.add(v.toUpperCase()));
                                 }
                             } finally {
                                 dbLimit.release();
@@ -334,6 +343,8 @@ public class ASBlockWar {
                 }
             }));
         }
+
+        return discoveredMntBy;
     }
 
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
