@@ -150,6 +150,7 @@ public class ASBlockWar {
                 appendNewEnemiesToListFile(newEnemies.keySet());
                 LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
                         newEnemies.size(), newEnemies.keySet());
+                storeWarResources(aggressorAsnResources);
             }
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));

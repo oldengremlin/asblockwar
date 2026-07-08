@@ -26,19 +26,27 @@ import java.util.List;
 /**
  * Повертає список origin-ASN для заданого prefix (route/route6).
  *
- * Навмисно не містить EXISTS-фільтра по таблиці rpsl — нам потрібно знайти
- * всіх можливих власників мережі, навіть якщо їхній RPSL-блок відсутній
- * (orphan-записи). Використовується для перевірки маршрутів перед видаленням
- * з таблиці blackbgp.
+ * Містить EXISTS-фільтр по таблиці rpsl — повертаємо лише ті origins,
+ * для яких існує актуальний RPSL-блок. Orphan-записи з rpsl_origin (без
+ * відповідного блоку в rpsl) ігноруються: маршрут, у якого немає живого
+ * блоку, є застарілим і має бути видалений з blackbgp незалежно від того,
+ * чи є orphan-посилання на ворожий AS.
+ *
+ * Це забезпечує симетрію з retrieveRouteOriginPrefixes, який будує
+ * targetPrefixes з тим самим EXISTS-фільтром.
  *
  * @author olden
  */
 public class retrieveRouteOrigins {
 
     private static final String SQL =
-            "SELECT DISTINCT origin FROM rpsl_origin"
-            + " WHERE route=?"
-            + " ORDER BY origin";
+            "SELECT DISTINCT o.origin FROM rpsl_origin o"
+            + " WHERE o.route=?"
+            + " AND EXISTS ("
+            + "   SELECT 1 FROM rpsl r"
+            + "   WHERE r.key IN ('route','route6') AND r.value=o.route"
+            + " )"
+            + " ORDER BY o.origin";
 
     private final List<String> origins = new ArrayList<>();
 
