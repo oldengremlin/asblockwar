@@ -31,9 +31,14 @@ public class Config {
     private final Properties properties;
 
     private String configPath;
+    private String listFileOverride;
+    private String listMntbyFileOverride;
+    private String whoisLiteLocalURIOverride;
+    private String storeDirOverride;
     private final String listFile;
     private final String listMntbyFile;
     private final String whoisLiteLocalURI;
+    private final String storeDir;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -43,9 +48,18 @@ public class Config {
         this.parseArgs();
         this.loadProperties();
 
-        this.listFile = this.properties.getProperty("ListFile", "list.txt").trim();
-        this.listMntbyFile = this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
-        this.whoisLiteLocalURI = properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+        this.listFile = this.listFileOverride != null
+                ? this.listFileOverride
+                : this.properties.getProperty("ListFile", "list.txt").trim();
+        this.listMntbyFile = this.listMntbyFileOverride != null
+                ? this.listMntbyFileOverride
+                : this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
+        this.whoisLiteLocalURI = this.whoisLiteLocalURIOverride != null
+                ? this.whoisLiteLocalURIOverride
+                : this.properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+        this.storeDir = this.storeDirOverride != null
+                ? this.storeDirOverride
+                : this.properties.getProperty("StoreDir", "./STORE").trim();
 
     }
 
@@ -54,8 +68,19 @@ public class Config {
             return;
         }
         for (String arg : this.args) {
-            if (arg.startsWith("--config=")) {
+            if (arg.equals("--help") || arg.equals("-h")) {
+                printHelp();
+                System.exit(0);
+            } else if (arg.startsWith("--config=")) {
                 this.configPath = arg.substring("--config=".length()).trim();
+            } else if (arg.startsWith("--list-file=")) {
+                this.listFileOverride = arg.substring("--list-file=".length()).trim();
+            } else if (arg.startsWith("--list-mnt=")) {
+                this.listMntbyFileOverride = arg.substring("--list-mnt=".length()).trim();
+            } else if (arg.startsWith("--whois-uri=")) {
+                this.whoisLiteLocalURIOverride = arg.substring("--whois-uri=".length()).trim();
+            } else if (arg.startsWith("--store-dir=")) {
+                this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -67,6 +92,19 @@ public class Config {
                 }
             }
         }
+    }
+
+    private static void printHelp() {
+        System.out.println("Usage: ASBlockWar [options]");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  --config=<path>           Configuration file (overrides built-in asblockwar.properties)");
+        System.out.println("  --list-file=<path>        ASN list file                  (default: list.txt)");
+        System.out.println("  --list-mnt=<path>         mnt-by handles file            (default: list.mnt-by.txt)");
+        System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
+        System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
+        System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
+        System.out.println("  -h, --help                Show this help and exit");
     }
 
     private void loadProperties() throws IOException {
@@ -104,5 +142,9 @@ public class Config {
 
     public int getRecursiveAsset() {
         return this.recursiveAsset;
+    }
+
+    public String getStoreDir() {
+        return this.storeDir;
     }
 }

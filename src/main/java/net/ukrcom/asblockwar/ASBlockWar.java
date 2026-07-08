@@ -16,12 +16,16 @@
 package net.ukrcom.asblockwar;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -100,7 +104,7 @@ public class ASBlockWar {
                     )
             );
             Set<String> discoveredMntBy = discoverCooperatingAsnResources(aggressorAsnResources);
-            LOGGER.debug("discoverCooperatingAsnResources: зібрано mnt-by: {}", discoveredMntBy);
+            storeMntByResources(discoveredMntBy);
             storeAggressorAsnResources(aggressorAsnResources);
             report(aggressorAsnResources);
 
@@ -347,28 +351,85 @@ public class ASBlockWar {
         return discoveredMntBy;
     }
 
+    // Службові мантейнери RIPE, які присутні в будь-якому записі — не є ознакою належності до агресора
+    private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
+
+    private static void storeMntByResources(Set<String> discovered) throws IOException {
+        LOGGER.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
+
+        List<String> filtered = discovered.stream()
+                .filter(m -> !SERVICE_MNT.matcher(m).matches())
+                .sorted()
+                .toList();
+
+        LOGGER.debug("storeMntByResources: після фільтрації службових: {}", filtered);
+
+        if (filtered.isEmpty()) {
+            LOGGER.info("storeMntByResources: після фільтрації мантейнерів не залишилось");
+            return;
+        }
+
+        Path path = Path.of(listMntbyFile);
+        Path lockPath = path.resolveSibling(path.getFileName() + ".lock");
+
+        try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             FileLock fl = lc.lock()) {
+
+            Set<String> existing = new HashSet<>();
+            if (Files.exists(path)) {
+                Files.lines(path)
+                        .map(String::trim)
+                        .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
+                        .map(String::toUpperCase)
+                        .forEach(existing::add);
+            }
+
+            List<String> newEntries = filtered.stream()
+                    .filter(m -> !existing.contains(m.toUpperCase()))
+                    .toList();
+
+            newEntries.forEach(m -> LOGGER.debug("storeMntByResources: новий мантейнер: {}", m));
+
+            if (newEntries.isEmpty()) {
+                LOGGER.info("storeMntByResources: нових мантейнерів не знайдено");
+                return;
+            }
+
+            Files.writeString(path,
+                    String.join("\n", newEntries) + "\n",
+                    StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+
+            LOGGER.info("storeMntByResources: додано {} нових мантейнерів до {}", newEntries.size(), listMntbyFile);
+        }
+    }
+
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
         Path source = Path.of(listFile);
+        Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
-        // Резервна копія: list.txt → list.2026-04-12T13:29:06+03:00.txt
-        String filename = source.getFileName().toString();
-        int dotIdx = filename.lastIndexOf('.');
-        String timestamp = ZonedDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx"));
-        String backupFilename = dotIdx >= 0
-                ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
-                : filename + "." + timestamp;
-        Path backup = source.resolveSibling(backupFilename);
-        Files.move(source, backup);
-        LOGGER.info("Резервна копія: {}", backup);
+        try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             FileLock fl = lc.lock()) {
 
-        // Записуємо відсортований список (тільки числа, по одному на рядок)
-        String content = aggressorAsnResources.keySet().stream()
-                .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
-                .map(asn -> asn.substring(2))
-                .collect(Collectors.joining("\n", "", "\n"));
-        Files.writeString(source, content);
-        LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
+            // Резервна копія: list.txt → list.2026-04-12T13:29:06+03:00.txt
+            String filename = source.getFileName().toString();
+            int dotIdx = filename.lastIndexOf('.');
+            String timestamp = ZonedDateTime.now()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx"));
+            String backupFilename = dotIdx >= 0
+                    ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
+                    : filename + "." + timestamp;
+            Path backup = source.resolveSibling(backupFilename);
+            Files.move(source, backup);
+            LOGGER.info("Резервна копія: {}", backup);
+
+            // Записуємо відсортований список (тільки числа, по одному на рядок)
+            String content = aggressorAsnResources.keySet().stream()
+                    .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
+                    .map(asn -> asn.substring(2))
+                    .collect(Collectors.joining("\n", "", "\n"));
+            Files.writeString(source, content);
+            LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
+        }
     }
 
     private static void report(Map<String, String> aggressorAsnResources) {
