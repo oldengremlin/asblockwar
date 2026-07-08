@@ -63,6 +63,14 @@ public class AsnRegexBuilder {
         if (alts.size() == 1) {
             return alts.get(0);
         }
+        // Juniper rejects empty alternatives like (|x|y) — use (x|y)? instead
+        if (node.isEnd) {
+            List<String> childAlts = alts.subList(1, alts.size());
+            String suffix = childAlts.size() == 1
+                    ? childAlts.get(0)
+                    : "(" + String.join("|", childAlts) + ")";
+            return suffix + "?";
+        }
         return "(" + String.join("|", alts) + ")";
     }
 
