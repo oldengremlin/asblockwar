@@ -540,7 +540,14 @@ public class ASBlockWar {
                         .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
                         .map(asn -> asn.substring(2))
                         .collect(Collectors.joining("\n", "", "\n"));
-                Files.writeString(source, content);
+                Path tmp = source.resolveSibling(source.getFileName() + ".tmp");
+                Files.writeString(tmp, content);
+                try {
+                    Files.move(tmp, source, StandardCopyOption.ATOMIC_MOVE,
+                               StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(tmp, source, StandardCopyOption.REPLACE_EXISTING);
+                }
                 LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
             }
         } finally {
@@ -568,7 +575,7 @@ public class ASBlockWar {
         String war2 = "set policy-options as-path WAR2 \".* " + regex + "$\"";
 
         Path path = Path.of(config.getWarFile());
-        Files.writeString(path, war1 + "\n" + war2 + "\n");
+        writeStoreFile(path, war1 + "\n" + war2 + "\n");
 
         LOGGER.info("storeWarResources: WAR1+WAR2 записано у {} ({} ASN, {} → {} chars, -{} %)",
                 config.getWarFile(), aggressorAsnResources.size(),
@@ -666,7 +673,7 @@ public class ASBlockWar {
         ).collect(Collectors.joining("\n", "", "\n"));
 
         Path path = Path.of(config.getBlackbgpFile());
-        Files.writeString(path, content);
+        writeStoreFile(path, content);
 
         LOGGER.info("storeBlackbgpResources: {} delete + {} replace (current={}, target={}, newEnemies={}) → {}",
                 toDelete.size(), toReplace.size(),
@@ -788,15 +795,14 @@ public class ASBlockWar {
         writeStoreFile(base.resolve("networks.list"), networksList);
         LOGGER.info("storeNetworkFiles: networks.list записано ({} рядків)", sorted.size());
 
-        // 4. Записуємо STORE/NET/{addr.prefix}.txt — пряма запис без temp+move
+        // 4. Записуємо STORE/NET/{addr.prefix}.txt
         int count = 0;
         for (Map.Entry<String, List<String>> e : sorted) {
             String filename = e.getKey().replace('/', '.') + ".txt";
             String content = e.getValue().stream()
                     .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
                     .collect(Collectors.joining("\n", "", "\n"));
-            Files.writeString(dirNet.resolve(filename), content,
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            writeStoreFile(dirNet.resolve(filename), content);
             if (++count % 10000 == 0) {
                 LOGGER.info("storeNetworkFiles: NET/ {}/{}", count, sorted.size());
             }
@@ -894,12 +900,23 @@ public class ASBlockWar {
         if (content == null || content.isBlank()) {
             return;
         }
+        Path lockPath = file.resolveSibling(file.getFileName() + ".lock");
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tmp, content);
         try {
-            Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+            try (FileChannel lc = FileChannel.open(lockPath,
+                     StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                 FileLock fl = lc.lock()) {
+                Files.writeString(tmp, content);
+                try {
+                    Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE,
+                               StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(lockPath);
+            Files.deleteIfExists(tmp);
         }
     }
 
