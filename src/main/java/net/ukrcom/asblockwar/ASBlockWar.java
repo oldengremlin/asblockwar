@@ -50,6 +50,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveImportExportAsSets;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAutNumFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveAllRouteOrigins;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveBlackbgpPrefixes;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginPrefixes;
@@ -766,36 +767,28 @@ public class ASBlockWar {
         LOGGER.info("storeMaintainersList: записано {} мантейнерів до maintainers.list", allMntBy.size());
     }
 
-    private static void storeNetworkFiles(Set<String> currentPrefixes) throws IOException {
-        if (currentPrefixes.isEmpty()) {
-            LOGGER.info("storeNetworkFiles: currentPrefixes пустий, пропускаємо");
+    private static void storeNetworkFiles(Set<String> effectivePrefixes) throws IOException {
+        if (effectivePrefixes.isEmpty()) {
+            LOGGER.info("storeNetworkFiles: effectivePrefixes пустий, пропускаємо");
             return;
         }
         Path base = Path.of(config.getStoreDir());
         Path dirNet = base.resolve("NET");
         ensureStoreDir(dirNet);
 
-        // 1. Паралельно отримуємо origins для кожного prefix
-        Map<String, List<String>> originsByPrefix = new ConcurrentHashMap<>();
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
-            currentPrefixes.forEach(prefix -> executor.submit(() -> {
-                try {
-                    dbLimit.acquire();
-                    try {
-                        originsByPrefix.put(prefix, new retrieveRouteOrigins(prefix).get());
-                    } finally {
-                        dbLimit.release();
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }));
-        }
+        // 1. Один bulk-запит замість N індивідуальних з'єднань
+        LOGGER.info("storeNetworkFiles: читаємо origins з БД (bulk)...");
+        Map<String, List<String>> allOrigins = new retrieveAllRouteOrigins().get();
+        LOGGER.info("storeNetworkFiles: отримано origins для {} маршрутів з БД", allOrigins.size());
 
-        // 2. Записуємо STORE/networks.list (відсортовано за CIDR)
-        String networksList = originsByPrefix.entrySet().stream()
+        // 2. Відбираємо тільки ті префікси, що є в effectivePrefixes
+        List<Map.Entry<String, List<String>>> sorted = effectivePrefixes.stream()
+                .map(p -> Map.entry(p, allOrigins.getOrDefault(p, List.of())))
                 .sorted(Map.Entry.comparingByKey(CIDR_ORDER))
+                .toList();
+
+        // 3. Записуємо STORE/networks.list
+        String networksList = sorted.stream()
                 .map(e -> {
                     String asns = e.getValue().stream()
                             .map(String::toLowerCase)
@@ -804,23 +797,23 @@ public class ASBlockWar {
                 })
                 .collect(Collectors.joining("\n", "", "\n"));
         writeStoreFile(base.resolve("networks.list"), networksList);
+        LOGGER.info("storeNetworkFiles: networks.list записано ({} рядків)", sorted.size());
 
-        // 3. Паралельно записуємо STORE/NET/{addr.prefix}.txt
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            originsByPrefix.forEach((prefix, origins) -> executor.submit(() -> {
-                try {
-                    String filename = prefix.replace('/', '.') + ".txt";
-                    String content = origins.stream()
-                            .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
-                            .collect(Collectors.joining("\n", "", "\n"));
-                    writeStoreFile(dirNet.resolve(filename), content);
-                } catch (IOException e) {
-                    LOGGER.error("storeNetworkFiles: помилка запису для {}", prefix, e);
-                }
-            }));
+        // 4. Записуємо STORE/NET/{addr.prefix}.txt — пряма запис без temp+move
+        int count = 0;
+        for (Map.Entry<String, List<String>> e : sorted) {
+            String filename = e.getKey().replace('/', '.') + ".txt";
+            String content = e.getValue().stream()
+                    .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
+                    .collect(Collectors.joining("\n", "", "\n"));
+            Files.writeString(dirNet.resolve(filename), content,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            if (++count % 10000 == 0) {
+                LOGGER.info("storeNetworkFiles: NET/ {}/{}", count, sorted.size());
+            }
         }
 
-        LOGGER.info("storeNetworkFiles: {} мереж → networks.list + NET/", currentPrefixes.size());
+        LOGGER.info("storeNetworkFiles: завершено — {} файлів у NET/", count);
     }
 
     private static String blackbgpCmd(String verb, String prefix) {
