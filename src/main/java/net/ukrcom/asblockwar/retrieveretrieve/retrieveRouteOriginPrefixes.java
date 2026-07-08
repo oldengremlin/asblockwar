@@ -27,17 +27,29 @@ import java.util.List;
  * Повертає список prefix-рядків (route/route6) для заданого origin AS.
  * Легший аналог retrieveRouteOriginFull — без зайвого RPSL-тексту.
  *
+ * Тільки маршрути, для яких існує фактичний RPSL-блок у таблиці rpsl
+ * (ідентично поведінці retrieveRouteOriginFull — сирітські записи з
+ * rpsl_origin без відповідного блоку у rpsl не потрапляють у результат).
+ *
  * @author olden
  */
 public class retrieveRouteOriginPrefixes {
+
+    private static final String SQL =
+            "SELECT o.route FROM rpsl_origin o"
+            + " WHERE o.origin=?"
+            + " AND EXISTS ("
+            + "   SELECT 1 FROM rpsl r"
+            + "   WHERE r.key IN ('route','route6') AND r.value=o.route"
+            + " )"
+            + " ORDER BY o.route";
 
     private final List<String> prefixes = new ArrayList<>();
 
     public retrieveRouteOriginPrefixes(String origin) {
         try (Connection conn = DriverManager.getConnection(
                 net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI())) {
-            try (PreparedStatement stmt = conn.prepareStatement(
-                    "SELECT route FROM rpsl_origin WHERE origin=? ORDER BY route")) {
+            try (PreparedStatement stmt = conn.prepareStatement(SQL)) {
                 stmt.setString(1, origin);
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
