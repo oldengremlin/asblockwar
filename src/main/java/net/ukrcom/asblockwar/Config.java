@@ -60,33 +60,33 @@ public class Config {
         this.loadProperties();
 
         this.listFile = this.listFileOverride != null
-                ? this.listFileOverride
-                : this.properties.getProperty("ListFile", "list.txt").trim();
+                        ? this.listFileOverride
+                        : this.properties.getProperty("ListFile", "list.txt").trim();
         this.listMntbyFile = this.listMntbyFileOverride != null
-                ? this.listMntbyFileOverride
-                : this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
+                             ? this.listMntbyFileOverride
+                             : this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
         this.listAssetFile = this.listAssetFileOverride != null
-                ? this.listAssetFileOverride
-                : this.properties.getProperty("ListAssetFile", "list.as-set.txt").trim();
+                             ? this.listAssetFileOverride
+                             : this.properties.getProperty("ListAssetFile", "list.as-set.txt").trim();
         this.whoisLiteLocalURI = this.whoisLiteLocalURIOverride != null
-                ? this.whoisLiteLocalURIOverride
-                : this.properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+                                 ? this.whoisLiteLocalURIOverride
+                                 : this.properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
         this.storeDir = this.storeDirOverride != null
-                ? this.storeDirOverride
-                : this.properties.getProperty("StoreDir", "./STORE").trim();
+                        ? this.storeDirOverride
+                        : this.properties.getProperty("StoreDir", "./STORE").trim();
         this.warFile = this.warFileOverride != null
-                ? this.warFileOverride
-                : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
+                       ? this.warFileOverride
+                       : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
         this.blackbgpFile = this.blackbgpFileOverride != null
-                ? this.blackbgpFileOverride
-                : this.properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
+                            ? this.blackbgpFileOverride
+                            : this.properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
         this.getBlackhole = this.getBlackholeOverride != null
-                ? this.getBlackholeOverride
-                : this.properties.getProperty("GetBlackhole",
+                            ? this.getBlackholeOverride
+                            : this.properties.getProperty("GetBlackhole",
                         "ssh blackbgp \"sudo ip r l t blackbgp\"").trim();
         this.getBlackholeIpv6 = this.getBlackholeIpv6Override != null
-                ? this.getBlackholeIpv6Override
-                : this.properties.getProperty("GetBlackholeIpv6",
+                                ? this.getBlackholeIpv6Override
+                                : this.properties.getProperty("GetBlackholeIpv6",
                         "ssh blackbgp \"sudo ip -6 r l t blackbgp\"").trim();
     }
 

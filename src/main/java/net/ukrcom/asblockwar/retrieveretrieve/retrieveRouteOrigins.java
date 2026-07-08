@@ -39,8 +39,8 @@ import java.util.List;
  */
 public class retrieveRouteOrigins {
 
-    private static final String SQL =
-            "SELECT DISTINCT o.origin FROM rpsl_origin o"
+    private static final String SQL
+            = "SELECT DISTINCT o.origin FROM rpsl_origin o"
             + " WHERE o.route=?"
             + " AND EXISTS ("
             + "   SELECT 1 FROM rpsl r"

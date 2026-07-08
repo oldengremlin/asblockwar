@@ -89,8 +89,13 @@ public class ASBlockWar {
     // Створюємо мапу для вилучених елементів
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
 
-    private record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {}
-    private record BlackbgpResult(Map<String, String> newEnemies, Set<String> effectivePrefixes) {}
+    private record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {
+
+    }
+
+    private record BlackbgpResult(Map<String, String> newEnemies, Set<String> effectivePrefixes) {
+
+    }
 
     public static void main(String[] args) throws InterruptedException {
         try {
@@ -125,19 +130,30 @@ public class ASBlockWar {
             final var finalResources = aggressorAsnResources;
             BlackbgpResult bgpOutcome;
             try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
-                var warTask = exec.submit(() -> { storeWarResources(finalResources); return null; });
+                var warTask = exec.submit(() -> {
+                    storeWarResources(finalResources);
+                    return null;
+                });
                 var bgpTask = exec.submit(() -> storeBlackbgpResources(finalResources));
-                try { warTask.get(); }
-                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                catch (ExecutionException e) {
-                    if (e.getCause() instanceof IOException ioe) throw ioe;
+                try {
+                    warTask.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof IOException ioe) {
+                        throw ioe;
+                    }
                     throw new RuntimeException(e.getCause());
                 }
                 BlackbgpResult bgpResult = null;
-                try { bgpResult = bgpTask.get(); }
-                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                catch (ExecutionException e) {
-                    if (e.getCause() instanceof IOException ioe) throw ioe;
+                try {
+                    bgpResult = bgpTask.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof IOException ioe) {
+                        throw ioe;
+                    }
                     throw new RuntimeException(e.getCause());
                 }
                 bgpOutcome = bgpResult != null ? bgpResult : new BlackbgpResult(Map.of(), Set.of());
@@ -163,15 +179,31 @@ public class ASBlockWar {
                 final var fa = aggressorAsnResources;
                 final var fm = allMntBy;
                 final var fc = effectivePrefixes;
-                var detailsTask = exec.submit(() -> { storeDetails(fa, fm, allAsSets); return null; });
-                var asListTask  = exec.submit(() -> { storeAsList(fa); return null; });
-                var mntListTask = exec.submit(() -> { storeMaintainersList(fm); return null; });
-                var netTask     = exec.submit(() -> { storeNetworkFiles(fc); return null; });
+                var detailsTask = exec.submit(() -> {
+                    storeDetails(fa, fm, allAsSets);
+                    return null;
+                });
+                var asListTask = exec.submit(() -> {
+                    storeAsList(fa);
+                    return null;
+                });
+                var mntListTask = exec.submit(() -> {
+                    storeMaintainersList(fm);
+                    return null;
+                });
+                var netTask = exec.submit(() -> {
+                    storeNetworkFiles(fc);
+                    return null;
+                });
                 for (var task : List.of(detailsTask, asListTask, mntListTask, netTask)) {
-                    try { task.get(); }
-                    catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                    catch (ExecutionException e) {
-                        if (e.getCause() instanceof IOException ioe) throw ioe;
+                    try {
+                        task.get();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof IOException ioe) {
+                            throw ioe;
+                        }
                         throw new RuntimeException(e.getCause());
                     }
                 }
@@ -181,7 +213,7 @@ public class ASBlockWar {
 
         } catch (IOException ex) {
             LOGGER.error("Помилка вводу-виводу: ", ex);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             LOGGER.error("Непередбачена помилка: ", ex);
         }
 
@@ -539,8 +571,8 @@ public class ASBlockWar {
                 String timestamp = ZonedDateTime.now()
                         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx"));
                 String backupFilename = dotIdx >= 0
-                        ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
-                        : filename + "." + timestamp;
+                                        ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
+                                        : filename + "." + timestamp;
                 Path backup = source.resolveSibling(backupFilename);
                 Files.move(source, backup);
                 LOGGER.info("Резервна копія: {}", backup);
@@ -692,7 +724,9 @@ public class ASBlockWar {
     }
 
     private static String rpslField(String block, String key) {
-        if (block == null || block.isEmpty()) return "";
+        if (block == null || block.isEmpty()) {
+            return "";
+        }
         String prefix = key + ":";
         return block.lines()
                 .filter(l -> l.startsWith(prefix))
@@ -713,11 +747,11 @@ public class ASBlockWar {
                     String orgName = rpslField(block, "org-name");
                     String address = rpslField(block, "address");
                     String info = orgName.isEmpty() ? ""
-                            : address.isEmpty() ? orgName
-                            : orgName + ", " + address;
+                                  : address.isEmpty() ? orgName
+                                    : orgName + ", " + address;
                     return info.isEmpty()
-                            ? Long.toString(asn)
-                            : String.format("%-8d%s", asn, info);
+                           ? Long.toString(asn)
+                           : String.format("%-8d%s", asn, info);
                 })
                 .collect(Collectors.joining("\n", "", "\n"));
 
@@ -737,11 +771,11 @@ public class ASBlockWar {
                     dbLimit.acquire();
                     try {
                         String block = new retrieveMntnerFull(mnt).get();
-                        String role    = rpslField(block, "role");
+                        String role = rpslField(block, "role");
                         String address = rpslField(block, "address");
                         String info = role.isEmpty() ? ""
-                                : address.isEmpty() ? role
-                                : role + ", " + address;
+                                      : address.isEmpty() ? role
+                                        : role + ", " + address;
                         infoByMnt.put(mnt, info);
                     } finally {
                         dbLimit.release();
@@ -837,8 +871,11 @@ public class ASBlockWar {
 
     private static int cidrLen(String cidr) {
         int i = cidr.lastIndexOf('/');
-        try { return i >= 0 ? Integer.parseInt(cidr.substring(i + 1)) : 0; }
-        catch (NumberFormatException e) { return 0; }
+        try {
+            return i >= 0 ? Integer.parseInt(cidr.substring(i + 1)) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static String cidrAddr(String cidr) {
@@ -848,7 +885,9 @@ public class ASBlockWar {
 
     private static long ipv4ToLong(String addr) {
         String[] p = addr.split("\\.", -1);
-        if (p.length != 4) return 0;
+        if (p.length != 4) {
+            return 0;
+        }
         try {
             return (Long.parseLong(p[0]) << 24) | (Long.parseLong(p[1]) << 16)
                     | (Long.parseLong(p[2]) << 8) | Long.parseLong(p[3]);
@@ -865,8 +904,8 @@ public class ASBlockWar {
             return aV6 ? 1 : -1;
         }
         int addrCmp = aV6
-                ? cidrAddr(a).compareTo(cidrAddr(b))
-                : Long.compare(ipv4ToLong(cidrAddr(a)), ipv4ToLong(cidrAddr(b)));
+                      ? cidrAddr(a).compareTo(cidrAddr(b))
+                      : Long.compare(ipv4ToLong(cidrAddr(a)), ipv4ToLong(cidrAddr(b)));
         if (addrCmp != 0) {
             return addrCmp;
         }
@@ -889,7 +928,8 @@ public class ASBlockWar {
         Files.createDirectories(dir);
         try {
             Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwxr-x---"));
-        } catch (UnsupportedOperationException ignored) {}
+        } catch (UnsupportedOperationException ignored) {
+        }
     }
 
     private static void writeStoreFile(Path file, String content) throws IOException {

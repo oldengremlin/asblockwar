@@ -36,8 +36,8 @@ import java.util.Map;
  */
 public class retrieveAllRouteOrigins {
 
-    private static final String SQL =
-            "SELECT o.route, o.origin FROM rpsl_origin o"
+    private static final String SQL
+            = "SELECT o.route, o.origin FROM rpsl_origin o"
             + " WHERE EXISTS ("
             + "   SELECT 1 FROM rpsl r"
             + "   WHERE r.key IN ('route','route6') AND r.value=o.route"
@@ -53,7 +53,7 @@ public class retrieveAllRouteOrigins {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 origins.computeIfAbsent(rs.getString("route"), k -> new ArrayList<>())
-                       .add(rs.getString("origin").toUpperCase());
+                        .add(rs.getString("origin").toUpperCase());
             }
         } catch (SQLException ex) {
             net.ukrcom.asblockwar.ASBlockWar.LOGGER

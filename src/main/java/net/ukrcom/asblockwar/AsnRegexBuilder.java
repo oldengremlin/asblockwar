@@ -33,6 +33,7 @@ import java.util.TreeMap;
 public class AsnRegexBuilder {
 
     private static final class TrieNode {
+
         final TreeMap<Character, TrieNode> children = new TreeMap<>();
         boolean isEnd = false;
     }
@@ -67,10 +68,10 @@ public class AsnRegexBuilder {
         if (node.isEnd) {
             List<String> childAlts = alts.subList(1, alts.size());
             String suffix = allSingleChars(childAlts)
-                    ? "[" + String.join("", childAlts) + "]"
-                    : childAlts.size() == 1
-                            ? childAlts.get(0)
-                            : "(" + String.join("|", childAlts) + ")";
+                            ? "[" + String.join("", childAlts) + "]"
+                            : childAlts.size() == 1
+                              ? childAlts.get(0)
+                              : "(" + String.join("|", childAlts) + ")";
             return suffix + "?";
         }
         // Single-char alternatives collapse to a character class
@@ -86,6 +87,7 @@ public class AsnRegexBuilder {
 
     /**
      * Повертає повний trie-оптимізований regex для всіх доданих ASN.
+     * @return 
      */
     public String build() {
         return toRegex(root);

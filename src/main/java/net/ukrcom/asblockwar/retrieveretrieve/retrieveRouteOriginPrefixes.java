@@ -35,8 +35,8 @@ import java.util.List;
  */
 public class retrieveRouteOriginPrefixes {
 
-    private static final String SQL =
-            "SELECT o.route FROM rpsl_origin o"
+    private static final String SQL
+            = "SELECT o.route FROM rpsl_origin o"
             + " WHERE o.origin=?"
             + " AND EXISTS ("
             + "   SELECT 1 FROM rpsl r"
