@@ -124,7 +124,6 @@ public class ASBlockWar {
             Arrays.stream(blockedAsSet).forEach(allDiscoveredAsSets::add);
             storeListAsSet(allDiscoveredAsSets);
 
-            storeAggressorAsnResources(aggressorAsnResources);
             final var finalResources = aggressorAsnResources;
             BlackbgpResult bgpOutcome;
             try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -151,11 +150,13 @@ public class ASBlockWar {
 
             if (!newEnemies.isEmpty()) {
                 aggressorAsnResources.putAll(newEnemies);
-                appendNewEnemiesToListFile(newEnemies.keySet());
                 storeWarResources(aggressorAsnResources);
                 LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
                         newEnemies.size(), newEnemies.keySet());
             }
+
+            // Записуємо остаточний список AS (з урахуванням нових ворогів)
+            storeAggressorAsnResources(aggressorAsnResources);
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
             Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
@@ -820,39 +821,6 @@ public class ASBlockWar {
         }
 
         LOGGER.info("storeNetworkFiles: {} мереж → networks.list + NET/", currentPrefixes.size());
-    }
-
-    private static void appendNewEnemiesToListFile(Set<String> asns) throws IOException {
-        if (asns.isEmpty()) return;
-        Path source = Path.of(listFile);
-        Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
-        try {
-            try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                 FileLock fl = lc.lock()) {
-
-                Set<String> existing = new HashSet<>();
-                if (Files.exists(source)) {
-                    Files.lines(source)
-                            .filter(l -> l.matches("^[1-9]\\d*$"))
-                            .map(l -> "AS" + l)
-                            .forEach(existing::add);
-                }
-
-                String toAppend = asns.stream()
-                        .filter(asn -> !existing.contains(asn))
-                        .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
-                        .map(asn -> asn.substring(2))
-                        .collect(Collectors.joining("\n", "", "\n"));
-
-                if (!toAppend.isBlank()) {
-                    Files.writeString(source, toAppend, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
-                    LOGGER.info("appendNewEnemiesToListFile: додано {} нових ASN до {}",
-                            asns.stream().filter(a -> !existing.contains(a)).count(), listFile);
-                }
-            }
-        } finally {
-            Files.deleteIfExists(lockPath);
-        }
     }
 
     private static String blackbgpCmd(String verb, String prefix) {
