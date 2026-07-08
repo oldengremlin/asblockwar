@@ -34,6 +34,7 @@ public class Config {
     private final String listFile;
     private final String listMntbyFile;
     private final String whoisLiteLocalURI;
+    private final String storeDir;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -46,6 +47,7 @@ public class Config {
         this.listFile = this.properties.getProperty("ListFile", "list.txt").trim();
         this.listMntbyFile = this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
         this.whoisLiteLocalURI = properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+        this.storeDir = this.properties.getProperty("StoreDir", "./STORE").trim();
 
     }
 
@@ -104,5 +106,9 @@ public class Config {
 
     public int getRecursiveAsset() {
         return this.recursiveAsset;
+    }
+
+    public String getStoreDir() {
+        return this.storeDir;
     }
 }
