@@ -26,6 +26,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -120,6 +121,7 @@ public class ASBlockWar {
             storeListAsSet(allDiscoveredAsSets);
 
             storeAggressorAsnResources(aggressorAsnResources);
+            storeWarResources(aggressorAsnResources);
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
             Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
@@ -504,6 +506,35 @@ public class ASBlockWar {
         } finally {
             Files.deleteIfExists(lockPath);
         }
+    }
+
+    private static void storeWarResources(Map<String, String> aggressorAsnResources) throws IOException {
+        AsnRegexBuilder builder = new AsnRegexBuilder();
+        aggressorAsnResources.keySet().stream()
+                .mapToLong(asn -> Long.parseLong(asn.substring(2)))
+                .sorted()
+                .forEach(builder::add);
+
+        int maxLen = config.getWarMaxLen();
+        List<String> wars = builder.buildWars(maxLen);
+
+        int rawLen = aggressorAsnResources.keySet().stream()
+                .mapToInt(asn -> asn.length() - 2)
+                .sum() + Math.max(0, aggressorAsnResources.size() - 1);
+        int optLen = wars.stream().mapToInt(String::length).sum()
+                + Math.max(0, wars.size() - 1);
+
+        List<String> lines = new ArrayList<>(wars.size());
+        for (int i = 0; i < wars.size(); i++) {
+            lines.add("set policy-options as-path WAR" + (i + 1) + " \"_ " + wars.get(i) + " _\"");
+        }
+
+        Path path = Path.of(config.getWarFile());
+        Files.writeString(path, String.join("\n", lines) + "\n");
+
+        LOGGER.info("storeWarResources: {} WAR(s) записано у {} ({} ASN, {} → {} chars, -{} %)",
+                wars.size(), config.getWarFile(), aggressorAsnResources.size(),
+                rawLen, optLen, rawLen > 0 ? (rawLen - optLen) * 100 / rawLen : 0);
     }
 
     private static Set<String> readFileEntries(Path path) throws IOException {
