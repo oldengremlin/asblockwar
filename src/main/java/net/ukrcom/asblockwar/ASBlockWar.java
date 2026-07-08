@@ -50,6 +50,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveImportExportAsSets;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAutNumFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveBlackbgpPrefixes;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginPrefixes;
 import net.ukrcom.asblockwar.serviceStructures.Action;
@@ -549,34 +550,23 @@ public class ASBlockWar {
     }
 
     private static void storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
-        Set<String> deletePrefixes = ConcurrentHashMap.newKeySet();
-        Set<String> replacePrefixes = ConcurrentHashMap.newKeySet();
+        boolean ipv6 = config.isBlackbgpIpv6();
 
+        // 1. Поточний стан таблиці blackbgp (через SSH)
+        Set<String> currentPrefixes = new retrieveBlackbgpPrefixes(ipv6).get();
+        LOGGER.info("storeBlackbgpResources: поточних маршрутів у blackbgp: {}", currentPrefixes.size());
+
+        // 2. Цільовий набір prefixes з БД (тільки IPv4 якщо не передано -6)
+        Set<String> targetPrefixes = ConcurrentHashMap.newKeySet();
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
-
-            // Routes for removed ASNs → ip r d
-            resourcesForVerification.values().stream()
-                    .filter(asn -> asn.action() == Action.remove)
-                    .forEach(asn -> executor.submit(() -> {
-                try {
-                    dbLimit.acquire();
-                    try {
-                        deletePrefixes.addAll(new retrieveRouteOriginPrefixes(asn.asn()).get());
-                    } finally {
-                        dbLimit.release();
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }));
-
-            // Routes for current active ASNs → ip r r
             aggressorAsnResources.keySet().forEach(asn -> executor.submit(() -> {
                 try {
                     dbLimit.acquire();
                     try {
-                        replacePrefixes.addAll(new retrieveRouteOriginPrefixes(asn).get());
+                        new retrieveRouteOriginPrefixes(asn).get().stream()
+                                .filter(p -> ipv6 || !p.contains(":"))
+                                .forEach(targetPrefixes::add);
                     } finally {
                         dbLimit.release();
                     }
@@ -586,16 +576,25 @@ public class ASBlockWar {
             }));
         }
 
+        // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні
+        Set<String> toDelete = new HashSet<>(currentPrefixes);
+        toDelete.removeAll(targetPrefixes);
+
+        Set<String> toReplace = new HashSet<>(targetPrefixes);
+        toReplace.removeAll(currentPrefixes);
+
+        // 4. Записуємо лише зміни
         String content = Stream.concat(
-                deletePrefixes.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
-                replacePrefixes.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("r", p))
+                toDelete.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
+                toReplace.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("r", p))
         ).collect(Collectors.joining("\n", "", "\n"));
 
         Path path = Path.of(config.getBlackbgpFile());
         Files.writeString(path, content);
 
-        LOGGER.info("storeBlackbgpResources: {} delete + {} replace prefixes → {}",
-                deletePrefixes.size(), replacePrefixes.size(), config.getBlackbgpFile());
+        LOGGER.info("storeBlackbgpResources: {} delete + {} replace (current={}, target={}) → {}",
+                toDelete.size(), toReplace.size(),
+                currentPrefixes.size(), targetPrefixes.size(), config.getBlackbgpFile());
     }
 
     private static String blackbgpCmd(String verb, String prefix) {

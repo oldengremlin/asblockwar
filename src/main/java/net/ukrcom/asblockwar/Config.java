@@ -38,6 +38,8 @@ public class Config {
     private String storeDirOverride;
     private String warFileOverride;
     private String blackbgpFileOverride;
+    private String getBlackholeOverride;
+    private String getBlackholeIpv6Override;
     private final String listFile;
     private final String listMntbyFile;
     private final String listAssetFile;
@@ -45,6 +47,9 @@ public class Config {
     private final String storeDir;
     private final String warFile;
     private final String blackbgpFile;
+    private final String getBlackhole;
+    private final String getBlackholeIpv6;
+    private boolean blackbgpIpv6 = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -69,15 +74,20 @@ public class Config {
         this.storeDir = this.storeDirOverride != null
                 ? this.storeDirOverride
                 : this.properties.getProperty("StoreDir", "./STORE").trim();
-
         this.warFile = this.warFileOverride != null
                 ? this.warFileOverride
                 : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
-
         this.blackbgpFile = this.blackbgpFileOverride != null
                 ? this.blackbgpFileOverride
                 : this.properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
-
+        this.getBlackhole = this.getBlackholeOverride != null
+                ? this.getBlackholeOverride
+                : this.properties.getProperty("GetBlackhole",
+                        "ssh blackbgp \"sudo ip r l t blackbgp\"").trim();
+        this.getBlackholeIpv6 = this.getBlackholeIpv6Override != null
+                ? this.getBlackholeIpv6Override
+                : this.properties.getProperty("GetBlackholeIpv6",
+                        "ssh blackbgp \"sudo ip -6 r l t blackbgp\"").trim();
     }
 
     private void parseArgs() {
@@ -104,6 +114,12 @@ public class Config {
                 this.warFileOverride = arg.substring("--war-file=".length()).trim();
             } else if (arg.startsWith("--blackbgp-file=")) {
                 this.blackbgpFileOverride = arg.substring("--blackbgp-file=".length()).trim();
+            } else if (arg.startsWith("--get-blackhole=")) {
+                this.getBlackholeOverride = arg.substring("--get-blackhole=".length()).trim();
+            } else if (arg.startsWith("--get-blackhole6=")) {
+                this.getBlackholeIpv6Override = arg.substring("--get-blackhole6=".length()).trim();
+            } else if (arg.equals("--ipv6") || arg.equals("-6")) {
+                this.blackbgpIpv6 = true;
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -129,6 +145,11 @@ public class Config {
         System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
         System.out.println("  --war-file=<path>         Juniper WAR output file        (default: war.juniper.txt)");
         System.out.println("  --blackbgp-file=<path>    Blackbgp commands output file  (default: war.blackbgp.txt)");
+        System.out.println("  --get-blackhole=<cmd>     Command to read IPv4 blackbgp routes");
+        System.out.println("                            (default: ssh blackbgp \"sudo ip r l t blackbgp\")");
+        System.out.println("  --get-blackhole6=<cmd>    Command to read IPv6 blackbgp routes");
+        System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
+        System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -h, --help                Show this help and exit");
     }
@@ -184,5 +205,17 @@ public class Config {
 
     public String getBlackbgpFile() {
         return this.blackbgpFile;
+    }
+
+    public String getGetBlackhole() {
+        return this.getBlackhole;
+    }
+
+    public String getGetBlackholeIpv6() {
+        return this.getBlackholeIpv6;
+    }
+
+    public boolean isBlackbgpIpv6() {
+        return this.blackbgpIpv6;
     }
 }
