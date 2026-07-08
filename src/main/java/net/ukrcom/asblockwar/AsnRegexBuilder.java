@@ -66,12 +66,22 @@ public class AsnRegexBuilder {
         // Juniper rejects empty alternatives like (|x|y) — use (x|y)? instead
         if (node.isEnd) {
             List<String> childAlts = alts.subList(1, alts.size());
-            String suffix = childAlts.size() == 1
-                    ? childAlts.get(0)
-                    : "(" + String.join("|", childAlts) + ")";
+            String suffix = allSingleChars(childAlts)
+                    ? "[" + String.join("", childAlts) + "]"
+                    : childAlts.size() == 1
+                            ? childAlts.get(0)
+                            : "(" + String.join("|", childAlts) + ")";
             return suffix + "?";
         }
+        // Single-char alternatives collapse to a character class
+        if (allSingleChars(alts)) {
+            return "[" + String.join("", alts) + "]";
+        }
         return "(" + String.join("|", alts) + ")";
+    }
+
+    private static boolean allSingleChars(List<String> alts) {
+        return alts.stream().allMatch(s -> s.length() == 1);
     }
 
     /**
