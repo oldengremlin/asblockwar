@@ -269,17 +269,26 @@ public class ASBlockWar {
             // 2. Семафор — наш "контролер трафіку" для SQLite
             Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
 
-            Stream.of(blockedAsSet).parallel()
+            Set<String> fileAsSets;
+            try {
+                fileAsSets = readFileEntries(Path.of(config.getListAssetFile()));
+            } catch (IOException e) {
+                LOGGER.error("Помилка читання {}", config.getListAssetFile(), e);
+                fileAsSets = Set.of();
+            }
+
+            Stream.concat(Arrays.stream(blockedAsSet), fileAsSets.stream())
+                    .distinct()
                     .forEach(asSet -> executor.submit(() -> {
                 try {
-                    // Чекаємо дозволу на вхід до БД
                     dbLimit.acquire();
                     String result = new retrieveAsSet(asSet).get();
-                    aggressorMntbyResources.put(asSet, result);
+                    if (!result.isBlank()) {
+                        aggressorMntbyResources.put(asSet, result);
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } finally {
-                    // Обов'язково звільняємо місце для наступного потоку
                     dbLimit.release();
                 }
             }));
@@ -463,98 +472,45 @@ public class ASBlockWar {
     private static void storeMntByResources(Set<String> discovered) throws IOException {
         LOGGER.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
 
-        List<String> filtered = discovered.stream()
+        Path path = Path.of(listMntbyFile);
+        Set<String> existing = readFileEntries(path);
+
+        List<String> merged = Stream.concat(existing.stream(), discovered.stream())
+                .map(String::toUpperCase)
                 .filter(m -> !SERVICE_MNT.matcher(m).matches())
+                .distinct()
                 .sorted()
                 .toList();
 
-        LOGGER.debug("storeMntByResources: після фільтрації службових: {}", filtered);
-
-        if (filtered.isEmpty()) {
-            LOGGER.info("storeMntByResources: після фільтрації мантейнерів не залишилось");
+        if (merged.isEmpty()) {
+            LOGGER.info("storeMntByResources: список мантейнерів порожній");
             return;
         }
 
-        Path path = Path.of(listMntbyFile);
-        Path lockPath = path.resolveSibling(path.getFileName() + ".lock");
-
-        try {
-            try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                 FileLock fl = lc.lock()) {
-
-                Set<String> existing = new HashSet<>();
-                if (Files.exists(path)) {
-                    Files.lines(path)
-                            .map(String::trim)
-                            .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
-                            .map(String::toUpperCase)
-                            .forEach(existing::add);
-                }
-
-                List<String> newEntries = filtered.stream()
-                        .filter(m -> !existing.contains(m.toUpperCase()))
-                        .toList();
-
-                newEntries.forEach(m -> LOGGER.debug("storeMntByResources: новий мантейнер: {}", m));
-
-                if (newEntries.isEmpty()) {
-                    LOGGER.info("storeMntByResources: нових мантейнерів не знайдено");
-                    return;
-                }
-
-                Files.writeString(path,
-                        String.join("\n", newEntries) + "\n",
-                        StandardOpenOption.APPEND, StandardOpenOption.CREATE);
-
-                LOGGER.info("storeMntByResources: додано {} нових мантейнерів до {}", newEntries.size(), listMntbyFile);
-            }
-        } finally {
-            Files.deleteIfExists(lockPath);
-        }
+        writeStoreFile(path, String.join("\n", merged) + "\n");
+        LOGGER.info("storeMntByResources: записано {} мантейнерів до {}", merged.size(), listMntbyFile);
     }
 
     private static void storeListAsSet(Set<String> discovered) throws IOException {
         LOGGER.debug("storeListAsSet: знайдено AS-SET: {}", discovered);
 
-        List<String> sorted = discovered.stream().sorted().toList();
-
         String listAssetFile = config.getListAssetFile();
         Path path = Path.of(listAssetFile);
-        Path lockPath = path.resolveSibling(path.getFileName() + ".lock");
+        Set<String> existing = readFileEntries(path);
 
-        try {
-            try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                 FileLock fl = lc.lock()) {
+        List<String> merged = Stream.concat(existing.stream(), discovered.stream())
+                .map(String::toUpperCase)
+                .distinct()
+                .sorted()
+                .toList();
 
-                Set<String> existing = new HashSet<>();
-                if (Files.exists(path)) {
-                    Files.lines(path)
-                            .map(String::trim)
-                            .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
-                            .map(String::toUpperCase)
-                            .forEach(existing::add);
-                }
-
-                List<String> newEntries = sorted.stream()
-                        .filter(s -> !existing.contains(s.toUpperCase()))
-                        .toList();
-
-                newEntries.forEach(s -> LOGGER.debug("storeListAsSet: новий AS-SET: {}", s));
-
-                if (newEntries.isEmpty()) {
-                    LOGGER.info("storeListAsSet: нових AS-SET не знайдено");
-                    return;
-                }
-
-                Files.writeString(path,
-                        String.join("\n", newEntries) + "\n",
-                        StandardOpenOption.APPEND, StandardOpenOption.CREATE);
-
-                LOGGER.info("storeListAsSet: додано {} нових AS-SET до {}", newEntries.size(), listAssetFile);
-            }
-        } finally {
-            Files.deleteIfExists(lockPath);
+        if (merged.isEmpty()) {
+            LOGGER.info("storeListAsSet: список AS-SET порожній");
+            return;
         }
+
+        writeStoreFile(path, String.join("\n", merged) + "\n");
+        LOGGER.info("storeListAsSet: записано {} AS-SET до {}", merged.size(), listAssetFile);
     }
 
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
