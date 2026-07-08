@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -121,8 +122,19 @@ public class ASBlockWar {
             storeListAsSet(allDiscoveredAsSets);
 
             storeAggressorAsnResources(aggressorAsnResources);
-            storeWarResources(aggressorAsnResources);
-            storeBlackbgpResources(aggressorAsnResources);
+            final var finalResources = aggressorAsnResources;
+            try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
+                var warTask = exec.submit(() -> { storeWarResources(finalResources); return null; });
+                var bgpTask = exec.submit(() -> { storeBlackbgpResources(finalResources); return null; });
+                for (var task : List.of(warTask, bgpTask)) {
+                    try { task.get(); }
+                    catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                    catch (ExecutionException e) {
+                        if (e.getCause() instanceof IOException ioe) throw ioe;
+                        throw new RuntimeException(e.getCause());
+                    }
+                }
+            }
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
             Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
