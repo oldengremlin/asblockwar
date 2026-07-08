@@ -92,6 +92,7 @@ public class ASBlockWar {
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
 
     private record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {}
+    private record BlackbgpResult(Map<String, String> newEnemies, Set<String> currentPrefixes) {}
 
     public static void main(String[] args) throws InterruptedException {
         try {
@@ -125,7 +126,7 @@ public class ASBlockWar {
 
             storeAggressorAsnResources(aggressorAsnResources);
             final var finalResources = aggressorAsnResources;
-            Map<String, String> newEnemies;
+            BlackbgpResult bgpOutcome;
             try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
                 var warTask = exec.submit(() -> { storeWarResources(finalResources); return null; });
                 var bgpTask = exec.submit(() -> storeBlackbgpResources(finalResources));
@@ -135,27 +136,47 @@ public class ASBlockWar {
                     if (e.getCause() instanceof IOException ioe) throw ioe;
                     throw new RuntimeException(e.getCause());
                 }
-                Map<String, String> bgpResult = null;
+                BlackbgpResult bgpResult = null;
                 try { bgpResult = bgpTask.get(); }
                 catch (InterruptedException e) { Thread.currentThread().interrupt(); }
                 catch (ExecutionException e) {
                     if (e.getCause() instanceof IOException ioe) throw ioe;
                     throw new RuntimeException(e.getCause());
                 }
-                newEnemies = bgpResult != null ? bgpResult : Map.of();
+                bgpOutcome = bgpResult != null ? bgpResult : new BlackbgpResult(Map.of(), Set.of());
             }
+
+            Map<String, String> newEnemies = bgpOutcome.newEnemies();
+            Set<String> currentPrefixes = bgpOutcome.currentPrefixes();
 
             if (!newEnemies.isEmpty()) {
                 aggressorAsnResources.putAll(newEnemies);
                 appendNewEnemiesToListFile(newEnemies.keySet());
+                storeWarResources(aggressorAsnResources);
                 LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
                         newEnemies.size(), newEnemies.keySet());
-                storeWarResources(aggressorAsnResources);
             }
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
             Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
-            storeDetails(aggressorAsnResources, allMntBy, allAsSets);
+
+            try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
+                final var fa = aggressorAsnResources;
+                final var fm = allMntBy;
+                final var fc = currentPrefixes;
+                var detailsTask = exec.submit(() -> { storeDetails(fa, fm, allAsSets); return null; });
+                var asListTask  = exec.submit(() -> { storeAsList(fa); return null; });
+                var mntListTask = exec.submit(() -> { storeMaintainersList(fm); return null; });
+                var netTask     = exec.submit(() -> { storeNetworkFiles(fc); return null; });
+                for (var task : List.of(detailsTask, asListTask, mntListTask, netTask)) {
+                    try { task.get(); }
+                    catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                    catch (ExecutionException e) {
+                        if (e.getCause() instanceof IOException ioe) throw ioe;
+                        throw new RuntimeException(e.getCause());
+                    }
+                }
+            }
 
             report(aggressorAsnResources);
 
@@ -565,7 +586,7 @@ public class ASBlockWar {
                 rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
 
-    private static Map<String, String> storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
+    private static BlackbgpResult storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
         boolean ipv6 = config.isBlackbgpIpv6();
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
@@ -662,7 +683,137 @@ public class ASBlockWar {
                 toDelete.size(), toReplace.size(),
                 currentPrefixes.size(), targetPrefixes.size(), newEnemies.size(), config.getBlackbgpFile());
 
-        return newEnemies;
+        return new BlackbgpResult(newEnemies, currentPrefixes);
+    }
+
+    private static String rpslField(String block, String key) {
+        if (block == null || block.isEmpty()) return "";
+        String prefix = key + ":";
+        return block.lines()
+                .filter(l -> l.startsWith(prefix))
+                .map(l -> l.substring(prefix.length()).trim())
+                .findFirst()
+                .orElse("");
+    }
+
+    private static void storeAsList(Map<String, String> aggressorAsnResources) throws IOException {
+        Path base = Path.of(config.getStoreDir());
+        ensureStoreDir(base);
+
+        String content = aggressorAsnResources.entrySet().stream()
+                .sorted(Comparator.comparingLong(e -> Long.parseLong(e.getKey().substring(2))))
+                .map(e -> {
+                    long asn = Long.parseLong(e.getKey().substring(2));
+                    String block = e.getValue();
+                    String orgName = rpslField(block, "org-name");
+                    String address = rpslField(block, "address");
+                    String info = orgName.isEmpty() ? ""
+                            : address.isEmpty() ? orgName
+                            : orgName + ", " + address;
+                    return info.isEmpty()
+                            ? Long.toString(asn)
+                            : String.format("%-8d%s", asn, info);
+                })
+                .collect(Collectors.joining("\n", "", "\n"));
+
+        writeStoreFile(base.resolve("AS.list"), content);
+        LOGGER.info("storeAsList: записано {} AS до AS.list", aggressorAsnResources.size());
+    }
+
+    private static void storeMaintainersList(Set<String> allMntBy) throws IOException {
+        Path base = Path.of(config.getStoreDir());
+        ensureStoreDir(base);
+
+        Map<String, String> infoByMnt = new ConcurrentHashMap<>();
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+            allMntBy.forEach(mnt -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        String block = new retrieveMntnerFull(mnt).get();
+                        String role    = rpslField(block, "role");
+                        String address = rpslField(block, "address");
+                        String info = role.isEmpty() ? ""
+                                : address.isEmpty() ? role
+                                : role + ", " + address;
+                        infoByMnt.put(mnt, info);
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+        }
+
+        String content = allMntBy.stream()
+                .sorted()
+                .map(mnt -> {
+                    String info = infoByMnt.getOrDefault(mnt, "");
+                    return info.isEmpty() ? mnt : String.format("%-36s%s", mnt, info);
+                })
+                .collect(Collectors.joining("\n", "", "\n"));
+
+        writeStoreFile(base.resolve("maintainers.list"), content);
+        LOGGER.info("storeMaintainersList: записано {} мантейнерів до maintainers.list", allMntBy.size());
+    }
+
+    private static void storeNetworkFiles(Set<String> currentPrefixes) throws IOException {
+        if (currentPrefixes.isEmpty()) {
+            LOGGER.info("storeNetworkFiles: currentPrefixes пустий, пропускаємо");
+            return;
+        }
+        Path base = Path.of(config.getStoreDir());
+        Path dirNet = base.resolve("NET");
+        ensureStoreDir(dirNet);
+
+        // 1. Паралельно отримуємо origins для кожного prefix
+        Map<String, List<String>> originsByPrefix = new ConcurrentHashMap<>();
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+            currentPrefixes.forEach(prefix -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        originsByPrefix.put(prefix, new retrieveRouteOrigins(prefix).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+        }
+
+        // 2. Записуємо STORE/networks.list (відсортовано за CIDR)
+        String networksList = originsByPrefix.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(CIDR_ORDER))
+                .map(e -> {
+                    String asns = e.getValue().stream()
+                            .map(String::toLowerCase)
+                            .collect(Collectors.joining(", "));
+                    return String.format("%-19s%s", e.getKey(), asns);
+                })
+                .collect(Collectors.joining("\n", "", "\n"));
+        writeStoreFile(base.resolve("networks.list"), networksList);
+
+        // 3. Паралельно записуємо STORE/NET/{addr.prefix}.txt
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            originsByPrefix.forEach((prefix, origins) -> executor.submit(() -> {
+                try {
+                    String filename = prefix.replace('/', '.') + ".txt";
+                    String content = origins.stream()
+                            .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
+                            .collect(Collectors.joining("\n", "", "\n"));
+                    writeStoreFile(dirNet.resolve(filename), content);
+                } catch (IOException e) {
+                    LOGGER.error("storeNetworkFiles: помилка запису для {}", prefix, e);
+                }
+            }));
+        }
+
+        LOGGER.info("storeNetworkFiles: {} мереж → networks.list + NET/", currentPrefixes.size());
     }
 
     private static void appendNewEnemiesToListFile(Set<String> asns) throws IOException {
