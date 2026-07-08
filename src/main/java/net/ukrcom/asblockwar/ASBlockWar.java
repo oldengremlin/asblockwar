@@ -500,6 +500,8 @@ public class ASBlockWar {
 
         List<String> merged = Stream.concat(existing.stream(), discovered.stream())
                 .map(String::toUpperCase)
+                .map(s -> s.endsWith(";") ? s.substring(0, s.length() - 1) : s)
+                .filter(s -> !s.isEmpty())
                 .distinct()
                 .sorted()
                 .toList();
