@@ -18,10 +18,12 @@ package net.ukrcom.asblockwar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -100,7 +102,7 @@ public class ASBlockWar {
                     )
             );
             Set<String> discoveredMntBy = discoverCooperatingAsnResources(aggressorAsnResources);
-            LOGGER.debug("discoverCooperatingAsnResources: зібрано mnt-by: {}", discoveredMntBy);
+            storeMntByResources(discoveredMntBy);
             storeAggressorAsnResources(aggressorAsnResources);
             report(aggressorAsnResources);
 
@@ -345,6 +347,53 @@ public class ASBlockWar {
         }
 
         return discoveredMntBy;
+    }
+
+    // Службові мантейнери RIPE, які присутні в будь-якому записі — не є ознакою належності до агресора
+    private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
+
+    private static void storeMntByResources(Set<String> discovered) throws IOException {
+        LOGGER.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
+
+        List<String> filtered = discovered.stream()
+                .filter(m -> !SERVICE_MNT.matcher(m).matches())
+                .sorted()
+                .toList();
+
+        LOGGER.debug("storeMntByResources: після фільтрації службових: {}", filtered);
+
+        if (filtered.isEmpty()) {
+            LOGGER.info("storeMntByResources: після фільтрації мантейнерів не залишилось");
+            return;
+        }
+
+        // Читаємо наявний файл, щоб уникнути дублів
+        Path path = Path.of(listMntbyFile);
+        Set<String> existing = new HashSet<>();
+        if (Files.exists(path)) {
+            Files.lines(path)
+                    .map(String::trim)
+                    .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
+                    .map(String::toUpperCase)
+                    .forEach(existing::add);
+        }
+
+        List<String> newEntries = filtered.stream()
+                .filter(m -> !existing.contains(m.toUpperCase()))
+                .toList();
+
+        newEntries.forEach(m -> LOGGER.debug("storeMntByResources: новий мантейнер: {}", m));
+
+        if (newEntries.isEmpty()) {
+            LOGGER.info("storeMntByResources: нових мантейнерів не знайдено");
+            return;
+        }
+
+        Files.writeString(path,
+                String.join("\n", newEntries) + "\n",
+                StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+
+        LOGGER.info("storeMntByResources: додано {} нових мантейнерів до {}", newEntries.size(), listMntbyFile);
     }
 
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
