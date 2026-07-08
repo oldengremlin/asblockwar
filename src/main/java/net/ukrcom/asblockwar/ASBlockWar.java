@@ -120,6 +120,7 @@ public class ASBlockWar {
             storeListAsSet(allDiscoveredAsSets);
 
             storeAggressorAsnResources(aggressorAsnResources);
+            storeWarResources(aggressorAsnResources);
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
             Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
@@ -504,6 +505,33 @@ public class ASBlockWar {
         } finally {
             Files.deleteIfExists(lockPath);
         }
+    }
+
+    private static void storeWarResources(Map<String, String> aggressorAsnResources) throws IOException {
+        AsnRegexBuilder builder = new AsnRegexBuilder();
+        aggressorAsnResources.keySet().stream()
+                .mapToLong(asn -> Long.parseLong(asn.substring(2)))
+                .sorted()
+                .forEach(builder::add);
+
+        String regex = builder.build();
+
+        int rawLen = aggressorAsnResources.keySet().stream()
+                .mapToInt(asn -> asn.length() - 2)
+                .sum() + Math.max(0, aggressorAsnResources.size() - 1);
+
+        // WAR1 і WAR2 містять однаковий regex, лише обрамлення різне:
+        //   WAR1  ".* REGEX .*"  — AS зустрічається в середині шляху
+        //   WAR2  ".* REGEX$"   — AS знаходиться в кінці шляху (origin AS)
+        String war1 = "set policy-options as-path WAR1 \".* " + regex + " .*\"";
+        String war2 = "set policy-options as-path WAR2 \".* " + regex + "$\"";
+
+        Path path = Path.of(config.getWarFile());
+        Files.writeString(path, war1 + "\n" + war2 + "\n");
+
+        LOGGER.info("storeWarResources: WAR1+WAR2 записано у {} ({} ASN, {} → {} chars, -{} %)",
+                config.getWarFile(), aggressorAsnResources.size(),
+                rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
 
     private static Set<String> readFileEntries(Path path) throws IOException {

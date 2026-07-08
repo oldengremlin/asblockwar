@@ -75,6 +75,7 @@ ListMntbyFile=list.mnt-by.txt
 ListAssetFile=list.as-set.txt
 WhoisLiteLocalURI=jdbc:sqlite:whoislitelocal.db
 StoreDir=./STORE
+WarFile=war.juniper.txt
 ```
 
 За потреби перед збіркою можна створити файл `src/main/resources/asblockwar.properties` на основі зразка нижче — він вбудовується у JAR при `mvn package` і завантажується з classpath.
@@ -94,6 +95,9 @@ WhoisLiteLocalURI=jdbc:sqlite:/path/to/whoislitelocal.db
 
 # Директорія для зберігання RPSL-деталей (aut-num, mntner, routes, as-set)
 StoreDir=./STORE
+
+# Шлях до файлу Juniper WAR-конфігурації (виходить з storeWarResources)
+WarFile=war.juniper.txt
 ```
 
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
@@ -145,6 +149,7 @@ java -jar target/ASBlockWar-1.0.0-00000001.jar [параметри]
 | `--list-asset=<шлях>` | Файл зі списком AS-SET-ів (за замовчуванням: `list.as-set.txt`) |
 | `--whois-uri=<uri>` | JDBC URI до бази whois-lite-local (за замовчуванням: `jdbc:sqlite:whoislitelocal.db`) |
 | `--store-dir=<шлях>` | Директорія для STORE-файлів (за замовчуванням: `./STORE`) |
+| `--war-file=<шлях>` | Вихідний файл Juniper WAR (за замовчуванням: `war.juniper.txt`) |
 | `--recursive-asset` | Рекурсивно заходити у вкладені AS-SET-и (глибина 1) |
 | `--recursive-asset=N` | Рекурсія до глибини N |
 | `-h`, `--help` | Вивести довідку та вийти |
@@ -178,9 +183,11 @@ flowchart TD
 
     SM --> ST["[8] storeAggressorAsnResources\nbackup list.txt → list.TIMESTAMP.txt\nзапис відсортованого списку ASN"]
 
-    ST --> SD["[9] storeDetails\nSTORE/AS, STORE/MNT, STORE/MNT-SET-AS\nSTORE/AS-SET, STORE/AS-NET\nпаралельний запис, атомарний rename"]
+    ST --> WR["[9] storeWarResources\ntrie-оптимізований regex\nset policy-options as-path WAR1/WAR2/..."]
 
-    SD --> RP["[10] report\nтаблиця: Вилучено / Додано / Модифіковано"]
+    WR --> SD["[10] storeDetails\nSTORE/AS, STORE/MNT, STORE/MNT-SET-AS\nSTORE/AS-SET, STORE/AS-NET\nпаралельний запис, атомарний rename"]
+
+    SD --> RP["[11] report\nтаблиця: Вилучено / Додано / Модифіковано"]
 
     RP --> End([Кінець])
 
@@ -192,7 +199,7 @@ flowchart TD
     class M1,M2 input
     class F1,F2 filter
     class MR,DC process
-    class SM,ST,SD,RP output
+    class SM,ST,WR,SD,RP output
 ```
 
 **Легенда:**
@@ -275,6 +282,30 @@ STORE/
 | `STORE/MNT-SET-AS/` | `-rmb {mnt}` | aut-num/as-set під мантейнером |
 | `STORE/AS-SET/` | `-ras {asset}` | as-set |
 | `STORE/AS-NET/` | `-rro {as}` | route/route6 |
+
+### `war.juniper.txt` — Juniper as-path конфігурація
+
+Після завершення генерується файл з командами Juniper для фільтрації за AS-шляхом.
+Regex оптимізовано через trie-стиснення — спільні числові префікси факторизуються:
+
+```
+set policy-options as-path WAR1 ".* 1(2389|3414|...) .*"
+set policy-options as-path WAR2 ".* 1(2389|3414|...)$"
+```
+
+WAR1 і WAR2 містять **однаковий** оптимізований regex, але з різним обрамленням:
+
+| Запис | Патерн | Значення |
+|---|---|---|
+| WAR1 | `.* REGEX .*` | AS зустрічається в середині AS-шляху |
+| WAR2 | `.* REGEX$` | AS знаходиться в кінці шляху (origin AS) |
+
+Разом WAR1 + WAR2 покривають усі позиції ворожого AS у шляху.
+Juniper реалізує DFA, тому довжина regex і кількість альтернатив не впливають
+на швидкість обробки.
+
+**Приклад стиснення:** `219407|219413|219445|219470|219529`
+→ `219(4(07|13|45|70)|529)` (42 → 22 символи, -48 %)
 
 ---
 

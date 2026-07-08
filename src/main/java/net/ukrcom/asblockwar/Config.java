@@ -36,11 +36,13 @@ public class Config {
     private String listAssetFileOverride;
     private String whoisLiteLocalURIOverride;
     private String storeDirOverride;
+    private String warFileOverride;
     private final String listFile;
     private final String listMntbyFile;
     private final String listAssetFile;
     private final String whoisLiteLocalURI;
     private final String storeDir;
+    private final String warFile;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -66,6 +68,10 @@ public class Config {
                 ? this.storeDirOverride
                 : this.properties.getProperty("StoreDir", "./STORE").trim();
 
+        this.warFile = this.warFileOverride != null
+                ? this.warFileOverride
+                : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
+
     }
 
     private void parseArgs() {
@@ -88,6 +94,8 @@ public class Config {
                 this.whoisLiteLocalURIOverride = arg.substring("--whois-uri=".length()).trim();
             } else if (arg.startsWith("--store-dir=")) {
                 this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
+            } else if (arg.startsWith("--war-file=")) {
+                this.warFileOverride = arg.substring("--war-file=".length()).trim();
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -111,6 +119,7 @@ public class Config {
         System.out.println("  --list-asset=<path>       AS-SET list file               (default: list.as-set.txt)");
         System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
         System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
+        System.out.println("  --war-file=<path>         Juniper WAR output file        (default: war.juniper.txt)");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -h, --help                Show this help and exit");
     }
@@ -158,5 +167,9 @@ public class Config {
 
     public String getStoreDir() {
         return this.storeDir;
+    }
+
+    public String getWarFile() {
+        return this.warFile;
     }
 }
