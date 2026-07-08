@@ -76,7 +76,6 @@ ListAssetFile=list.as-set.txt
 WhoisLiteLocalURI=jdbc:sqlite:whoislitelocal.db
 StoreDir=./STORE
 WarFile=war.juniper.txt
-WarMaxLen=32768
 ```
 
 За потреби перед збіркою можна створити файл `src/main/resources/asblockwar.properties` на основі зразка нижче — він вбудовується у JAR при `mvn package` і завантажується з classpath.
@@ -99,9 +98,6 @@ StoreDir=./STORE
 
 # Шлях до файлу Juniper WAR-конфігурації (виходить з storeWarResources)
 WarFile=war.juniper.txt
-
-# Максимальна довжина regex у символах для одного WAR-блоку
-WarMaxLen=32768
 ```
 
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
@@ -154,7 +150,6 @@ java -jar target/ASBlockWar-1.0.0-00000001.jar [параметри]
 | `--whois-uri=<uri>` | JDBC URI до бази whois-lite-local (за замовчуванням: `jdbc:sqlite:whoislitelocal.db`) |
 | `--store-dir=<шлях>` | Директорія для STORE-файлів (за замовчуванням: `./STORE`) |
 | `--war-file=<шлях>` | Вихідний файл Juniper WAR (за замовчуванням: `war.juniper.txt`) |
-| `--war-max-len=<n>` | Максимальна довжина regex на один WAR (за замовчуванням: `32768`) |
 | `--recursive-asset` | Рекурсивно заходити у вкладені AS-SET-и (глибина 1) |
 | `--recursive-asset=N` | Рекурсія до глибини N |
 | `-h`, `--help` | Вивести довідку та вийти |
@@ -306,8 +301,8 @@ WAR1 і WAR2 містять **однаковий** оптимізований re
 | WAR2 | `.* REGEX$` | AS знаходиться в кінці шляху (origin AS) |
 
 Разом WAR1 + WAR2 покривають усі позиції ворожого AS у шляху.
-Якщо оптимізований regex перевищує `WarMaxLen`, він ділиться на частини
-і генерується WAR1/WAR2, WAR3/WAR4, …
+Juniper реалізує DFA, тому довжина regex і кількість альтернатив не впливають
+на швидкість обробки.
 
 **Приклад стиснення:** `219407|219413|219445|219470|219529`
 → `219(4(07|13|45|70)|529)` (42 → 22 символи, -48 %)

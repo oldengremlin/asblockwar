@@ -25,8 +25,8 @@ import java.util.TreeMap;
  * <p>Приклад: {@code 219407|219413|219445|219470|219529}
  * стискається до {@code 219(4(07|13|45|70)|529)}.
  *
- * <p>Для довгих списків {@link #buildWars(int)} ділить результат на частини
- * WAR1, WAR2, … так, щоб кожна не перевищувала {@code maxWarLen} символів.
+ * <p>Juniper реалізує DFA, тому довжина regex і кількість альтернатив
+ * не впливають на швидкість обробки.
  *
  * @author olden
  */
@@ -67,52 +67,9 @@ public class AsnRegexBuilder {
     }
 
     /**
-     * Рекурсивно збирає "сегменти" — атомарні частини regex, кожна не більша
-     * за {@code maxSegLen}. Якщо піддерево занадто велике, воно розкривається
-     * в дочірні підсегменти до тих пір, поки кожен не вкладеться в ліміт.
+     * Повертає повний trie-оптимізований regex для всіх доданих ASN.
      */
-    private static void collectSegments(String prefix, TrieNode node, int maxSegLen, List<String> out) {
-        String full = prefix + toRegex(node);
-        if (full.length() <= maxSegLen || node.children.isEmpty()) {
-            if (!full.isEmpty()) {
-                out.add(full);
-            }
-            return;
-        }
-        if (node.isEnd) {
-            out.add(prefix);
-        }
-        for (var e : node.children.entrySet()) {
-            collectSegments(prefix + e.getKey(), e.getValue(), maxSegLen, out);
-        }
-    }
-
-    /**
-     * Повертає список WAR-рядків (оптимізованих регексів), кожен не довший
-     * за {@code maxWarLen} символів. Кожен рядок готовий для підстановки у
-     * {@code set policy-options as-path WARn "_ <рядок> _"}.
-     */
-    public List<String> buildWars(int maxWarLen) {
-        int segMax = Math.min(2048, Math.max(64, maxWarLen / 4));
-
-        List<String> segments = new ArrayList<>();
-        collectSegments("", root, segMax, segments);
-
-        List<String> wars = new ArrayList<>();
-        StringBuilder sb = new StringBuilder();
-        for (String seg : segments) {
-            if (sb.isEmpty()) {
-                sb.append(seg);
-            } else if (sb.length() + 1 + seg.length() <= maxWarLen) {
-                sb.append('|').append(seg);
-            } else {
-                wars.add(sb.toString());
-                sb = new StringBuilder(seg);
-            }
-        }
-        if (!sb.isEmpty()) {
-            wars.add(sb.toString());
-        }
-        return wars;
+    public String build() {
+        return toRegex(root);
     }
 }

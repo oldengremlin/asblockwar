@@ -26,7 +26,6 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -515,32 +514,24 @@ public class ASBlockWar {
                 .sorted()
                 .forEach(builder::add);
 
-        int maxLen = config.getWarMaxLen();
-        List<String> wars = builder.buildWars(maxLen);
+        String regex = builder.build();
 
         int rawLen = aggressorAsnResources.keySet().stream()
                 .mapToInt(asn -> asn.length() - 2)
                 .sum() + Math.max(0, aggressorAsnResources.size() - 1);
-        int optLen = wars.stream().mapToInt(String::length).sum()
-                + Math.max(0, wars.size() - 1);
 
-        // Кожен regex-чанк → два as-path записи з однаковим REGEX:
-        //   WARn   ".* REGEX .*"  — AS зустрічається в середині шляху
-        //   WARn+1 ".* REGEX$"   — AS знаходиться в кінці шляху (origin AS)
-        List<String> lines = new ArrayList<>(wars.size() * 2);
-        for (int i = 0; i < wars.size(); i++) {
-            String regex = wars.get(i);
-            int base = i * 2 + 1;
-            lines.add("set policy-options as-path WAR" + base + " \".* " + regex + " .*\"");
-            lines.add("set policy-options as-path WAR" + (base + 1) + " \".* " + regex + "$\"");
-        }
+        // WAR1 і WAR2 містять однаковий regex, лише обрамлення різне:
+        //   WAR1  ".* REGEX .*"  — AS зустрічається в середині шляху
+        //   WAR2  ".* REGEX$"   — AS знаходиться в кінці шляху (origin AS)
+        String war1 = "set policy-options as-path WAR1 \".* " + regex + " .*\"";
+        String war2 = "set policy-options as-path WAR2 \".* " + regex + "$\"";
 
         Path path = Path.of(config.getWarFile());
-        Files.writeString(path, String.join("\n", lines) + "\n");
+        Files.writeString(path, war1 + "\n" + war2 + "\n");
 
-        LOGGER.info("storeWarResources: {} as-path записано у {} ({} ASN, {} → {} chars, -{} %)",
-                lines.size(), config.getWarFile(), aggressorAsnResources.size(),
-                rawLen, optLen, rawLen > 0 ? (rawLen - optLen) * 100 / rawLen : 0);
+        LOGGER.info("storeWarResources: WAR1+WAR2 записано у {} ({} ASN, {} → {} chars, -{} %)",
+                config.getWarFile(), aggressorAsnResources.size(),
+                rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
 
     private static Set<String> readFileEntries(Path path) throws IOException {

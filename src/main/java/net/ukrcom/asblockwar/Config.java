@@ -37,14 +37,12 @@ public class Config {
     private String whoisLiteLocalURIOverride;
     private String storeDirOverride;
     private String warFileOverride;
-    private int warMaxLenOverride = 0;
     private final String listFile;
     private final String listMntbyFile;
     private final String listAssetFile;
     private final String whoisLiteLocalURI;
     private final String storeDir;
     private final String warFile;
-    private final int warMaxLen;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -73,13 +71,6 @@ public class Config {
         this.warFile = this.warFileOverride != null
                 ? this.warFileOverride
                 : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
-        int propWarMaxLen;
-        try {
-            propWarMaxLen = Integer.parseInt(this.properties.getProperty("WarMaxLen", "32768").trim());
-        } catch (NumberFormatException e) {
-            propWarMaxLen = 32768;
-        }
-        this.warMaxLen = this.warMaxLenOverride > 0 ? this.warMaxLenOverride : propWarMaxLen;
 
     }
 
@@ -105,10 +96,6 @@ public class Config {
                 this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
             } else if (arg.startsWith("--war-file=")) {
                 this.warFileOverride = arg.substring("--war-file=".length()).trim();
-            } else if (arg.startsWith("--war-max-len=")) {
-                try {
-                    this.warMaxLenOverride = Integer.parseInt(arg.substring("--war-max-len=".length()).trim());
-                } catch (NumberFormatException ignored) {}
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -133,7 +120,6 @@ public class Config {
         System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
         System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
         System.out.println("  --war-file=<path>         Juniper WAR output file        (default: war.juniper.txt)");
-        System.out.println("  --war-max-len=<n>         Max regex length per WAR       (default: 32768)");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -h, --help                Show this help and exit");
     }
@@ -185,9 +171,5 @@ public class Config {
 
     public String getWarFile() {
         return this.warFile;
-    }
-
-    public int getWarMaxLen() {
-        return this.warMaxLen;
     }
 }
