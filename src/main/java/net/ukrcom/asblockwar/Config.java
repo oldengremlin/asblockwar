@@ -68,7 +68,10 @@ public class Config {
             return;
         }
         for (String arg : this.args) {
-            if (arg.startsWith("--config=")) {
+            if (arg.equals("--help") || arg.equals("-h")) {
+                printHelp();
+                System.exit(0);
+            } else if (arg.startsWith("--config=")) {
                 this.configPath = arg.substring("--config=".length()).trim();
             } else if (arg.startsWith("--list-file=")) {
                 this.listFileOverride = arg.substring("--list-file=".length()).trim();
@@ -89,6 +92,19 @@ public class Config {
                 }
             }
         }
+    }
+
+    private static void printHelp() {
+        System.out.println("Usage: ASBlockWar [options]");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  --config=<path>           Configuration file (overrides built-in asblockwar.properties)");
+        System.out.println("  --list-file=<path>        ASN list file                  (default: list.txt)");
+        System.out.println("  --list-mnt=<path>         mnt-by handles file            (default: list.mnt-by.txt)");
+        System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
+        System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
+        System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
+        System.out.println("  -h, --help                Show this help and exit");
     }
 
     private void loadProperties() throws IOException {
