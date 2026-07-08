@@ -35,9 +35,9 @@ import org.slf4j.Logger;
  */
 public class retrieveImportExportAsSets {
 
-    // Зупиняємось на пробілі, комі, дужці — все це роздільники в RPSL-фільтрах
+    // Зупиняємось на пробілі, комі, дужці, крапці з комою — все це роздільники в RPSL-фільтрах
     private static final Pattern ACCEPT_AS_SET = Pattern.compile(
-            "\\baccept\\s+(AS-[^\\s,{}]+)", Pattern.CASE_INSENSITIVE);
+            "\\baccept\\s+(AS-[^\\s,{};]+)", Pattern.CASE_INSENSITIVE);
 
     private final Config config;
     private final Logger logger;
