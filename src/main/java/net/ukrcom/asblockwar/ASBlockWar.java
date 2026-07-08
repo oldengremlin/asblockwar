@@ -83,10 +83,7 @@ public class ASBlockWar {
         "AS-VKONTAKTE",
         "AS-VK",
         "AS-YANDEX",
-        "AS-MAILRU",
-        "AS-M100",
-        "AS-VK",
-        "AS-VKONTAKTE"
+        "AS-M100"
     };
 
     // Створюємо мапу для вилучених елементів
