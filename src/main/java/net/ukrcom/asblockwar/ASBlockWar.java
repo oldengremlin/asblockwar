@@ -781,7 +781,7 @@ public class ASBlockWar {
         // 2. Відбираємо тільки ті префікси, що є в effectivePrefixes
         List<Map.Entry<String, List<String>>> sorted = effectivePrefixes.stream()
                 .map(p -> Map.entry(p, allOrigins.getOrDefault(p, List.of())))
-                .sorted(Map.Entry.comparingByKey(CIDR_ORDER))
+                .sorted(Map.Entry.comparingByKey(NETWORK_ADDR_ORDER))
                 .toList();
 
         // 3. Записуємо STORE/networks.list
@@ -856,6 +856,22 @@ public class ASBlockWar {
             return 0;
         }
     }
+
+    // networks.list order: IPv4 before IPv6; within each family — address asc, then mask asc (1..32)
+    private static final Comparator<String> NETWORK_ADDR_ORDER = (a, b) -> {
+        boolean aV6 = a.contains(":");
+        boolean bV6 = b.contains(":");
+        if (aV6 != bV6) {
+            return aV6 ? 1 : -1;
+        }
+        int addrCmp = aV6
+                ? cidrAddr(a).compareTo(cidrAddr(b))
+                : Long.compare(ipv4ToLong(cidrAddr(a)), ipv4ToLong(cidrAddr(b)));
+        if (addrCmp != 0) {
+            return addrCmp;
+        }
+        return Integer.compare(cidrLen(a), cidrLen(b));
+    };
 
     private static Set<String> readFileEntries(Path path) throws IOException {
         if (!Files.exists(path)) {
