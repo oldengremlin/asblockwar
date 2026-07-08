@@ -37,12 +37,14 @@ public class Config {
     private String whoisLiteLocalURIOverride;
     private String storeDirOverride;
     private String warFileOverride;
+    private String blackbgpFileOverride;
     private final String listFile;
     private final String listMntbyFile;
     private final String listAssetFile;
     private final String whoisLiteLocalURI;
     private final String storeDir;
     private final String warFile;
+    private final String blackbgpFile;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -72,6 +74,10 @@ public class Config {
                 ? this.warFileOverride
                 : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
 
+        this.blackbgpFile = this.blackbgpFileOverride != null
+                ? this.blackbgpFileOverride
+                : this.properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
+
     }
 
     private void parseArgs() {
@@ -96,6 +102,8 @@ public class Config {
                 this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
             } else if (arg.startsWith("--war-file=")) {
                 this.warFileOverride = arg.substring("--war-file=".length()).trim();
+            } else if (arg.startsWith("--blackbgp-file=")) {
+                this.blackbgpFileOverride = arg.substring("--blackbgp-file=".length()).trim();
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -120,6 +128,7 @@ public class Config {
         System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
         System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
         System.out.println("  --war-file=<path>         Juniper WAR output file        (default: war.juniper.txt)");
+        System.out.println("  --blackbgp-file=<path>    Blackbgp commands output file  (default: war.blackbgp.txt)");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -h, --help                Show this help and exit");
     }
@@ -171,5 +180,9 @@ public class Config {
 
     public String getWarFile() {
         return this.warFile;
+    }
+
+    public String getBlackbgpFile() {
+        return this.blackbgpFile;
     }
 }
