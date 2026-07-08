@@ -38,6 +38,7 @@ public class Config {
     private String storeDirOverride;
     private String warFileOverride;
     private String blackbgpFileOverride;
+    private String blackbgpHostOverride;
     private final String listFile;
     private final String listMntbyFile;
     private final String listAssetFile;
@@ -45,6 +46,8 @@ public class Config {
     private final String storeDir;
     private final String warFile;
     private final String blackbgpFile;
+    private final String blackbgpHost;
+    private boolean blackbgpIpv6 = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -78,6 +81,10 @@ public class Config {
                 ? this.blackbgpFileOverride
                 : this.properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
 
+        this.blackbgpHost = this.blackbgpHostOverride != null
+                ? this.blackbgpHostOverride
+                : this.properties.getProperty("BlackbgpHost", "blackbgp").trim();
+
     }
 
     private void parseArgs() {
@@ -104,6 +111,10 @@ public class Config {
                 this.warFileOverride = arg.substring("--war-file=".length()).trim();
             } else if (arg.startsWith("--blackbgp-file=")) {
                 this.blackbgpFileOverride = arg.substring("--blackbgp-file=".length()).trim();
+            } else if (arg.startsWith("--blackbgp-host=")) {
+                this.blackbgpHostOverride = arg.substring("--blackbgp-host=".length()).trim();
+            } else if (arg.equals("--ipv6") || arg.equals("-6")) {
+                this.blackbgpIpv6 = true;
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -129,6 +140,8 @@ public class Config {
         System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
         System.out.println("  --war-file=<path>         Juniper WAR output file        (default: war.juniper.txt)");
         System.out.println("  --blackbgp-file=<path>    Blackbgp commands output file  (default: war.blackbgp.txt)");
+        System.out.println("  --blackbgp-host=<host>    SSH host for blackbgp table    (default: blackbgp)");
+        System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -h, --help                Show this help and exit");
     }
@@ -184,5 +197,13 @@ public class Config {
 
     public String getBlackbgpFile() {
         return this.blackbgpFile;
+    }
+
+    public String getBlackbgpHost() {
+        return this.blackbgpHost;
+    }
+
+    public boolean isBlackbgpIpv6() {
+        return this.blackbgpIpv6;
     }
 }
