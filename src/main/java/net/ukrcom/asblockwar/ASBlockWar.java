@@ -553,8 +553,7 @@ public class ASBlockWar {
         boolean ipv6 = config.isBlackbgpIpv6();
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
-        Set<String> currentPrefixes = new retrieveBlackbgpPrefixes(
-                config.getBlackbgpHost(), ipv6).get();
+        Set<String> currentPrefixes = new retrieveBlackbgpPrefixes(ipv6).get();
         LOGGER.info("storeBlackbgpResources: поточних маршрутів у blackbgp: {}", currentPrefixes.size());
 
         // 2. Цільовий набір prefixes з БД (тільки IPv4 якщо не передано -6)

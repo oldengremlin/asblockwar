@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 
 /**
  * Читає поточний перелік prefixes з таблиці маршрутизації blackbgp
- * через SSH: {@code ssh <host> sudo ip r l t blackbgp}.
+ * командою з конфігурації {@code GetBlackhole} / {@code GetBlackholeIpv6}.
  *
  * @author olden
  */
@@ -39,18 +39,17 @@ public class retrieveBlackbgpPrefixes {
 
     private final Set<String> prefixes = new HashSet<>();
 
-    public retrieveBlackbgpPrefixes(String host, boolean includeIpv6) {
-        fetch(host, false);
+    public retrieveBlackbgpPrefixes(boolean includeIpv6) {
+        fetch(net.ukrcom.asblockwar.ASBlockWar.config.getGetBlackhole(), false);
         if (includeIpv6) {
-            fetch(host, true);
+            fetch(net.ukrcom.asblockwar.ASBlockWar.config.getGetBlackholeIpv6(), true);
         }
     }
 
-    private void fetch(String host, boolean ipv6) {
-        String remoteCmd = ipv6 ? "sudo ip -6 r l t blackbgp" : "sudo ip r l t blackbgp";
+    private void fetch(String command, boolean ipv6) {
         Pattern pattern = ipv6 ? CIDR6 : CIDR4;
         try {
-            Process proc = new ProcessBuilder("ssh", host, remoteCmd)
+            Process proc = new ProcessBuilder("sh", "-c", command)
                     .redirectErrorStream(true)
                     .start();
             try (BufferedReader reader = new BufferedReader(
@@ -65,16 +64,14 @@ public class retrieveBlackbgpPrefixes {
             int exit = proc.waitFor();
             if (exit != 0) {
                 net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                        .warn("retrieveBlackbgpPrefixes: ssh {} '{}' завершився з кодом {}",
-                                host, remoteCmd, exit);
+                        .warn("retrieveBlackbgpPrefixes: '{}' завершився з кодом {}", command, exit);
             } else {
                 net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                        .debug("retrieveBlackbgpPrefixes: {} прочитано {} prefixes ({})",
-                                host, prefixes.size(), remoteCmd);
+                        .debug("retrieveBlackbgpPrefixes: прочитано {} prefixes ({})", prefixes.size(), command);
             }
         } catch (IOException | InterruptedException e) {
             net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                    .error("retrieveBlackbgpPrefixes: помилка SSH {} '{}'", host, remoteCmd, e);
+                    .error("retrieveBlackbgpPrefixes: помилка '{}': {}", command, e.getMessage());
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
