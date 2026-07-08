@@ -554,7 +554,8 @@ public class ASBlockWar {
                     }
                     dbLimit.acquire();
                     try {
-                        writeStoreFile(dirASNet.resolve(asn + ".txt"), new retrieveRouteOriginFull(asn).get());
+                        // AS-BLOCK-WAR reads cache as {number}.txt (without "AS" prefix)
+                        writeStoreFile(dirASNet.resolve(asn.substring(2) + ".txt"), new retrieveRouteOriginFull(asn).get());
                     } finally {
                         dbLimit.release();
                     }
