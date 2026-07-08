@@ -50,6 +50,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAutNumFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginPrefixes;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
@@ -121,6 +122,7 @@ public class ASBlockWar {
 
             storeAggressorAsnResources(aggressorAsnResources);
             storeWarResources(aggressorAsnResources);
+            storeBlackbgpResources(aggressorAsnResources);
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
             Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
@@ -532,6 +534,100 @@ public class ASBlockWar {
         LOGGER.info("storeWarResources: WAR1+WAR2 записано у {} ({} ASN, {} → {} chars, -{} %)",
                 config.getWarFile(), aggressorAsnResources.size(),
                 rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
+    }
+
+    private static void storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
+        Set<String> deletePrefixes = ConcurrentHashMap.newKeySet();
+        Set<String> replacePrefixes = ConcurrentHashMap.newKeySet();
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+
+            // Routes for removed ASNs → ip r d
+            resourcesForVerification.values().stream()
+                    .filter(asn -> asn.action() == Action.remove)
+                    .forEach(asn -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        deletePrefixes.addAll(new retrieveRouteOriginPrefixes(asn.asn()).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+
+            // Routes for current active ASNs → ip r r
+            aggressorAsnResources.keySet().forEach(asn -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        replacePrefixes.addAll(new retrieveRouteOriginPrefixes(asn).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+        }
+
+        String content = Stream.concat(
+                deletePrefixes.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
+                replacePrefixes.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("r", p))
+        ).collect(Collectors.joining("\n", "", "\n"));
+
+        Path path = Path.of(config.getBlackbgpFile());
+        Files.writeString(path, content);
+
+        LOGGER.info("storeBlackbgpResources: {} delete + {} replace prefixes → {}",
+                deletePrefixes.size(), replacePrefixes.size(), config.getBlackbgpFile());
+    }
+
+    private static String blackbgpCmd(String verb, String prefix) {
+        boolean isIpv6 = prefix.contains(":");
+        return "sudo ip " + (isIpv6 ? "-6 " : "") + "r " + verb + " bl " + prefix + " t blackbgp";
+    }
+
+    // CIDR comparator: IPv4 before IPv6; within each family — prefix length desc, then address asc
+    private static final Comparator<String> CIDR_ORDER = (a, b) -> {
+        boolean aV6 = a.contains(":");
+        boolean bV6 = b.contains(":");
+        if (aV6 != bV6) {
+            return aV6 ? 1 : -1;
+        }
+        int la = cidrLen(a), lb = cidrLen(b);
+        if (la != lb) {
+            return lb - la; // descending: more specific first
+        }
+        if (!aV6) {
+            return Long.compare(ipv4ToLong(cidrAddr(a)), ipv4ToLong(cidrAddr(b)));
+        }
+        return cidrAddr(a).compareTo(cidrAddr(b));
+    };
+
+    private static int cidrLen(String cidr) {
+        int i = cidr.lastIndexOf('/');
+        try { return i >= 0 ? Integer.parseInt(cidr.substring(i + 1)) : 0; }
+        catch (NumberFormatException e) { return 0; }
+    }
+
+    private static String cidrAddr(String cidr) {
+        int i = cidr.lastIndexOf('/');
+        return i >= 0 ? cidr.substring(0, i) : cidr;
+    }
+
+    private static long ipv4ToLong(String addr) {
+        String[] p = addr.split("\\.", -1);
+        if (p.length != 4) return 0;
+        try {
+            return (Long.parseLong(p[0]) << 24) | (Long.parseLong(p[1]) << 16)
+                    | (Long.parseLong(p[2]) << 8) | Long.parseLong(p[3]);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static Set<String> readFileEntries(Path path) throws IOException {
