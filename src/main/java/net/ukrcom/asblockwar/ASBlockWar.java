@@ -524,16 +524,22 @@ public class ASBlockWar {
         int optLen = wars.stream().mapToInt(String::length).sum()
                 + Math.max(0, wars.size() - 1);
 
-        List<String> lines = new ArrayList<>(wars.size());
+        // Кожен regex-чанк → два as-path записи з однаковим REGEX:
+        //   WARn   ".* REGEX .*"  — AS зустрічається в середині шляху
+        //   WARn+1 ".* REGEX$"   — AS знаходиться в кінці шляху (origin AS)
+        List<String> lines = new ArrayList<>(wars.size() * 2);
         for (int i = 0; i < wars.size(); i++) {
-            lines.add("set policy-options as-path WAR" + (i + 1) + " \"_ " + wars.get(i) + " _\"");
+            String regex = wars.get(i);
+            int base = i * 2 + 1;
+            lines.add("set policy-options as-path WAR" + base + " \".* " + regex + " .*\"");
+            lines.add("set policy-options as-path WAR" + (base + 1) + " \".* " + regex + "$\"");
         }
 
         Path path = Path.of(config.getWarFile());
         Files.writeString(path, String.join("\n", lines) + "\n");
 
-        LOGGER.info("storeWarResources: {} WAR(s) записано у {} ({} ASN, {} → {} chars, -{} %)",
-                wars.size(), config.getWarFile(), aggressorAsnResources.size(),
+        LOGGER.info("storeWarResources: {} as-path записано у {} ({} ASN, {} → {} chars, -{} %)",
+                lines.size(), config.getWarFile(), aggressorAsnResources.size(),
                 rawLen, optLen, rawLen > 0 ? (rawLen - optLen) * 100 / rawLen : 0);
     }
 
