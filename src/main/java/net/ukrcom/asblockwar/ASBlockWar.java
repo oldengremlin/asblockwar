@@ -100,7 +100,7 @@ public class ASBlockWar {
             listMntbyFile = config.getListMntbyFile();
 
             LOGGER.info("listFile: " + listFile);
-            LOGGER.info("whoisLiteLocalURI: " + listMntbyFile);
+            LOGGER.info("listMntbyFile: " + listMntbyFile);
 
             Map<String, String> aggressorAsnResources = makeAggressorAsnResources();
             Map<String, String> aggressorMntbyResources = makeAggressorAssetAndMntbyResources();
