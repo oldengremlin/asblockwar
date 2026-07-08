@@ -92,7 +92,7 @@ public class ASBlockWar {
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
 
     private record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {}
-    private record BlackbgpResult(Map<String, String> newEnemies, Set<String> currentPrefixes) {}
+    private record BlackbgpResult(Map<String, String> newEnemies, Set<String> effectivePrefixes) {}
 
     public static void main(String[] args) throws InterruptedException {
         try {
@@ -147,7 +147,7 @@ public class ASBlockWar {
             }
 
             Map<String, String> newEnemies = bgpOutcome.newEnemies();
-            Set<String> currentPrefixes = bgpOutcome.currentPrefixes();
+            Set<String> effectivePrefixes = bgpOutcome.effectivePrefixes();
 
             if (!newEnemies.isEmpty()) {
                 aggressorAsnResources.putAll(newEnemies);
@@ -163,7 +163,7 @@ public class ASBlockWar {
             try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
                 final var fa = aggressorAsnResources;
                 final var fm = allMntBy;
-                final var fc = currentPrefixes;
+                final var fc = effectivePrefixes;
                 var detailsTask = exec.submit(() -> { storeDetails(fa, fm, allAsSets); return null; });
                 var asListTask  = exec.submit(() -> { storeAsList(fa); return null; });
                 var mntListTask = exec.submit(() -> { storeMaintainersList(fm); return null; });
@@ -683,7 +683,13 @@ public class ASBlockWar {
                 toDelete.size(), toReplace.size(),
                 currentPrefixes.size(), targetPrefixes.size(), newEnemies.size(), config.getBlackbgpFile());
 
-        return new BlackbgpResult(newEnemies, currentPrefixes);
+        // Ефективний стан після застосування war.blackbgp.txt:
+        // ті що скасували видалення лишаються, нові додаються
+        Set<String> effectivePrefixes = new HashSet<>(currentPrefixes);
+        effectivePrefixes.removeAll(toDelete);
+        effectivePrefixes.addAll(toReplace);
+
+        return new BlackbgpResult(newEnemies, effectivePrefixes);
     }
 
     private static String rpslField(String block, String key) {
