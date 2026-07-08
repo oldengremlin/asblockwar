@@ -33,10 +33,12 @@ public class Config {
     private String configPath;
     private String listFileOverride;
     private String listMntbyFileOverride;
+    private String listAssetFileOverride;
     private String whoisLiteLocalURIOverride;
     private String storeDirOverride;
     private final String listFile;
     private final String listMntbyFile;
+    private final String listAssetFile;
     private final String whoisLiteLocalURI;
     private final String storeDir;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
@@ -54,6 +56,9 @@ public class Config {
         this.listMntbyFile = this.listMntbyFileOverride != null
                 ? this.listMntbyFileOverride
                 : this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
+        this.listAssetFile = this.listAssetFileOverride != null
+                ? this.listAssetFileOverride
+                : this.properties.getProperty("ListAssetFile", "list.as-set.txt").trim();
         this.whoisLiteLocalURI = this.whoisLiteLocalURIOverride != null
                 ? this.whoisLiteLocalURIOverride
                 : this.properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
@@ -77,6 +82,8 @@ public class Config {
                 this.listFileOverride = arg.substring("--list-file=".length()).trim();
             } else if (arg.startsWith("--list-mnt=")) {
                 this.listMntbyFileOverride = arg.substring("--list-mnt=".length()).trim();
+            } else if (arg.startsWith("--list-asset=")) {
+                this.listAssetFileOverride = arg.substring("--list-asset=".length()).trim();
             } else if (arg.startsWith("--whois-uri=")) {
                 this.whoisLiteLocalURIOverride = arg.substring("--whois-uri=".length()).trim();
             } else if (arg.startsWith("--store-dir=")) {
@@ -101,6 +108,7 @@ public class Config {
         System.out.println("  --config=<path>           Configuration file (overrides built-in asblockwar.properties)");
         System.out.println("  --list-file=<path>        ASN list file                  (default: list.txt)");
         System.out.println("  --list-mnt=<path>         mnt-by handles file            (default: list.mnt-by.txt)");
+        System.out.println("  --list-asset=<path>       AS-SET list file               (default: list.as-set.txt)");
         System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
         System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
@@ -134,6 +142,10 @@ public class Config {
 
     public String getListMntbyFile() {
         return this.listMntbyFile;
+    }
+
+    public String getListAssetFile() {
+        return this.listAssetFile;
     }
 
     public String getWhoisLiteLocalURI() {

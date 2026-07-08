@@ -18,9 +18,12 @@ package net.ukrcom.asblockwar;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -44,6 +47,9 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntBy;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveImportExportAsSets;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveAutNumFull;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
@@ -81,6 +87,8 @@ public class ASBlockWar {
     // Створюємо мапу для вилучених елементів
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
 
+    private record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {}
+
     public static void main(String[] args) throws InterruptedException {
         try {
             config = new Config(args);
@@ -103,9 +111,20 @@ public class ASBlockWar {
                             filterAggressorAsnResources(aggressorAsnResources)
                     )
             );
-            Set<String> discoveredMntBy = discoverCooperatingAsnResources(aggressorAsnResources);
-            storeMntByResources(discoveredMntBy);
+
+            DiscoveryResult discovery = discoverCooperatingAsnResources(aggressorAsnResources);
+            storeMntByResources(discovery.mntBy());
+
+            Set<String> allDiscoveredAsSets = new HashSet<>(discovery.asSets());
+            Arrays.stream(blockedAsSet).forEach(allDiscoveredAsSets::add);
+            storeListAsSet(allDiscoveredAsSets);
+
             storeAggressorAsnResources(aggressorAsnResources);
+
+            Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
+            Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
+            storeDetails(aggressorAsnResources, allMntBy, allAsSets);
+
             report(aggressorAsnResources);
 
         } catch (IOException ex) {
@@ -149,7 +168,7 @@ public class ASBlockWar {
                 LOGGER.error("Помилка читання файлу", e);
             }
 
-            // В try-with-resources executor.close() викличеться автоматично, 
+            // В try-with-resources executor.close() викличеться автоматично,
             // що дочекається завершення всіх віртуальних потоків.
         }
 
@@ -209,7 +228,7 @@ public class ASBlockWar {
                 LOGGER.error("Помилка читання файлу", e);
             }
 
-            // В try-with-resources executor.close() викличеться автоматично, 
+            // В try-with-resources executor.close() викличеться автоматично,
             // що дочекається завершення всіх віртуальних потоків.
         }
 
@@ -293,9 +312,10 @@ public class ASBlockWar {
         return aggressorAsnResources;
     }
 
-    private static Set<String> discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
+    private static DiscoveryResult discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
         int depth = Math.max(config.getRecursiveAsset(), 0);
         Set<String> discoveredMntBy = ConcurrentHashMap.newKeySet();
+        Set<String> discoveredAsSets = ConcurrentHashMap.newKeySet();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
@@ -312,6 +332,8 @@ public class ASBlockWar {
                     }
 
                     for (String asSet : asSets) {
+                        discoveredAsSets.add(asSet);
+
                         Set<String> memberAsns;
                         dbLimit.acquire();
                         try {
@@ -348,7 +370,7 @@ public class ASBlockWar {
             }));
         }
 
-        return discoveredMntBy;
+        return new DiscoveryResult(discoveredMntBy, discoveredAsSets);
     }
 
     // Службові мантейнери RIPE, які присутні в будь-якому записі — не є ознакою належності до агресора
@@ -403,6 +425,46 @@ public class ASBlockWar {
         }
     }
 
+    private static void storeListAsSet(Set<String> discovered) throws IOException {
+        LOGGER.debug("storeListAsSet: знайдено AS-SET: {}", discovered);
+
+        List<String> sorted = discovered.stream().sorted().toList();
+
+        String listAssetFile = config.getListAssetFile();
+        Path path = Path.of(listAssetFile);
+        Path lockPath = path.resolveSibling(path.getFileName() + ".lock");
+
+        try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             FileLock fl = lc.lock()) {
+
+            Set<String> existing = new HashSet<>();
+            if (Files.exists(path)) {
+                Files.lines(path)
+                        .map(String::trim)
+                        .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
+                        .map(String::toUpperCase)
+                        .forEach(existing::add);
+            }
+
+            List<String> newEntries = sorted.stream()
+                    .filter(s -> !existing.contains(s.toUpperCase()))
+                    .toList();
+
+            newEntries.forEach(s -> LOGGER.debug("storeListAsSet: новий AS-SET: {}", s));
+
+            if (newEntries.isEmpty()) {
+                LOGGER.info("storeListAsSet: нових AS-SET не знайдено");
+                return;
+            }
+
+            Files.writeString(path,
+                    String.join("\n", newEntries) + "\n",
+                    StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+
+            LOGGER.info("storeListAsSet: додано {} нових AS-SET до {}", newEntries.size(), listAssetFile);
+        }
+    }
+
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
         Path source = Path.of(listFile);
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
@@ -430,6 +492,120 @@ public class ASBlockWar {
             Files.writeString(source, content);
             LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
         }
+    }
+
+    private static Set<String> readFileEntries(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            return Set.of();
+        }
+        try (Stream<String> lines = Files.lines(path)) {
+            return lines
+                    .map(String::trim)
+                    .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
+                    .collect(Collectors.toSet());
+        }
+    }
+
+    private static void ensureStoreDir(Path dir) throws IOException {
+        Files.createDirectories(dir);
+        try {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwxr-x---"));
+        } catch (UnsupportedOperationException ignored) {}
+    }
+
+    private static void writeStoreFile(Path file, String content) throws IOException {
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.writeString(tmp, content);
+        try {
+            Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void storeDetails(Map<String, String> aggressorAsnResources, Set<String> allMntBy, Set<String> allAsSets) throws IOException {
+        Path base = Path.of(config.getStoreDir());
+        Path dirAS = base.resolve("AS");
+        Path dirMNT = base.resolve("MNT");
+        Path dirMNTSETAS = base.resolve("MNT-SET-AS");
+        Path dirASSet = base.resolve("AS-SET");
+        Path dirASNet = base.resolve("AS-NET");
+
+        ensureStoreDir(dirAS);
+        ensureStoreDir(dirMNT);
+        ensureStoreDir(dirMNTSETAS);
+        ensureStoreDir(dirASSet);
+        ensureStoreDir(dirASNet);
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+
+            // STORE/AS/{asn}.txt and STORE/AS-NET/{asn}.txt
+            aggressorAsnResources.keySet().forEach(asn -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        writeStoreFile(dirAS.resolve(asn + ".txt"), new retrieveAutNumFull(asn).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                    dbLimit.acquire();
+                    try {
+                        writeStoreFile(dirASNet.resolve(asn + ".txt"), new retrieveRouteOriginFull(asn).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException e) {
+                    LOGGER.error("storeDetails: помилка запису для {}", asn, e);
+                }
+            }));
+
+            // STORE/MNT/{mnt}.txt and STORE/MNT-SET-AS/{mnt}.txt
+            allMntBy.forEach(mnt -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        writeStoreFile(dirMNT.resolve(mnt + ".txt"), new retrieveMntnerFull(mnt).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                    dbLimit.acquire();
+                    try {
+                        writeStoreFile(dirMNTSETAS.resolve(mnt + ".txt"), new retrieveMntBy(mnt).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException e) {
+                    LOGGER.error("storeDetails: помилка запису для мантейнера {}", mnt, e);
+                }
+            }));
+
+            // STORE/AS-SET/{asset}.txt
+            allAsSets.forEach(asSet -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    try {
+                        writeStoreFile(dirASSet.resolve(asSet + ".txt"), new retrieveAsSet(asSet).get());
+                    } finally {
+                        dbLimit.release();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException e) {
+                    LOGGER.error("storeDetails: помилка запису для AS-SET {}", asSet, e);
+                }
+            }));
+        }
+
+        LOGGER.info("storeDetails: завершено (AS={}, MNT={}, AS-SET={})",
+                aggressorAsnResources.size(), allMntBy.size(), allAsSets.size());
     }
 
     private static void report(Map<String, String> aggressorAsnResources) {
