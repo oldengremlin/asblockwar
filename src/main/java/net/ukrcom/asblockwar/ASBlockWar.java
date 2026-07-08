@@ -53,6 +53,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveBlackbgpPrefixes;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginPrefixes;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOrigins;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
@@ -124,17 +125,31 @@ public class ASBlockWar {
 
             storeAggressorAsnResources(aggressorAsnResources);
             final var finalResources = aggressorAsnResources;
+            Map<String, String> newEnemies;
             try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
                 var warTask = exec.submit(() -> { storeWarResources(finalResources); return null; });
-                var bgpTask = exec.submit(() -> { storeBlackbgpResources(finalResources); return null; });
-                for (var task : List.of(warTask, bgpTask)) {
-                    try { task.get(); }
-                    catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                    catch (ExecutionException e) {
-                        if (e.getCause() instanceof IOException ioe) throw ioe;
-                        throw new RuntimeException(e.getCause());
-                    }
+                var bgpTask = exec.submit(() -> storeBlackbgpResources(finalResources));
+                try { warTask.get(); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                catch (ExecutionException e) {
+                    if (e.getCause() instanceof IOException ioe) throw ioe;
+                    throw new RuntimeException(e.getCause());
                 }
+                Map<String, String> bgpResult = null;
+                try { bgpResult = bgpTask.get(); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                catch (ExecutionException e) {
+                    if (e.getCause() instanceof IOException ioe) throw ioe;
+                    throw new RuntimeException(e.getCause());
+                }
+                newEnemies = bgpResult != null ? bgpResult : Map.of();
+            }
+
+            if (!newEnemies.isEmpty()) {
+                aggressorAsnResources.putAll(newEnemies);
+                appendNewEnemiesToListFile(newEnemies.keySet());
+                LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
+                        newEnemies.size(), newEnemies.keySet());
             }
 
             Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
@@ -549,7 +564,7 @@ public class ASBlockWar {
                 rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
 
-    private static void storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
+    private static Map<String, String> storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
         boolean ipv6 = config.isBlackbgpIpv6();
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
@@ -577,13 +592,63 @@ public class ASBlockWar {
         }
 
         // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні
-        Set<String> toDelete = new HashSet<>(currentPrefixes);
+        Set<String> toDelete = ConcurrentHashMap.newKeySet();
+        toDelete.addAll(currentPrefixes);
         toDelete.removeAll(targetPrefixes);
 
         Set<String> toReplace = new HashSet<>(targetPrefixes);
         toReplace.removeAll(currentPrefixes);
 
-        // 4. Записуємо лише зміни
+        // 4. Перевірка маршрутів на видалення: чи не належать вони ворогу?
+        Map<String, String> newEnemies = new ConcurrentHashMap<>();
+        if (!toDelete.isEmpty()) {
+            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+                toDelete.forEach(prefix -> executor.submit(() -> {
+                    try {
+                        List<String> origins;
+                        dbLimit.acquire();
+                        try {
+                            origins = new retrieveRouteOrigins(prefix).get();
+                        } finally {
+                            dbLimit.release();
+                        }
+
+                        // Перевірка 1: вже відома ворожа AS?
+                        for (String origin : origins) {
+                            if (aggressorAsnResources.containsKey(origin)) {
+                                LOGGER.warn("storeBlackbgpResources: {} належить ворожій {} — видалення скасовано",
+                                        prefix, origin);
+                                toDelete.remove(prefix);
+                                return;
+                            }
+                        }
+
+                        // Перевірка 2: нова ворожа AS?
+                        for (String origin : origins) {
+                            dbLimit.acquire();
+                            String block;
+                            try {
+                                block = new retrieveOrganisation(origin).get();
+                            } finally {
+                                dbLimit.release();
+                            }
+                            if (AGGRESSOR_COMPILED.matcher(block).find()) {
+                                LOGGER.warn("storeBlackbgpResources: {} — нова ворожа AS {} — додано до списку, видалення скасовано",
+                                        prefix, origin);
+                                newEnemies.put(origin, block);
+                                toDelete.remove(prefix);
+                                return;
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }));
+            }
+        }
+
+        // 5. Записуємо лише зміни
         String content = Stream.concat(
                 toDelete.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
                 toReplace.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("r", p))
@@ -592,9 +657,44 @@ public class ASBlockWar {
         Path path = Path.of(config.getBlackbgpFile());
         Files.writeString(path, content);
 
-        LOGGER.info("storeBlackbgpResources: {} delete + {} replace (current={}, target={}) → {}",
+        LOGGER.info("storeBlackbgpResources: {} delete + {} replace (current={}, target={}, newEnemies={}) → {}",
                 toDelete.size(), toReplace.size(),
-                currentPrefixes.size(), targetPrefixes.size(), config.getBlackbgpFile());
+                currentPrefixes.size(), targetPrefixes.size(), newEnemies.size(), config.getBlackbgpFile());
+
+        return newEnemies;
+    }
+
+    private static void appendNewEnemiesToListFile(Set<String> asns) throws IOException {
+        if (asns.isEmpty()) return;
+        Path source = Path.of(listFile);
+        Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
+        try {
+            try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                 FileLock fl = lc.lock()) {
+
+                Set<String> existing = new HashSet<>();
+                if (Files.exists(source)) {
+                    Files.lines(source)
+                            .filter(l -> l.matches("^[1-9]\\d*$"))
+                            .map(l -> "AS" + l)
+                            .forEach(existing::add);
+                }
+
+                String toAppend = asns.stream()
+                        .filter(asn -> !existing.contains(asn))
+                        .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
+                        .map(asn -> asn.substring(2))
+                        .collect(Collectors.joining("\n", "", "\n"));
+
+                if (!toAppend.isBlank()) {
+                    Files.writeString(source, toAppend, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+                    LOGGER.info("appendNewEnemiesToListFile: додано {} нових ASN до {}",
+                            asns.stream().filter(a -> !existing.contains(a)).count(), listFile);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(lockPath);
+        }
     }
 
     private static String blackbgpCmd(String verb, String prefix) {
