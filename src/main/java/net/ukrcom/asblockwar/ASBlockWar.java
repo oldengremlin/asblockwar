@@ -548,7 +548,7 @@ public class ASBlockWar {
                 try {
                     dbLimit.acquire();
                     try {
-                        writeStoreFile(dirAS.resolve(asn + ".txt"), new retrieveAutNumFull(asn).get());
+                        writeStoreFile(dirAS.resolve(asn.substring(2) + ".txt"), new retrieveAutNumFull(asn).get());
                     } finally {
                         dbLimit.release();
                     }
