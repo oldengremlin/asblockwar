@@ -31,6 +31,7 @@ public class Config {
     private final Properties properties;
 
     private String configPath;
+    private String storeDirOverride;
     private final String listFile;
     private final String listMntbyFile;
     private final String whoisLiteLocalURI;
@@ -47,7 +48,9 @@ public class Config {
         this.listFile = this.properties.getProperty("ListFile", "list.txt").trim();
         this.listMntbyFile = this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
         this.whoisLiteLocalURI = properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
-        this.storeDir = this.properties.getProperty("StoreDir", "./STORE").trim();
+        this.storeDir = this.storeDirOverride != null
+                ? this.storeDirOverride
+                : this.properties.getProperty("StoreDir", "./STORE").trim();
 
     }
 
@@ -58,6 +61,8 @@ public class Config {
         for (String arg : this.args) {
             if (arg.startsWith("--config=")) {
                 this.configPath = arg.substring("--config=".length()).trim();
+            } else if (arg.startsWith("--store-dir=")) {
+                this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
