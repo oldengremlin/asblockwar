@@ -31,6 +31,9 @@ public class Config {
     private final Properties properties;
 
     private String configPath;
+    private String listFileOverride;
+    private String listMntbyFileOverride;
+    private String whoisLiteLocalURIOverride;
     private String storeDirOverride;
     private final String listFile;
     private final String listMntbyFile;
@@ -45,9 +48,15 @@ public class Config {
         this.parseArgs();
         this.loadProperties();
 
-        this.listFile = this.properties.getProperty("ListFile", "list.txt").trim();
-        this.listMntbyFile = this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
-        this.whoisLiteLocalURI = properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+        this.listFile = this.listFileOverride != null
+                ? this.listFileOverride
+                : this.properties.getProperty("ListFile", "list.txt").trim();
+        this.listMntbyFile = this.listMntbyFileOverride != null
+                ? this.listMntbyFileOverride
+                : this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
+        this.whoisLiteLocalURI = this.whoisLiteLocalURIOverride != null
+                ? this.whoisLiteLocalURIOverride
+                : this.properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
         this.storeDir = this.storeDirOverride != null
                 ? this.storeDirOverride
                 : this.properties.getProperty("StoreDir", "./STORE").trim();
@@ -61,6 +70,12 @@ public class Config {
         for (String arg : this.args) {
             if (arg.startsWith("--config=")) {
                 this.configPath = arg.substring("--config=".length()).trim();
+            } else if (arg.startsWith("--list-file=")) {
+                this.listFileOverride = arg.substring("--list-file=".length()).trim();
+            } else if (arg.startsWith("--list-mnt=")) {
+                this.listMntbyFileOverride = arg.substring("--list-mnt=".length()).trim();
+            } else if (arg.startsWith("--whois-uri=")) {
+                this.whoisLiteLocalURIOverride = arg.substring("--whois-uri=".length()).trim();
             } else if (arg.startsWith("--store-dir=")) {
                 this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
             } else if (arg.equals("--recursive-asset")) {
