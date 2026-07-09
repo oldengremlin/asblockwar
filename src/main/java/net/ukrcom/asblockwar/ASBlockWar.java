@@ -84,13 +84,16 @@ public class ASBlockWar {
      */
     public interface UIProgressCallback {
 
-        /** Викликається перед запитом RPSL-блоку для ASN. */
+        /** Викликається перед запитом RPSL-блоку для ASN.
+         * @param asn */
         void onAsnProcessing(String asn);
 
-        /** Викликається перед запитом RPSL-блоку для AS-SET. */
+        /** Викликається перед запитом RPSL-блоку для AS-SET.
+         * @param asSet */
         void onAsSetProcessing(String asSet);
 
-        /** Викликається перед запитом RPSL-блоку для MNT-BY. */
+        /** Викликається перед запитом RPSL-блоку для MNT-BY.
+         * @param mntBy */
         void onMntByProcessing(String mntBy);
     }
     public static volatile UIProgressCallback uiCallback;
