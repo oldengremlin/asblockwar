@@ -23,6 +23,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextArea;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -37,11 +38,18 @@ import net.ukrcom.asblockwar.ASBlockWar;
 public class WhoisInfoController implements Initializable {
 
     @FXML private TextArea textArea;
+    @FXML private CheckBox wrapText;
 
     private Stage stage;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+        textArea.setWrapText(wrapText.isSelected());
+    }
+
+    @FXML
+    private void toggleWrap() {
+        textArea.setWrapText(wrapText.isSelected());
     }
 
     public void setStage(Stage dialogStage) {
