@@ -29,6 +29,12 @@
             <artifactId>logback-classic</artifactId>
             <version>1.5.32</version>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>25-ea+21</version>
+            <type>jar</type>
+        </dependency>
     </dependencies>
     <build>
         <finalName>${project.artifactId}-${project.version}-${buildNumber}</finalName>
