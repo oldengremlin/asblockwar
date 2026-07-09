@@ -33,4 +33,5 @@ hs_err_pid*
 replay_pid*
 /target/
 /logs/
+/STORE/
 dependency-reduced-pom.xml
