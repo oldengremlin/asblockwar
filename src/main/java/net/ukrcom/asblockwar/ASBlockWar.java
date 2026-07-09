@@ -154,19 +154,7 @@ public class ASBlockWar {
         Arrays.stream(blockedAsSet).forEach(allDiscoveredAsSets::add);
         storeListAsSet(allDiscoveredAsSets);
 
-        BlackbgpResult bgpOutcome = storeBlackbgpResources(aggressorAsnResources);
-        Set<String> effectivePrefixes = bgpOutcome.effectivePrefixes();
-
-        Map<String, String> newEnemies = bgpOutcome.newEnemies();
-        if (!newEnemies.isEmpty()) {
-            aggressorAsnResources.putAll(newEnemies);
-            LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
-                    newEnemies.size(), newEnemies.keySet());
-        }
-
-        storeWarResources(aggressorAsnResources);
-
-        storeAggressorAsnResources(aggressorAsnResources);
+        Set<String> effectivePrefixes = storeResources(aggressorAsnResources);
 
         Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
         Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
@@ -548,6 +536,38 @@ public class ASBlockWar {
         } finally {
             Files.deleteIfExists(lockPath);
         }
+    }
+
+    private static Set<String> storeResources(Map<String, String> aggressorAsnResources) throws IOException {
+        // blackbgp першим: може виявити нові ворожі AS через перевірку маршрутів на видалення
+        BlackbgpResult bgpOutcome = storeBlackbgpResources(aggressorAsnResources);
+
+        Map<String, String> newEnemies = bgpOutcome.newEnemies();
+        if (!newEnemies.isEmpty()) {
+            aggressorAsnResources.putAll(newEnemies);
+            LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
+                    newEnemies.size(), newEnemies.keySet());
+        }
+
+        // war + збереження списку паралельно — map вже фінальний
+        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
+            var warTask = exec.submit(() -> { storeWarResources(aggressorAsnResources); return null; });
+            var asnTask = exec.submit(() -> { storeAggressorAsnResources(aggressorAsnResources); return null; });
+            for (var task : List.of(warTask, asnTask)) {
+                try {
+                    task.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof IOException ioe) {
+                        throw ioe;
+                    }
+                    throw new RuntimeException(e.getCause());
+                }
+            }
+        }
+
+        return bgpOutcome.effectivePrefixes();
     }
 
     private static void storeWarResources(Map<String, String> aggressorAsnResources) throws IOException {
