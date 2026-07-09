@@ -15,6 +15,7 @@
  */
 package net.ukrcom.asblockwar.ui;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 import java.util.function.Consumer;
@@ -34,7 +35,7 @@ public class GuiLogAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        if (handler == null) {
+        if (handler == null || !event.getLevel().isGreaterOrEqual(Level.INFO)) {
             return;
         }
         String line = "[" + event.getLevel() + "] " + event.getFormattedMessage();
