@@ -131,7 +131,7 @@ public class FilePickerController implements Initializable {
         }
 
         if (initialPath != null && !initialPath.isEmpty()) {
-            Path p = Path.of(initialPath).toAbsolutePath();
+            Path p = Path.of(initialPath).toAbsolutePath().normalize();
             Path targetDir = Files.isDirectory(p) ? p : p.getParent();
             if (targetDir != null && Files.isDirectory(targetDir)) {
                 // expandTo triggers the tree selection listener which populates fileList
