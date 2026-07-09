@@ -30,9 +30,9 @@
             <RowConstraints maxHeight="32.0" minHeight="32.0" vgrow="NEVER" />
          </rowConstraints>
          <children>
-            <Accordion>
+            <Accordion fx:id="accordion">
               <panes>
-                <TitledPane animated="false" text="List MNT-BY">
+                <TitledPane fx:id="paneListMntBy" animated="false" text="List MNT-BY">
                   <content>
                     <AnchorPane>
                            <children>
@@ -41,7 +41,7 @@
                         </AnchorPane>
                   </content>
                 </TitledPane>
-                <TitledPane animated="false" text="List AS-SET">
+                <TitledPane fx:id="paneListAsSet" animated="false" text="List AS-SET">
                   <content>
                     <AnchorPane>
                            <children>
@@ -50,7 +50,7 @@
                         </AnchorPane>
                   </content>
                 </TitledPane>
-                <TitledPane animated="false" text="List AS">
+                <TitledPane fx:id="paneListAs" animated="false" text="List AS">
                   <content>
                     <AnchorPane>
                            <children>

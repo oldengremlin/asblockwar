@@ -18,6 +18,7 @@ package net.ukrcom.asblockwar.ui;
 import ch.qos.logback.classic.LoggerContext;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicLong;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -48,11 +49,13 @@ public class RunProgressController implements Initializable {
     public void initialize(URL url, ResourceBundle rb) {
     }
 
+    private static final long HIGHLIGHT_INTERVAL_MS = 100;
+
     /**
-     * Attach a Logback appender, start processing on a daemon thread, and
-     * block the OS close button until the task finishes.
+     * Attach a Logback appender and a rate-limited UIProgressCallback, start
+     * processing on a daemon thread, and block the OS close button until done.
      */
-    public void startProcessing(Stage dialogStage) {
+    public void startProcessing(Stage dialogStage, MainWindowsController mainCtrl) {
         this.stage = dialogStage;
 
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -60,6 +63,28 @@ public class RunProgressController implements Initializable {
         appender.setContext(lc);
         appender.start();
         lc.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME).addAppender(appender);
+
+        AtomicLong lastHighlight = new AtomicLong(0);
+        ASBlockWar.uiCallback = new ASBlockWar.UIProgressCallback() {
+            @Override
+            public void onAsnProcessing(String asn) {
+                if (throttle(lastHighlight)) {
+                    mainCtrl.highlightAsn(asn);
+                }
+            }
+            @Override
+            public void onAsSetProcessing(String asSet) {
+                if (throttle(lastHighlight)) {
+                    mainCtrl.highlightAsSet(asSet);
+                }
+            }
+            @Override
+            public void onMntByProcessing(String mntBy) {
+                if (throttle(lastHighlight)) {
+                    mainCtrl.highlightMntBy(mntBy);
+                }
+            }
+        };
 
         stage.setOnCloseRequest(e -> {
             if (closeButton.isDisable()) {
@@ -76,6 +101,8 @@ public class RunProgressController implements Initializable {
         };
 
         task.setOnSucceeded(e -> {
+            ASBlockWar.uiCallback = null;
+            mainCtrl.clearHighlight();
             detachAppender();
             progressBar.setProgress(1.0);
             appendLine("--- Done ---");
@@ -84,6 +111,8 @@ public class RunProgressController implements Initializable {
         });
 
         task.setOnFailed(e -> {
+            ASBlockWar.uiCallback = null;
+            mainCtrl.clearHighlight();
             Throwable ex = task.getException();
             detachAppender();
             progressBar.setProgress(0.0);
@@ -96,6 +125,12 @@ public class RunProgressController implements Initializable {
         Thread thread = new Thread(task, "asblockwar-run");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private static boolean throttle(AtomicLong lastTs) {
+        long now = System.currentTimeMillis();
+        long prev = lastTs.get();
+        return (now - prev) >= HIGHLIGHT_INTERVAL_MS && lastTs.compareAndSet(prev, now);
     }
 
     private void appendLine(String line) {
