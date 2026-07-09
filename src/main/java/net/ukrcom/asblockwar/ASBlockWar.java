@@ -75,8 +75,11 @@ public class ASBlockWar {
 
     /** Optional GUI callback for live highlighting; null in CLI mode. */
     public interface UIProgressCallback {
+
         void onAsnProcessing(String asn);
+
         void onAsSetProcessing(String asSet);
+
         void onMntByProcessing(String mntBy);
     }
     public static volatile UIProgressCallback uiCallback;
@@ -109,8 +112,14 @@ public class ASBlockWar {
             Set<String> toReplace,
             Map<String, String> newEnemies,
             Set<String> effectivePrefixes) {
+
     }
 
+    /**
+     *
+     * @param args
+     * @throws InterruptedException
+     */
     public static void main(String[] args) throws InterruptedException {
         try {
             config = new Config(args);
@@ -129,6 +138,11 @@ public class ASBlockWar {
         }
     }
 
+    /**
+     *
+     * @throws IOException
+     * @throws InterruptedException
+     */
     public static void runProcessing() throws IOException, InterruptedException {
         listFile = config.getListFile();
         listMntbyFile = config.getListMntbyFile();
@@ -217,7 +231,9 @@ public class ASBlockWar {
                         .map(str -> "AS" + str)
                         .forEach(asNumber -> executor.submit(() -> {
                     UIProgressCallback cb = uiCallback;
-                    if (cb != null) cb.onAsnProcessing(asNumber);
+                    if (cb != null) {
+                        cb.onAsnProcessing(asNumber);
+                    }
                     try {
                         // Чекаємо дозволу на вхід до БД
                         dbLimit.acquire();
@@ -263,7 +279,9 @@ public class ASBlockWar {
                     .distinct()
                     .forEach(asSet -> executor.submit(() -> {
                 UIProgressCallback cb = uiCallback;
-                if (cb != null) cb.onAsSetProcessing(asSet);
+                if (cb != null) {
+                    cb.onAsSetProcessing(asSet);
+                }
                 try {
                     dbLimit.acquire();
                     String result = new retrieveAsSet(asSet).get();
@@ -290,7 +308,9 @@ public class ASBlockWar {
                         .filter(line -> !line.matches("^\\s*[#;].*"))
                         .forEach(mntBy -> executor.submit(() -> {
                     UIProgressCallback cb = uiCallback;
-                    if (cb != null) cb.onMntByProcessing(mntBy);
+                    if (cb != null) {
+                        cb.onMntByProcessing(mntBy);
+                    }
                     try {
                         // Чекаємо дозволу на вхід до БД
                         dbLimit.acquire();
@@ -530,7 +550,7 @@ public class ASBlockWar {
                 Files.writeString(tmp, content);
                 try {
                     Files.move(tmp, source, StandardCopyOption.ATOMIC_MOVE,
-                               StandardCopyOption.REPLACE_EXISTING);
+                            StandardCopyOption.REPLACE_EXISTING);
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(tmp, source, StandardCopyOption.REPLACE_EXISTING);
                 }
@@ -554,9 +574,18 @@ public class ASBlockWar {
 
         // усі три store паралельно — map вже фінальний, changes вже обчислено
         try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
-            var warTask = exec.submit(() -> { storeWarResources(aggressorAsnResources); return null; });
-            var asnTask = exec.submit(() -> { storeAggressorAsnResources(aggressorAsnResources); return null; });
-            var bgpTask = exec.submit(() -> { storeBlackbgpResources(changes); return null; });
+            var warTask = exec.submit(() -> {
+                storeWarResources(aggressorAsnResources);
+                return null;
+            });
+            var asnTask = exec.submit(() -> {
+                storeAggressorAsnResources(aggressorAsnResources);
+                return null;
+            });
+            var bgpTask = exec.submit(() -> {
+                storeBlackbgpResources(changes);
+                return null;
+            });
             for (var task : List.of(warTask, asnTask, bgpTask)) {
                 try {
                     task.get();
@@ -927,12 +956,12 @@ public class ASBlockWar {
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
             try (FileChannel lc = FileChannel.open(lockPath,
-                     StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                  FileLock fl = lc.lock()) {
                 Files.writeString(tmp, content);
                 try {
                     Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE,
-                               StandardCopyOption.REPLACE_EXISTING);
+                            StandardCopyOption.REPLACE_EXISTING);
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
                 }

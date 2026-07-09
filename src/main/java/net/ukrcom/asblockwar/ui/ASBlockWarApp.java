@@ -29,6 +29,11 @@ import javafx.stage.Stage;
  */
 public class ASBlockWarApp extends Application {
 
+    /**
+     *
+     * @param stage
+     * @throws Exception
+     */
     @Override
     public void start(Stage stage) throws Exception {
         URL fxmlUrl = getClass().getResource("/fxml/MainWindows.fxml");

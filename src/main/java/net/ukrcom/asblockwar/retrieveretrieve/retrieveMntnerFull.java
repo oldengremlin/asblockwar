@@ -36,6 +36,10 @@ public class retrieveMntnerFull {
     private final String mntner;
     private final StringBuilder sb = new StringBuilder();
 
+    /**
+     *
+     * @param mntner
+     */
     public retrieveMntnerFull(String mntner) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -78,6 +82,10 @@ public class retrieveMntnerFull {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String get() {
         logger.debug("retrieveMntnerFull({}).get(): {} chars", mntner, sb.length());
         return sb.toString();

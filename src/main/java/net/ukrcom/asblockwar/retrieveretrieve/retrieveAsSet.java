@@ -37,6 +37,10 @@ public class retrieveAsSet {
 
     private Connection conn;
 
+    /**
+     *
+     * @param asSet
+     */
     public retrieveAsSet(String asSet) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -54,6 +58,10 @@ public class retrieveAsSet {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String get() {
         logger.debug("retrieveAsSet({}).get(): {}", this.asSet, this.sb.toString());
         return this.sb.toString();

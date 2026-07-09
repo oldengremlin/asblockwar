@@ -57,6 +57,11 @@ public class Config {
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
+    /**
+     *
+     * @param args
+     * @throws IOException
+     */
     public Config(String[] args) throws IOException {
         this.properties = new Properties();
         this.args = args;
@@ -113,21 +118,22 @@ public class Config {
      * Persists current config values to disk.
      * Saves to the path it was loaded from, or to {@code asblockwar.properties}
      * in the current working directory if no external file was used.
+     * @throws java.io.IOException
      */
     public void save() throws IOException {
         String savePath = this.configPath != null ? this.configPath : "asblockwar.properties";
 
         Properties p = new Properties();
-        p.setProperty("ListFile",          this.listFile);
-        p.setProperty("ListMntbyFile",     this.listMntbyFile);
-        p.setProperty("ListAssetFile",     this.listAssetFile);
+        p.setProperty("ListFile", this.listFile);
+        p.setProperty("ListMntbyFile", this.listMntbyFile);
+        p.setProperty("ListAssetFile", this.listAssetFile);
         p.setProperty("WhoisLiteLocalURI", this.whoisLiteLocalURI);
-        p.setProperty("StoreDir",          this.storeDir);
-        p.setProperty("WarFile",           this.warFile);
-        p.setProperty("BlackbgpFile",      this.blackbgpFile);
-        p.setProperty("GetBlackhole",      this.getBlackhole);
-        p.setProperty("GetBlackholeIpv6",  this.getBlackholeIpv6);
-        p.setProperty("BlackbgpIpv6",      String.valueOf(this.blackbgpIpv6));
+        p.setProperty("StoreDir", this.storeDir);
+        p.setProperty("WarFile", this.warFile);
+        p.setProperty("BlackbgpFile", this.blackbgpFile);
+        p.setProperty("GetBlackhole", this.getBlackhole);
+        p.setProperty("GetBlackholeIpv6", this.getBlackholeIpv6);
+        p.setProperty("BlackbgpIpv6", String.valueOf(this.blackbgpIpv6));
         if (this.recursiveAsset >= 0) {
             p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
         }
@@ -236,63 +242,187 @@ public class Config {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String getListFile() {
         return this.listFile;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getListMntbyFile() {
         return this.listMntbyFile;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getListAssetFile() {
         return this.listAssetFile;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getWhoisLiteLocalURI() {
         return this.whoisLiteLocalURI;
     }
 
+    /**
+     *
+     * @return
+     */
     public int getRecursiveAsset() {
         return this.recursiveAsset;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getStoreDir() {
         return this.storeDir;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getWarFile() {
         return this.warFile;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getBlackbgpFile() {
         return this.blackbgpFile;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getGetBlackhole() {
         return this.getBlackhole;
     }
 
+    /**
+     *
+     * @return
+     */
     public String getGetBlackholeIpv6() {
         return this.getBlackholeIpv6;
     }
 
+    /**
+     *
+     * @return
+     */
     public boolean isBlackbgpIpv6() {
         return this.blackbgpIpv6;
     }
 
+    /**
+     *
+     * @return
+     */
     public boolean isGui() {
         return this.gui;
     }
 
-    public void setListFile(String v)           { this.listFile = v; }
-    public void setListMntbyFile(String v)      { this.listMntbyFile = v; }
-    public void setListAssetFile(String v)      { this.listAssetFile = v; }
-    public void setWhoisLiteLocalURI(String v)  { this.whoisLiteLocalURI = v; }
-    public void setStoreDir(String v)           { this.storeDir = v; }
-    public void setWarFile(String v)            { this.warFile = v; }
-    public void setBlackbgpFile(String v)       { this.blackbgpFile = v; }
-    public void setGetBlackhole(String v)       { this.getBlackhole = v; }
-    public void setGetBlackholeIpv6(String v)   { this.getBlackholeIpv6 = v; }
-    public void setBlackbgpIpv6(boolean v)      { this.blackbgpIpv6 = v; }
-    public void setRecursiveAsset(int v)        { this.recursiveAsset = v; }
+    /**
+     *
+     * @param v
+     */
+    public void setListFile(String v) {
+        this.listFile = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setListMntbyFile(String v) {
+        this.listMntbyFile = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setListAssetFile(String v) {
+        this.listAssetFile = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setWhoisLiteLocalURI(String v) {
+        this.whoisLiteLocalURI = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setStoreDir(String v) {
+        this.storeDir = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setWarFile(String v) {
+        this.warFile = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setBlackbgpFile(String v) {
+        this.blackbgpFile = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setGetBlackhole(String v) {
+        this.getBlackhole = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setGetBlackholeIpv6(String v) {
+        this.getBlackholeIpv6 = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setBlackbgpIpv6(boolean v) {
+        this.blackbgpIpv6 = v;
+    }
+
+    /**
+     *
+     * @param v
+     */
+    public void setRecursiveAsset(int v) {
+        this.recursiveAsset = v;
+    }
 }

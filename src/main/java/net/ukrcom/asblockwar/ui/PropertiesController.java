@@ -32,20 +32,36 @@ import net.ukrcom.asblockwar.ASBlockWar;
  */
 public class PropertiesController implements Initializable {
 
-    @FXML private TextField fieldListFile;
-    @FXML private TextField fieldListMntby;
-    @FXML private TextField fieldListAsset;
-    @FXML private TextField fieldWhoisUri;
-    @FXML private TextField fieldStoreDir;
-    @FXML private TextField fieldWarFile;
-    @FXML private TextField fieldBlackbgpFile;
-    @FXML private TextField fieldGetBlackhole;
-    @FXML private TextField fieldGetBlackholeIpv6;
-    @FXML private CheckBox  fieldIpv6;
-    @FXML private TextField fieldRecursiveAsset;
+    @FXML
+    private TextField fieldListFile;
+    @FXML
+    private TextField fieldListMntby;
+    @FXML
+    private TextField fieldListAsset;
+    @FXML
+    private TextField fieldWhoisUri;
+    @FXML
+    private TextField fieldStoreDir;
+    @FXML
+    private TextField fieldWarFile;
+    @FXML
+    private TextField fieldBlackbgpFile;
+    @FXML
+    private TextField fieldGetBlackhole;
+    @FXML
+    private TextField fieldGetBlackholeIpv6;
+    @FXML
+    private CheckBox fieldIpv6;
+    @FXML
+    private TextField fieldRecursiveAsset;
 
     private Stage stage;
 
+    /**
+     *
+     * @param url
+     * @param rb
+     */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         if (ASBlockWar.config == null) {
@@ -69,21 +85,42 @@ public class PropertiesController implements Initializable {
     }
 
     // --- Browse actions (delegate to pure-JavaFX FilePickerController) ---
+    @FXML
+    private void browseListFile() {
+        pick(false, fieldListFile, "Select List file");
+    }
 
-    @FXML private void browseListFile()     { pick(false, fieldListFile,     "Select List file"); }
-    @FXML private void browseListMntby()    { pick(false, fieldListMntby,    "Select MNT-BY file"); }
-    @FXML private void browseListAsset()    { pick(false, fieldListAsset,    "Select AS-SET file"); }
-    @FXML private void browseStoreDir()     { pick(true,  fieldStoreDir,     "Select Store directory"); }
-    @FXML private void browseWarFile()      { pick(false, fieldWarFile,      "Select WAR file"); }
-    @FXML private void browseBlackbgpFile() { pick(false, fieldBlackbgpFile, "Select Blackbgp file"); }
+    @FXML
+    private void browseListMntby() {
+        pick(false, fieldListMntby, "Select MNT-BY file");
+    }
+
+    @FXML
+    private void browseListAsset() {
+        pick(false, fieldListAsset, "Select AS-SET file");
+    }
+
+    @FXML
+    private void browseStoreDir() {
+        pick(true, fieldStoreDir, "Select Store directory");
+    }
+
+    @FXML
+    private void browseWarFile() {
+        pick(false, fieldWarFile, "Select WAR file");
+    }
+
+    @FXML
+    private void browseBlackbgpFile() {
+        pick(false, fieldBlackbgpFile, "Select Blackbgp file");
+    }
 
     private void pick(boolean dirOnly, TextField field, String title) {
         FilePickerController.showFilePicker(stage, title, field.getText().trim(), dirOnly)
-            .ifPresent(field::setText);
+                .ifPresent(field::setText);
     }
 
     // --- Save / Cancel ---
-
     @FXML
     private void doSave() {
         if (ASBlockWar.config != null) {

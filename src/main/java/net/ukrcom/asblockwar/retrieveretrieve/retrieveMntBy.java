@@ -37,6 +37,10 @@ public class retrieveMntBy {
 
     private Connection conn;
 
+    /**
+     *
+     * @param mntBy
+     */
     public retrieveMntBy(String mntBy) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -54,6 +58,10 @@ public class retrieveMntBy {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String get() {
         logger.debug("retrieveMntBy({}).get(): {}", this.mntBy, this.sb.toString());
         return this.sb.toString();

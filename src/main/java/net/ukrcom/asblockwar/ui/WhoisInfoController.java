@@ -37,11 +37,18 @@ import net.ukrcom.asblockwar.ASBlockWar;
  */
 public class WhoisInfoController implements Initializable {
 
-    @FXML private TextArea textArea;
-    @FXML private CheckBox wrapText;
+    @FXML
+    private TextArea textArea;
+    @FXML
+    private CheckBox wrapText;
 
     private Stage stage;
 
+    /**
+     *
+     * @param url
+     * @param rb
+     */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         textArea.setWrapText(wrapText.isSelected());
@@ -62,7 +69,9 @@ public class WhoisInfoController implements Initializable {
 
     @FXML
     private void doClose() {
-        if (stage != null) stage.hide();
+        if (stage != null) {
+            stage.hide();
+        }
     }
 
     /**

@@ -39,6 +39,10 @@ public class retrieveBlackbgpPrefixes {
 
     private final Set<String> prefixes = new HashSet<>();
 
+    /**
+     *
+     * @param includeIpv6
+     */
     public retrieveBlackbgpPrefixes(boolean includeIpv6) {
         fetch(net.ukrcom.asblockwar.ASBlockWar.config.getGetBlackhole(), false);
         if (includeIpv6) {
@@ -78,6 +82,10 @@ public class retrieveBlackbgpPrefixes {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public Set<String> get() {
         return Collections.unmodifiableSet(prefixes);
     }

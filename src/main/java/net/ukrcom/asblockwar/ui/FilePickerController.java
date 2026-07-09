@@ -48,11 +48,16 @@ import net.ukrcom.asblockwar.ASBlockWar;
  */
 public class FilePickerController implements Initializable {
 
-    @FXML private SplitPane contentSplit;
-    @FXML private TreeView<Path> dirTree;
-    @FXML private ListView<Path> fileList;
-    @FXML private TextField selectedPath;
-    @FXML private Button okButton;
+    @FXML
+    private SplitPane contentSplit;
+    @FXML
+    private TreeView<Path> dirTree;
+    @FXML
+    private ListView<Path> fileList;
+    @FXML
+    private TextField selectedPath;
+    @FXML
+    private Button okButton;
 
     private boolean directoryOnly;
     private Stage stage;
@@ -121,6 +126,9 @@ public class FilePickerController implements Initializable {
     /**
      * Called by the factory method after the FXML is loaded and before
      * showAndWait(). Sets the mode and pre-navigates to the initial path.
+     * @param initialPath
+     * @param directoryOnly
+     * @param dialogStage
      */
     public void configure(String initialPath, boolean directoryOnly, Stage dialogStage) {
         this.directoryOnly = directoryOnly;
@@ -140,12 +148,12 @@ public class FilePickerController implements Initializable {
                     selectedPath.setText(p.toString());
                     // Select the file in the list (which was just populated by the listener)
                     fileList.getItems().stream()
-                        .filter(f -> f.equals(p))
-                        .findFirst()
-                        .ifPresent(f -> {
-                            fileList.getSelectionModel().select(f);
-                            fileList.scrollTo(f);
-                        });
+                            .filter(f -> f.equals(p))
+                            .findFirst()
+                            .ifPresent(f -> {
+                                fileList.getSelectionModel().select(f);
+                                fileList.scrollTo(f);
+                            });
                 } else {
                     selectedPath.setText(targetDir.toString());
                 }
@@ -171,7 +179,9 @@ public class FilePickerController implements Initializable {
         while (p != null) {
             components.add(0, p);
             Path parent = p.getParent();
-            if (parent == null || parent.equals(p)) break;
+            if (parent == null || parent.equals(p)) {
+                break;
+            }
             p = parent;
         }
 
@@ -185,7 +195,9 @@ public class FilePickerController implements Initializable {
         }
 
         for (int i = start; i < components.size(); i++) {
-            if (current == null) break;
+            if (current == null) {
+                break;
+            }
             if (!current.isExpanded()) {
                 current.setExpanded(true); // triggers lazy load synchronously
             }
@@ -209,10 +221,10 @@ public class FilePickerController implements Initializable {
         fileList.getItems().clear();
         try {
             Files.list(dir)
-                .filter(Files::isRegularFile)
-                .filter(p -> !hidden(p))
-                .sorted()
-                .forEach(fileList.getItems()::add);
+                    .filter(Files::isRegularFile)
+                    .filter(p -> !hidden(p))
+                    .sorted()
+                    .forEach(fileList.getItems()::add);
         } catch (IOException ignored) {
         }
     }
@@ -228,11 +240,11 @@ public class FilePickerController implements Initializable {
                 item.getChildren().clear();
                 try {
                     Files.list(path)
-                        .filter(Files::isDirectory)
-                        .filter(p -> !hidden(p))
-                        .sorted()
-                        .map(this::createDirItem)
-                        .forEach(item.getChildren()::add);
+                            .filter(Files::isDirectory)
+                            .filter(p -> !hidden(p))
+                            .sorted()
+                            .map(this::createDirItem)
+                            .forEach(item.getChildren()::add);
                 } catch (IOException ignored) {
                 }
             }
@@ -248,7 +260,9 @@ public class FilePickerController implements Initializable {
         }
     }
 
-    public String getResult() { return result; }
+    public String getResult() {
+        return result;
+    }
 
     @FXML
     private void doSelect() {
@@ -256,13 +270,17 @@ public class FilePickerController implements Initializable {
         if (!path.isEmpty()) {
             result = path;
         }
-        if (stage != null) stage.hide();
+        if (stage != null) {
+            stage.hide();
+        }
     }
 
     @FXML
     private void doCancel() {
         result = null;
-        if (stage != null) stage.hide();
+        if (stage != null) {
+            stage.hide();
+        }
     }
 
     /**
@@ -272,7 +290,7 @@ public class FilePickerController implements Initializable {
      * @param directoryOnly true = only directories can be selected
      */
     public static Optional<String> showFilePicker(Stage owner, String title,
-                                                   String initialPath, boolean directoryOnly) {
+                                                  String initialPath, boolean directoryOnly) {
         try {
             URL fxmlUrl = FilePickerController.class.getResource("/fxml/FilePickerDialog.fxml");
             FXMLLoader loader = new FXMLLoader(fxmlUrl);

@@ -46,6 +46,11 @@ public class retrieveAsSetMembers {
     private final int recursionDepth;
     private final Set<String> members = new HashSet<>();
 
+    /**
+     *
+     * @param asSet
+     * @param recursionDepth
+     */
     public retrieveAsSetMembers(String asSet, int recursionDepth) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -104,6 +109,10 @@ public class retrieveAsSetMembers {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public Set<String> get() {
         logger.debug("retrieveAsSetMembers({}, depth={}).get(): {} members", asSet, recursionDepth, members.size());
         return Set.copyOf(members);

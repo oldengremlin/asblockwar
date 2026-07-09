@@ -50,6 +50,10 @@ public class retrieveRouteOrigins {
 
     private final List<String> origins = new ArrayList<>();
 
+    /**
+     *
+     * @param route
+     */
     public retrieveRouteOrigins(String route) {
         try (Connection conn = DriverManager.getConnection(
                 net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI())) {
@@ -66,6 +70,10 @@ public class retrieveRouteOrigins {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public List<String> get() {
         return origins;
     }

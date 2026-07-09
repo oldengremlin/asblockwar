@@ -39,6 +39,10 @@ public class retrieveAutNumFull {
     private final String autNum;
     private final StringBuilder sb = new StringBuilder();
 
+    /**
+     *
+     * @param autNum
+     */
     public retrieveAutNumFull(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -130,6 +134,10 @@ public class retrieveAutNumFull {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String get() {
         logger.debug("retrieveAutNumFull({}).get(): {} chars", autNum, sb.length());
         return sb.toString();

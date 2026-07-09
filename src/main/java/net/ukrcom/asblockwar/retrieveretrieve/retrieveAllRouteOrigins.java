@@ -46,6 +46,9 @@ public class retrieveAllRouteOrigins {
 
     private final Map<String, List<String>> origins = new HashMap<>();
 
+    /**
+     *
+     */
     public retrieveAllRouteOrigins() {
         try (Connection conn = DriverManager.getConnection(
                 net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI());
@@ -61,6 +64,10 @@ public class retrieveAllRouteOrigins {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public Map<String, List<String>> get() {
         return origins;
     }

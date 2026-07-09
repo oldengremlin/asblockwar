@@ -36,6 +36,10 @@ public class retrieveRouteOriginFull {
     private final String origin;
     private final StringBuilder sb = new StringBuilder();
 
+    /**
+     *
+     * @param origin
+     */
     public retrieveRouteOriginFull(String origin) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -68,6 +72,10 @@ public class retrieveRouteOriginFull {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String get() {
         logger.debug("retrieveRouteOriginFull({}).get(): {} chars", origin, sb.length());
         return sb.toString();

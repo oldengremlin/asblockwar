@@ -40,6 +40,10 @@ public class AsnRegexBuilder {
 
     private final TrieNode root = new TrieNode();
 
+    /**
+     *
+     * @param asn
+     */
     public void add(long asn) {
         TrieNode node = root;
         for (char c : Long.toString(asn).toCharArray()) {

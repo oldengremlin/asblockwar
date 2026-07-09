@@ -44,6 +44,10 @@ public class retrieveImportExportAsSets {
     private final String autNum;
     private final Set<String> asSets = new HashSet<>();
 
+    /**
+     *
+     * @param autNum
+     */
     public retrieveImportExportAsSets(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -82,6 +86,10 @@ public class retrieveImportExportAsSets {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public Set<String> get() {
         logger.debug("retrieveImportExportAsSets({}).get(): {}", autNum, asSets);
         return Set.copyOf(asSets);

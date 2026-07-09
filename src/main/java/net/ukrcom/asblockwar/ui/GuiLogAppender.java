@@ -29,6 +29,10 @@ public class GuiLogAppender extends AppenderBase<ILoggingEvent> {
 
     private final Consumer<String> handler;
 
+    /**
+     *
+     * @param handler
+     */
     public GuiLogAppender(Consumer<String> handler) {
         this.handler = handler;
     }

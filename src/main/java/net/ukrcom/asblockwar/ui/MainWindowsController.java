@@ -51,20 +51,38 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
  */
 public class MainWindowsController implements Initializable {
 
-    @FXML private Button runButton;
-    @FXML private Button propertiesButton;
-    @FXML private Accordion accordion;
-    @FXML private TitledPane paneListMntBy;
-    @FXML private TitledPane paneListAsSet;
-    @FXML private TitledPane paneListAs;
-    @FXML private ListView<String> listAs;
-    @FXML private ListView<String> listMntBy;
-    @FXML private ListView<String> listAsSet;
-    @FXML private TextArea textWarJuniper;
-    @FXML private TextArea textWarBlackbgp;
-    @FXML private CheckBox wrapJuniper;
-    @FXML private Label statusLabel;
+    @FXML
+    private Button runButton;
+    @FXML
+    private Button propertiesButton;
+    @FXML
+    private Accordion accordion;
+    @FXML
+    private TitledPane paneListMntBy;
+    @FXML
+    private TitledPane paneListAsSet;
+    @FXML
+    private TitledPane paneListAs;
+    @FXML
+    private ListView<String> listAs;
+    @FXML
+    private ListView<String> listMntBy;
+    @FXML
+    private ListView<String> listAsSet;
+    @FXML
+    private TextArea textWarJuniper;
+    @FXML
+    private TextArea textWarBlackbgp;
+    @FXML
+    private CheckBox wrapJuniper;
+    @FXML
+    private Label statusLabel;
 
+    /**
+     *
+     * @param url
+     * @param rb
+     */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         textWarJuniper.setWrapText(wrapJuniper.isSelected());
@@ -212,10 +230,10 @@ public class MainWindowsController implements Initializable {
         if (ASBlockWar.config == null) {
             return;
         }
-        loadListFile(listAs,     Path.of(ASBlockWar.config.getListFile()));
-        loadListFile(listMntBy,  Path.of(ASBlockWar.config.getListMntbyFile()));
-        loadListFile(listAsSet,  Path.of(ASBlockWar.config.getListAssetFile()));
-        loadTextFile(textWarJuniper,  Path.of(ASBlockWar.config.getWarFile()));
+        loadListFile(listAs, Path.of(ASBlockWar.config.getListFile()));
+        loadListFile(listMntBy, Path.of(ASBlockWar.config.getListMntbyFile()));
+        loadListFile(listAsSet, Path.of(ASBlockWar.config.getListAssetFile()));
+        loadTextFile(textWarJuniper, Path.of(ASBlockWar.config.getWarFile()));
         loadTextFile(textWarBlackbgp, Path.of(ASBlockWar.config.getBlackbgpFile()));
     }
 

@@ -42,6 +42,10 @@ public class retrieveOrganisation {
 
     private Connection conn;
 
+    /**
+     *
+     * @param autNum
+     */
     public retrieveOrganisation(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
@@ -63,6 +67,10 @@ public class retrieveOrganisation {
         cache.put(autNum, this.sb.toString());
     }
 
+    /**
+     *
+     * @return
+     */
     public String get() {
         String cached = cache.get(this.autNum);
         if (cached != null) {
@@ -130,6 +138,11 @@ public class retrieveOrganisation {
         return retVal.toString();
     }
 
+    /**
+     *
+     * @param as
+     * @return
+     */
     protected String getAsn(String as) {
         StringBuilder retVal = new StringBuilder();
         String asNum = as.replaceFirst("^[Aa][Ss]", "");

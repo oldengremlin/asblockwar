@@ -46,6 +46,10 @@ public class retrieveRouteOriginPrefixes {
 
     private final List<String> prefixes = new ArrayList<>();
 
+    /**
+     *
+     * @param origin
+     */
     public retrieveRouteOriginPrefixes(String origin) {
         try (Connection conn = DriverManager.getConnection(
                 net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI())) {
@@ -62,6 +66,10 @@ public class retrieveRouteOriginPrefixes {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public List<String> get() {
         return prefixes;
     }

@@ -38,9 +38,12 @@ import org.slf4j.LoggerFactory;
  */
 public class RunProgressController implements Initializable {
 
-    @FXML private ProgressBar progressBar;
-    @FXML private TextArea logArea;
-    @FXML private Button closeButton;
+    @FXML
+    private ProgressBar progressBar;
+    @FXML
+    private TextArea logArea;
+    @FXML
+    private Button closeButton;
 
     private Stage stage;
     private GuiLogAppender appender;
@@ -54,6 +57,8 @@ public class RunProgressController implements Initializable {
     /**
      * Attach a Logback appender and a rate-limited UIProgressCallback, start
      * processing on a daemon thread, and block the OS close button until done.
+     * @param dialogStage
+     * @param mainCtrl
      */
     public void startProcessing(Stage dialogStage, MainWindowsController mainCtrl) {
         this.stage = dialogStage;
@@ -72,12 +77,14 @@ public class RunProgressController implements Initializable {
                     mainCtrl.highlightAsn(asn);
                 }
             }
+
             @Override
             public void onAsSetProcessing(String asSet) {
                 if (throttle(lastHighlight)) {
                     mainCtrl.highlightAsSet(asSet);
                 }
             }
+
             @Override
             public void onMntByProcessing(String mntBy) {
                 if (throttle(lastHighlight)) {
