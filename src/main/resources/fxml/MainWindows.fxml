@@ -6,12 +6,14 @@
 <?import javafx.scene.control.DialogPane?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 
 
@@ -25,6 +27,7 @@
          </columnConstraints>
          <rowConstraints>
             <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+            <RowConstraints maxHeight="32.0" minHeight="32.0" vgrow="NEVER" />
          </rowConstraints>
          <children>
             <Accordion>
@@ -33,7 +36,7 @@
                   <content>
                     <AnchorPane>
                            <children>
-                              <ListView />
+                              <ListView fx:id="listMntBy" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                            </children>
                         </AnchorPane>
                   </content>
@@ -42,7 +45,7 @@
                   <content>
                     <AnchorPane>
                            <children>
-                              <ListView layoutX="2.0" />
+                              <ListView fx:id="listAsSet" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                            </children>
                         </AnchorPane>
                   </content>
@@ -51,14 +54,14 @@
                   <content>
                     <AnchorPane>
                            <children>
-                              <ListView />
+                              <ListView fx:id="listAs" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                            </children>
                         </AnchorPane>
                   </content>
                 </TitledPane>
               </panes>
             </Accordion>
-            <SplitPane dividerPositions="0.5" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0" GridPane.columnIndex="1">
+            <SplitPane dividerPositions="0.07" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0" GridPane.columnIndex="1">
               <items>
                 <AnchorPane maxHeight="50.0" minHeight="50.0" prefHeight="50.0">
                      <children>
@@ -67,12 +70,12 @@
                   </AnchorPane>
                 <AnchorPane>
                      <children>
-                        <TextArea prefHeight="200.0" prefWidth="200.0" />
+                        <TextArea fx:id="textWarJuniper" editable="false" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                      </children>
                   </AnchorPane>
               </items>
             </SplitPane>
-            <SplitPane dividerPositions="0.5" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0" GridPane.columnIndex="2">
+            <SplitPane dividerPositions="0.07" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0" GridPane.columnIndex="2">
               <items>
                 <AnchorPane maxHeight="50.0" minHeight="50.0" prefHeight="50.0">
                      <children>
@@ -81,11 +84,17 @@
                   </AnchorPane>
                 <AnchorPane>
                      <children>
-                        <TextArea prefHeight="200.0" prefWidth="200.0" />
+                        <TextArea fx:id="textWarBlackbgp" editable="false" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                      </children>
                   </AnchorPane>
               </items>
             </SplitPane>
+            <HBox alignment="CENTER_LEFT" spacing="8.0" GridPane.rowIndex="1" GridPane.columnSpan="3" style="-fx-padding: 4 8 4 8;">
+               <children>
+                  <Label fx:id="statusLabel" text="Ready." />
+                  <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="-1.0" visible="false" />
+               </children>
+            </HBox>
          </children>
       </GridPane>
    </content>

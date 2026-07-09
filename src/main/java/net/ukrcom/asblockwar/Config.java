@@ -50,6 +50,7 @@ public class Config {
     private final String getBlackhole;
     private final String getBlackholeIpv6;
     private boolean blackbgpIpv6 = false;
+    private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -118,6 +119,8 @@ public class Config {
                 this.getBlackholeOverride = arg.substring("--get-blackhole=".length()).trim();
             } else if (arg.startsWith("--get-blackhole6=")) {
                 this.getBlackholeIpv6Override = arg.substring("--get-blackhole6=".length()).trim();
+            } else if (arg.equals("--gui") || arg.equals("-g")) {
+                this.gui = true;
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
             } else if (arg.equals("--recursive-asset")) {
@@ -151,6 +154,7 @@ public class Config {
         System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
         System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
+        System.out.println("  -g, --gui                 Launch graphical user interface");
         System.out.println("  -h, --help                Show this help and exit");
     }
 
@@ -217,5 +221,9 @@ public class Config {
 
     public boolean isBlackbgpIpv6() {
         return this.blackbgpIpv6;
+    }
+
+    public boolean isGui() {
+        return this.gui;
     }
 }
