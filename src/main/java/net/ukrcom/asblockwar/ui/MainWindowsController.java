@@ -24,15 +24,18 @@ import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
@@ -49,7 +52,6 @@ public class MainWindowsController implements Initializable {
     @FXML private ListView<String> listAsSet;
     @FXML private TextArea textWarJuniper;
     @FXML private TextArea textWarBlackbgp;
-    @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
 
     @Override
@@ -61,37 +63,31 @@ public class MainWindowsController implements Initializable {
     private void doRun() {
         runButton.setDisable(true);
         propertiesButton.setDisable(true);
-        progressBar.setVisible(true);
         statusLabel.setText("Running...");
+        try {
+            URL fxmlUrl = getClass().getResource("/fxml/RunProgressDialog.fxml");
+            FXMLLoader loader = new FXMLLoader(fxmlUrl);
+            Parent root = loader.load();
+            RunProgressController ctrl = loader.getController();
 
-        Task<Void> task = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                ASBlockWar.runProcessing();
-                return null;
-            }
-        };
+            Stage dialog = new Stage();
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.initOwner(runButton.getScene().getWindow());
+            dialog.setTitle("ASBlockWar — Processing");
+            dialog.setScene(new Scene(root));
 
-        task.setOnSucceeded(e -> {
+            ctrl.startProcessing(dialog);
+            dialog.showAndWait();
+
             refreshUi();
-            progressBar.setVisible(false);
             statusLabel.setText("Done.");
+        } catch (IOException e) {
+            ASBlockWar.LOGGER.error("GUI: cannot open progress dialog", e);
+            statusLabel.setText("Error: " + e.getMessage());
+        } finally {
             runButton.setDisable(false);
             propertiesButton.setDisable(false);
-        });
-
-        task.setOnFailed(e -> {
-            Throwable ex = task.getException();
-            progressBar.setVisible(false);
-            statusLabel.setText("Error: " + (ex != null ? ex.getMessage() : "unknown"));
-            ASBlockWar.LOGGER.error("GUI: runProcessing failed", ex);
-            runButton.setDisable(false);
-            propertiesButton.setDisable(false);
-        });
-
-        Thread thread = new Thread(task, "asblockwar-run");
-        thread.setDaemon(true);
-        thread.start();
+        }
     }
 
     @FXML

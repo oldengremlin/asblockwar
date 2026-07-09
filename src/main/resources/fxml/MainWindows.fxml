@@ -6,7 +6,6 @@
 <?import javafx.scene.control.DialogPane?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TitledPane?>
@@ -92,7 +91,6 @@
             <HBox alignment="CENTER_LEFT" spacing="8.0" GridPane.rowIndex="1" GridPane.columnSpan="3" style="-fx-padding: 4 8 4 8;">
                <children>
                   <Label fx:id="statusLabel" text="Ready." />
-                  <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="-1.0" visible="false" />
                </children>
             </HBox>
          </children>
