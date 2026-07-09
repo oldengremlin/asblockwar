@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
+import java.util.function.Supplier;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -39,6 +40,9 @@ import javafx.scene.control.TitledPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveAutNumFull;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
 
 /**
  * FXML Controller class for the main ASBlockWar window.
@@ -64,6 +68,45 @@ public class MainWindowsController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         refreshUi();
+        setupDoubleClick();
+    }
+
+    private void setupDoubleClick() {
+        listMntBy.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                String sel = listMntBy.getSelectionModel().getSelectedItem();
+                if (sel != null) {
+                    showWhoisInfo("MNT-BY: " + sel, () -> new retrieveMntnerFull(sel).get());
+                }
+            }
+        });
+        listAsSet.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                String sel = listAsSet.getSelectionModel().getSelectedItem();
+                if (sel != null) {
+                    showWhoisInfo("AS-SET: " + sel, () -> new retrieveAsSet(sel).get());
+                }
+            }
+        });
+        listAs.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                String sel = listAs.getSelectionModel().getSelectedItem();
+                if (sel != null) {
+                    String asn = sel.startsWith("AS") ? sel : "AS" + sel;
+                    showWhoisInfo(asn, () -> new retrieveAutNumFull(asn).get());
+                }
+            }
+        });
+    }
+
+    private void showWhoisInfo(String title, Supplier<String> supplier) {
+        Thread.ofVirtual().start(() -> {
+            String text = supplier.get();
+            Platform.runLater(() -> {
+                Stage owner = (Stage) runButton.getScene().getWindow();
+                WhoisInfoController.show(owner, title, text.isBlank() ? "(no data)" : text);
+            });
+        });
     }
 
     @FXML
