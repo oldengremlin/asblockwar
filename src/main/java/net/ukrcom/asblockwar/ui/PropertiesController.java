@@ -15,6 +15,7 @@
  */
 package net.ukrcom.asblockwar.ui;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 import javafx.fxml.FXML;
@@ -100,6 +101,11 @@ public class PropertiesController implements Initializable {
                 ASBlockWar.config.setRecursiveAsset(
                         Integer.parseInt(fieldRecursiveAsset.getText().trim()));
             } catch (NumberFormatException ignored) {
+            }
+            try {
+                ASBlockWar.config.save();
+            } catch (IOException e) {
+                ASBlockWar.LOGGER.error("GUI: не вдалося зберегти конфігурацію", e);
             }
         }
         if (stage != null) {

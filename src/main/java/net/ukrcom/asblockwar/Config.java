@@ -18,6 +18,9 @@ package net.ukrcom.asblockwar;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 import static net.ukrcom.asblockwar.ASBlockWar.LOGGER;
 
@@ -89,6 +92,51 @@ public class Config {
                                 ? this.getBlackholeIpv6Override
                                 : this.properties.getProperty("GetBlackholeIpv6",
                         "ssh blackbgp \"sudo ip -6 r l t blackbgp\"").trim();
+
+        // CLI flag wins; fall back to properties file value
+        if (!this.blackbgpIpv6) {
+            this.blackbgpIpv6 = Boolean.parseBoolean(
+                    this.properties.getProperty("BlackbgpIpv6", "false").trim());
+        }
+        if (this.recursiveAsset < 0) {
+            String ra = this.properties.getProperty("RecursiveAsset");
+            if (ra != null) {
+                try {
+                    this.recursiveAsset = Integer.parseInt(ra.trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Persists current config values to disk.
+     * Saves to the path it was loaded from, or to {@code asblockwar.properties}
+     * in the current working directory if no external file was used.
+     */
+    public void save() throws IOException {
+        String savePath = this.configPath != null ? this.configPath : "asblockwar.properties";
+
+        Properties p = new Properties();
+        p.setProperty("ListFile",          this.listFile);
+        p.setProperty("ListMntbyFile",     this.listMntbyFile);
+        p.setProperty("ListAssetFile",     this.listAssetFile);
+        p.setProperty("WhoisLiteLocalURI", this.whoisLiteLocalURI);
+        p.setProperty("StoreDir",          this.storeDir);
+        p.setProperty("WarFile",           this.warFile);
+        p.setProperty("BlackbgpFile",      this.blackbgpFile);
+        p.setProperty("GetBlackhole",      this.getBlackhole);
+        p.setProperty("GetBlackholeIpv6",  this.getBlackholeIpv6);
+        p.setProperty("BlackbgpIpv6",      String.valueOf(this.blackbgpIpv6));
+        if (this.recursiveAsset >= 0) {
+            p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
+        }
+
+        try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
+            p.store(out, "ASBlockWar configuration");
+        }
+        this.configPath = savePath;
+        LOGGER.info("Конфігурацію збережено до {}", savePath);
     }
 
     private void parseArgs() {
@@ -160,7 +208,7 @@ public class Config {
 
     private void loadProperties() throws IOException {
         if (this.configPath != null) {
-            // Load from specified file path
+            // Explicit --config=<path>
             try (InputStream input = new FileInputStream(this.configPath)) {
                 this.properties.load(input);
             } catch (IOException e) {
@@ -168,13 +216,22 @@ public class Config {
                 throw new IOException("Не можу завантажити конфігураційний файл: " + this.configPath, e);
             }
         } else {
-            // Load from default resource, якщо він є; інакше — значення за замовчуванням для всіх властивостей
-            try (InputStream input = getClass().getClassLoader().getResourceAsStream("asblockwar.properties")) {
-                if (input == null) {
-                    LOGGER.info("Конфігураційний файл asblockwar.properties не знайдено, використовуються значення за замовчуванням.");
-                    return;
+            // CWD file takes precedence over classpath resource (GUI saves here)
+            Path cwdConfig = Path.of("asblockwar.properties");
+            if (Files.exists(cwdConfig)) {
+                LOGGER.info("Завантажую конфігурацію з {}", cwdConfig.toAbsolutePath());
+                try (InputStream input = Files.newInputStream(cwdConfig)) {
+                    this.properties.load(input);
                 }
-                this.properties.load(input);
+                this.configPath = cwdConfig.toAbsolutePath().toString();
+            } else {
+                try (InputStream input = getClass().getClassLoader().getResourceAsStream("asblockwar.properties")) {
+                    if (input == null) {
+                        LOGGER.info("Конфігураційний файл asblockwar.properties не знайдено, використовуються значення за замовчуванням.");
+                        return;
+                    }
+                    this.properties.load(input);
+                }
             }
         }
     }
