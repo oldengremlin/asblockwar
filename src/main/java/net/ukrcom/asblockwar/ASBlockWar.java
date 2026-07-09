@@ -154,47 +154,17 @@ public class ASBlockWar {
         Arrays.stream(blockedAsSet).forEach(allDiscoveredAsSets::add);
         storeListAsSet(allDiscoveredAsSets);
 
-        final var finalResources = aggressorAsnResources;
-        BlackbgpResult bgpOutcome;
-        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
-            var warTask = exec.submit(() -> {
-                storeWarResources(finalResources);
-                return null;
-            });
-            var bgpTask = exec.submit(() -> storeBlackbgpResources(finalResources));
-            try {
-                warTask.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof IOException ioe) {
-                    throw ioe;
-                }
-                throw new RuntimeException(e.getCause());
-            }
-            BlackbgpResult bgpResult = null;
-            try {
-                bgpResult = bgpTask.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof IOException ioe) {
-                    throw ioe;
-                }
-                throw new RuntimeException(e.getCause());
-            }
-            bgpOutcome = bgpResult != null ? bgpResult : new BlackbgpResult(Map.of(), Set.of());
-        }
-
-        Map<String, String> newEnemies = bgpOutcome.newEnemies();
+        BlackbgpResult bgpOutcome = storeBlackbgpResources(aggressorAsnResources);
         Set<String> effectivePrefixes = bgpOutcome.effectivePrefixes();
 
+        Map<String, String> newEnemies = bgpOutcome.newEnemies();
         if (!newEnemies.isEmpty()) {
             aggressorAsnResources.putAll(newEnemies);
-            storeWarResources(aggressorAsnResources);
             LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
                     newEnemies.size(), newEnemies.keySet());
         }
+
+        storeWarResources(aggressorAsnResources);
 
         storeAggressorAsnResources(aggressorAsnResources);
 
