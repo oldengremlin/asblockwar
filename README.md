@@ -35,13 +35,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.0.0-<buildNumber>.jar
+target/ASBlockWar-3.1.0-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 21+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.0.0-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.1.0-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -119,7 +119,7 @@ GetBlackholeIpv6=ssh blackbgp "sudo ip -6 r l t blackbgp"
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.0.0-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.1.0-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -173,7 +173,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.0.0-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.1.0-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -201,7 +201,7 @@ java -jar target/ASBlockWar-3.0.0-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.0.0-00000001.jar --gui
+java -jar target/ASBlockWar-3.1.0-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -254,6 +254,13 @@ java -jar target/ASBlockWar-3.0.0-00000001.jar --gui
 | Blackbgp file | файл |
 
 Зміни набувають чинності після натискання *Save* і одразу відображаються в головному вікні (перечитування файлів).
+
+Конфігурація автоматично зберігається на диск:
+
+- якщо застосунок запущено з `--config=<шлях>` — зберігається в той самий файл;
+- інакше — у файл `asblockwar.properties` у поточній робочій директорії.
+
+При наступному запуску файл завантажується автоматично — жодних додаткових ключів командного рядка не потрібно.
 
 ### Файловий браузер
 
