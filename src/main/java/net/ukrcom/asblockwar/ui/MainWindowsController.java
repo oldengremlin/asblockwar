@@ -29,7 +29,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -92,23 +91,26 @@ public class MainWindowsController implements Initializable {
 
     @FXML
     private void doPropertiesDialog() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Properties");
-        alert.setHeaderText("Current configuration");
-        if (ASBlockWar.config != null) {
-            alert.setContentText(
-                "List file:    " + ASBlockWar.config.getListFile() + "\n"
-                + "MNT-BY file:  " + ASBlockWar.config.getListMntbyFile() + "\n"
-                + "AS-SET file:  " + ASBlockWar.config.getListAssetFile() + "\n"
-                + "DB URI:       " + ASBlockWar.config.getWhoisLiteLocalURI() + "\n"
-                + "Store dir:    " + ASBlockWar.config.getStoreDir() + "\n"
-                + "WAR file:     " + ASBlockWar.config.getWarFile() + "\n"
-                + "Blackbgp file:" + ASBlockWar.config.getBlackbgpFile()
-            );
-        } else {
-            alert.setContentText("Config not loaded.");
+        try {
+            URL fxmlUrl = getClass().getResource("/fxml/PropertiesDialog.fxml");
+            FXMLLoader loader = new FXMLLoader(fxmlUrl);
+            Parent root = loader.load();
+            PropertiesController ctrl = loader.getController();
+
+            Stage dialog = new Stage();
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.initOwner(propertiesButton.getScene().getWindow());
+            dialog.setTitle("Properties");
+            dialog.setScene(new Scene(root));
+
+            ctrl.setStage(dialog);
+            dialog.showAndWait();
+
+            refreshUi();
+        } catch (IOException e) {
+            ASBlockWar.LOGGER.error("GUI: cannot open properties dialog", e);
+            statusLabel.setText("Error: " + e.getMessage());
         }
-        alert.showAndWait();
     }
 
     private void refreshUi() {

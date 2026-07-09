@@ -40,15 +40,15 @@ public class Config {
     private String blackbgpFileOverride;
     private String getBlackholeOverride;
     private String getBlackholeIpv6Override;
-    private final String listFile;
-    private final String listMntbyFile;
-    private final String listAssetFile;
-    private final String whoisLiteLocalURI;
-    private final String storeDir;
-    private final String warFile;
-    private final String blackbgpFile;
-    private final String getBlackhole;
-    private final String getBlackholeIpv6;
+    private String listFile;
+    private String listMntbyFile;
+    private String listAssetFile;
+    private String whoisLiteLocalURI;
+    private String storeDir;
+    private String warFile;
+    private String blackbgpFile;
+    private String getBlackhole;
+    private String getBlackholeIpv6;
     private boolean blackbgpIpv6 = false;
     private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
@@ -226,4 +226,16 @@ public class Config {
     public boolean isGui() {
         return this.gui;
     }
+
+    public void setListFile(String v)           { this.listFile = v; }
+    public void setListMntbyFile(String v)      { this.listMntbyFile = v; }
+    public void setListAssetFile(String v)      { this.listAssetFile = v; }
+    public void setWhoisLiteLocalURI(String v)  { this.whoisLiteLocalURI = v; }
+    public void setStoreDir(String v)           { this.storeDir = v; }
+    public void setWarFile(String v)            { this.warFile = v; }
+    public void setBlackbgpFile(String v)       { this.blackbgpFile = v; }
+    public void setGetBlackhole(String v)       { this.getBlackhole = v; }
+    public void setGetBlackholeIpv6(String v)   { this.getBlackholeIpv6 = v; }
+    public void setBlackbgpIpv6(boolean v)      { this.blackbgpIpv6 = v; }
+    public void setRecursiveAsset(int v)        { this.recursiveAsset = v; }
 }
