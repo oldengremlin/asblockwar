@@ -45,7 +45,12 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveAutNumFull;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
 
 /**
- * FXML Controller class for the main ASBlockWar window.
+ * FXML-контролер головного вікна ASBlockWar.
+ *
+ * <p>Керує трьома списками (ASN, mnt-by, AS-SET), відображає вихідні файли
+ * (WAR Juniper і blackbgp), запускає обробку та відкриває діалоги налаштувань.
+ * Підсвічує поточний елемент у списках під час виконання через методи
+ * {@link #highlightAsn}, {@link #highlightAsSet}, {@link #highlightMntBy}.
  *
  * @author olden
  */
@@ -79,9 +84,11 @@ public class MainWindowsController implements Initializable {
     private Label statusLabel;
 
     /**
+     * Ініціалізує контролер після завантаження FXML: встановлює перенесення
+     * тексту та завантажує дані з конфігурації.
      *
-     * @param url
-     * @param rb
+     * @param url URL FXML-ресурсу (не використовується)
+     * @param rb  ResourceBundle локалізації (не використовується)
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -188,6 +195,12 @@ public class MainWindowsController implements Initializable {
         }
     }
 
+    /**
+     * Розгортає панель ASN і виділяє в списку вказаний ASN.
+     * Виклик безпечний з будь-якого потоку — переключається в FX-потік через {@code Platform.runLater}.
+     *
+     * @param asn рядкове позначення ASN (наприклад, {@code "AS12345"} або {@code "12345"})
+     */
     void highlightAsn(String asn) {
         String bare = asn.startsWith("AS") ? asn.substring(2) : asn;
         Platform.runLater(() -> {
@@ -196,6 +209,12 @@ public class MainWindowsController implements Initializable {
         });
     }
 
+    /**
+     * Розгортає панель AS-SET і виділяє в списку вказаний AS-SET.
+     * Виклик безпечний з будь-якого потоку.
+     *
+     * @param asSet назва AS-SET (наприклад, {@code "AS-EXAMPLE"})
+     */
     void highlightAsSet(String asSet) {
         Platform.runLater(() -> {
             accordion.setExpandedPane(paneListAsSet);
@@ -203,6 +222,12 @@ public class MainWindowsController implements Initializable {
         });
     }
 
+    /**
+     * Розгортає панель mnt-by і виділяє в списку вказаний мантейнер.
+     * Виклик безпечний з будь-якого потоку.
+     *
+     * @param mntBy назва mnt-by (наприклад, {@code "MNTNER-UA"})
+     */
     void highlightMntBy(String mntBy) {
         Platform.runLater(() -> {
             accordion.setExpandedPane(paneListMntBy);
@@ -210,6 +235,10 @@ public class MainWindowsController implements Initializable {
         });
     }
 
+    /**
+     * Знімає виділення з усіх трьох списків після завершення обробки.
+     * Виклик безпечний з будь-якого потоку.
+     */
     void clearHighlight() {
         Platform.runLater(() -> {
             listAs.getSelectionModel().clearSelection();

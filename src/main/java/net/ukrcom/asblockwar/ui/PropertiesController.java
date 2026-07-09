@@ -26,7 +26,10 @@ import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
- * Controller for PropertiesDialog.fxml — editable view of the current Config.
+ * FXML-контролер діалогу налаштувань PropertiesDialog.fxml.
+ *
+ * <p>Відображає поточний {@link net.ukrcom.asblockwar.Config} у редагованих полях
+ * і зберігає зміни назад до конфігурації при натисканні «Save».
  *
  * @author olden
  */
@@ -58,9 +61,10 @@ public class PropertiesController implements Initializable {
     private Stage stage;
 
     /**
+     * Заповнює поля діалогу поточними значеннями конфігурації після завантаження FXML.
      *
-     * @param url
-     * @param rb
+     * @param url URL FXML-ресурсу (не використовується)
+     * @param rb  ResourceBundle локалізації (не використовується)
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -80,6 +84,11 @@ public class PropertiesController implements Initializable {
         fieldRecursiveAsset.setText(String.valueOf(ASBlockWar.config.getRecursiveAsset()));
     }
 
+    /**
+     * Встановлює посилання на вікно діалогу для подальшого приховання при закритті.
+     *
+     * @param dialogStage вікно Stage цього діалогу
+     */
     public void setStage(Stage dialogStage) {
         this.stage = dialogStage;
     }

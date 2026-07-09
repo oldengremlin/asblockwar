@@ -40,8 +40,9 @@ public class retrieveAutNumFull {
     private final StringBuilder sb = new StringBuilder();
 
     /**
+     * Відкриває з'єднання з БД і завантажує повний RPSL-блок для вказаного aut-num.
      *
-     * @param autNum
+     * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveAutNumFull(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -135,8 +136,10 @@ public class retrieveAutNumFull {
     }
 
     /**
+     * Повертає повний текст RPSL, зібраний для вказаного aut-num.
      *
-     * @return
+     * @return конкатенований RPSL-текст (aut-num блок + ASN-резюме + org-блок),
+     *         або порожній рядок, якщо AS не знайдено
      */
     public String get() {
         logger.debug("retrieveAutNumFull({}).get(): {} chars", autNum, sb.length());

@@ -48,6 +48,13 @@ public class RunProgressController implements Initializable {
     private Stage stage;
     private GuiLogAppender appender;
 
+    /**
+     * Порожня ініціалізація після завантаження FXML — налаштування відкладено до
+     * виклику {@link #startProcessing}.
+     *
+     * @param url URL FXML-ресурсу (не використовується)
+     * @param rb  ResourceBundle локалізації (не використовується)
+     */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
     }

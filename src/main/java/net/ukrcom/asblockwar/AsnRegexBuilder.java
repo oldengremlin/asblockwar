@@ -41,8 +41,9 @@ public class AsnRegexBuilder {
     private final TrieNode root = new TrieNode();
 
     /**
+     * Додає ASN до trie.
      *
-     * @param asn
+     * @param asn числовий номер автономної системи (без префікса "AS")
      */
     public void add(long asn) {
         TrieNode node = root;
@@ -91,7 +92,8 @@ public class AsnRegexBuilder {
 
     /**
      * Повертає повний trie-оптимізований regex для всіх доданих ASN.
-     * @return 
+     *
+     * @return рядок регулярного виразу, придатний для Juniper policy-statement
      */
     public String build() {
         return toRegex(root);

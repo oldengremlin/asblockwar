@@ -30,13 +30,21 @@ public class GuiLogAppender extends AppenderBase<ILoggingEvent> {
     private final Consumer<String> handler;
 
     /**
+     * Створює аппендер з вказаним обробником рядків лога.
      *
-     * @param handler
+     * @param handler callback, що отримує відформатовані рядки лога;
+     *                відповідає за маршалінг у FX-потік через {@code Platform.runLater}
      */
     public GuiLogAppender(Consumer<String> handler) {
         this.handler = handler;
     }
 
+    /**
+     * Форматує подію лога у рядок виду {@code "[LEVEL] message"} і передає
+     * його обробнику. Події нижче рівня INFO ігноруються.
+     *
+     * @param event подія Logback для виводу
+     */
     @Override
     protected void append(ILoggingEvent event) {
         if (handler == null || !event.getLevel().isGreaterOrEqual(Level.INFO)) {

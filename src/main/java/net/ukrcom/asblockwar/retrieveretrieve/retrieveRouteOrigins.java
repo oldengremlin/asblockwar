@@ -51,8 +51,11 @@ public class retrieveRouteOrigins {
     private final List<String> origins = new ArrayList<>();
 
     /**
+     * Відкриває з'єднання з БД і завантажує список origin-ASN для вказаного prefix.
+     * Фільтрує сирітські записи: повертаються лише ті origins, для яких існує
+     * актуальний RPSL-блок у таблиці {@code rpsl}.
      *
-     * @param route
+     * @param route CIDR-prefix (наприклад, {@code "192.0.2.0/24"})
      */
     public retrieveRouteOrigins(String route) {
         try (Connection conn = DriverManager.getConnection(
@@ -71,8 +74,10 @@ public class retrieveRouteOrigins {
     }
 
     /**
+     * Повертає список origin-ASN для вказаного prefix у верхньому регістрі.
      *
-     * @return
+     * @return список рядків у форматі {@code "AS<номер>"}, відсортованих за назвою;
+     *         порожній список, якщо origins не знайдено або трапилася помилка
      */
     public List<String> get() {
         return origins;

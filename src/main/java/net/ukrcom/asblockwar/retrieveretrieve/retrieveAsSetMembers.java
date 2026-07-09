@@ -47,9 +47,11 @@ public class retrieveAsSetMembers {
     private final Set<String> members = new HashSet<>();
 
     /**
+     * Відкриває з'єднання з БД і рекурсивно збирає ASN-члени вказаного AS-SET.
      *
-     * @param asSet
-     * @param recursionDepth
+     * @param asSet          назва AS-SET (наприклад, {@code "AS-EXAMPLE"})
+     * @param recursionDepth максимальна глибина рекурсії у вкладені AS-SET-и
+     *                       ({@code 0} — тільки прямі члени, без рекурсії)
      */
     public retrieveAsSetMembers(String asSet, int recursionDepth) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -110,8 +112,9 @@ public class retrieveAsSetMembers {
     }
 
     /**
+     * Повертає незмінну множину ASN-членів зібраних AS-SET-ів.
      *
-     * @return
+     * @return множина рядків у форматі {@code "AS<номер>"} (наприклад, {@code "AS12345"})
      */
     public Set<String> get() {
         logger.debug("retrieveAsSetMembers({}, depth={}).get(): {} members", asSet, recursionDepth, members.size());

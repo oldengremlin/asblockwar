@@ -37,8 +37,10 @@ public class retrieveMntnerFull {
     private final StringBuilder sb = new StringBuilder();
 
     /**
+     * Відкриває з'єднання з БД і завантажує RPSL-блок mntner разом
+     * із пов'язаними role-блоками контактів.
      *
-     * @param mntner
+     * @param mntner назва мантейнера (наприклад, {@code "MNTNER-UA"})
      */
     public retrieveMntnerFull(String mntner) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -83,8 +85,10 @@ public class retrieveMntnerFull {
     }
 
     /**
+     * Повертає повний текст RPSL для вказаного mntner:
+     * mntner-блок плюс role-блоки пов'язаних контактів.
      *
-     * @return
+     * @return конкатенований RPSL-текст, або порожній рядок, якщо мантейнер не знайдено
      */
     public String get() {
         logger.debug("retrieveMntnerFull({}).get(): {} chars", mntner, sb.length());

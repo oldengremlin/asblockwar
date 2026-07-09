@@ -47,7 +47,8 @@ public class retrieveAllRouteOrigins {
     private final Map<String, List<String>> origins = new HashMap<>();
 
     /**
-     *
+     * Виконує SQL-запит до бази whois-lite-local і завантажує відображення
+     * route → список origin-ASN. Записи без відповідного RPSL-блоку фільтруються.
      */
     public retrieveAllRouteOrigins() {
         try (Connection conn = DriverManager.getConnection(
@@ -65,8 +66,10 @@ public class retrieveAllRouteOrigins {
     }
 
     /**
+     * Повертає завантажене відображення route → список origin-ASN.
      *
-     * @return
+     * @return незмінна (або змінна HashMap) карта {@code route → List<origin>};
+     *         може бути порожньою при помилці SQL
      */
     public Map<String, List<String>> get() {
         return origins;

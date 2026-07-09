@@ -62,6 +62,11 @@ import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
 /**
+ * Головна точка входу та ядро обробки ASBlockWar.
+ * <p>
+ * Реалізує повний конвеєр блокування ворожих автономних систем:
+ * збір даних → фільтрація → виявлення суміжних AS → генерація конфігурацій Juniper і blackbgp.
+ * Підтримує CLI-режим і GUI-режим (JavaFX).
  *
  * @author olden
  */
@@ -73,13 +78,19 @@ public class ASBlockWar {
     public static String listFile;
     public static String listMntbyFile;
 
-    /** Optional GUI callback for live highlighting; null in CLI mode. */
+    /**
+     * Зворотній виклик для оновлення GUI під час обробки.
+     * У CLI-режимі {@link ASBlockWar#uiCallback} дорівнює {@code null}.
+     */
     public interface UIProgressCallback {
 
+        /** Викликається перед запитом RPSL-блоку для ASN. */
         void onAsnProcessing(String asn);
 
+        /** Викликається перед запитом RPSL-блоку для AS-SET. */
         void onAsSetProcessing(String asSet);
 
+        /** Викликається перед запитом RPSL-блоку для MNT-BY. */
         void onMntByProcessing(String mntBy);
     }
     public static volatile UIProgressCallback uiCallback;
@@ -103,10 +114,12 @@ public class ASBlockWar {
     // Створюємо мапу для вилучених елементів
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
 
+    /** Результат виявлення суміжних ворожих AS: знайдені MNT-BY та AS-SET ідентифікатори. */
     private record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {
 
     }
 
+    /** Обчислені зміни для blackbgp та нові ворожі ASN, виявлені під час перевірки маршрутів. */
     private record BlackbgpChanges(
             Set<String> toDelete,
             Set<String> toReplace,
@@ -116,9 +129,12 @@ public class ASBlockWar {
     }
 
     /**
+     * Точка входу програми.
+     * <p>
+     * У GUI-режимі ({@code --gui}) запускає JavaFX-додаток; інакше виконує {@link #runProcessing()}.
      *
-     * @param args
-     * @throws InterruptedException
+     * @param args аргументи командного рядка, передаються у {@link Config}
+     * @throws InterruptedException якщо основний потік перервано
      */
     public static void main(String[] args) throws InterruptedException {
         try {
@@ -139,9 +155,21 @@ public class ASBlockWar {
     }
 
     /**
+     * Головний конвеєр обробки ворожих ASN.
+     * <p>
+     * Послідовність кроків:
+     * <ol>
+     *   <li>Читання AS-списку та MNT-BY-списку з файлів</li>
+     *   <li>Фільтрація за {@link #AGGRESSOR_COMPILED}</li>
+     *   <li>Крос-перевірка через записи MNT-BY та AS-SET</li>
+     *   <li>Виявлення суміжних ворожих AS через AS-SET import/export</li>
+     *   <li>Збереження конфігурацій: Juniper WAR, blackbgp, list.txt</li>
+     *   <li>Запис детальних файлів у STORE/</li>
+     *   <li>Фінальний звіт</li>
+     * </ol>
      *
-     * @throws IOException
-     * @throws InterruptedException
+     * @throws IOException якщо виникла помилка читання або запису файлів
+     * @throws InterruptedException якщо потік перервано під час очікування
      */
     public static void runProcessing() throws IOException, InterruptedException {
         listFile = config.getListFile();
@@ -214,6 +242,14 @@ public class ASBlockWar {
         LOGGER.info("Готово!");
     }
 
+    /**
+     * Читає список ASN з {@code list.txt} і завантажує RPSL-блок організації для кожного.
+     * <p>
+     * Пропускає рядки-коментарі (починаються з {@code #} або {@code ;}).
+     * Паралельне виконання обмежується семафором {@link #MAX_CONCURRENT_DB_QUERIES}.
+     *
+     * @return карта {@code ASN → RPSL-блок} для всіх ASN з файлу
+     */
     private static Map<String, String> makeAggressorAsnResources() {
         Map<String, String> aggressorAsnResources = new ConcurrentHashMap<>();
 
@@ -257,6 +293,14 @@ public class ASBlockWar {
         return aggressorAsnResources;
     }
 
+    /**
+     * Завантажує RPSL-блоки для AS-SET та MNT-BY записів.
+     * <p>
+     * Об'єднує захардкоджений список {@link #blockedAsSet} з переліком зі збереженого файлу AS-SET,
+     * а також читає файл MNT-BY. Для кожного запису отримує повний RPSL-блок із локальної БД.
+     *
+     * @return суміщена карта {@code ідентифікатор → RPSL-блок} для AS-SET та MNT-BY
+     */
     private static Map<String, String> makeAggressorAssetAndMntbyResources() {
         Map<String, String> aggressorMntbyResources = new ConcurrentHashMap<>();
 
@@ -334,6 +378,14 @@ public class ASBlockWar {
         return aggressorMntbyResources;
     }
 
+    /**
+     * Фільтрує карту ASN, залишаючи лише ті, чий RPSL-блок відповідає {@link #AGGRESSOR_COMPILED}.
+     * <p>
+     * Відфільтровані ASN реєструються у {@link #resourcesForVerification} з дією {@link Action#remove}.
+     *
+     * @param aggressorAsnResources вхідна карта {@code ASN → RPSL-блок}
+     * @return нова карта, що містить тільки підтверджені ворожі ASN
+     */
     private static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
@@ -353,6 +405,18 @@ public class ASBlockWar {
                 ));
     }
 
+    /**
+     * Розширює список ворожих ASN даними з RPSL-блоків MNT-BY та AS-SET.
+     * <p>
+     * Перебирає поля {@code members} та {@code aut-num} у RPSL-блоках мантейнерів.
+     * Для кожного знайденого ASN перевіряє відповідність {@link #AGGRESSOR_COMPILED}:
+     * новий ворожий ASN додається, модифікований — оновлюється, той що більше не відповідає — видаляється.
+     * Зміни реєструються у {@link #resourcesForVerification}.
+     *
+     * @param aggressorMntbyResources карта {@code MNT-BY/AS-SET → RPSL-блок}
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}, яка модифікується на місці
+     * @return та сама карта {@code aggressorAsnResources} після оновлення
+     */
     private static Map<String, String> makeAggressorResources(Map<String, String> aggressorMntbyResources, Map<String, String> aggressorAsnResources) {
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -411,6 +475,17 @@ public class ASBlockWar {
         return aggressorAsnResources;
     }
 
+    /**
+     * Виявляє ворожі ASN через мережі import/export AS-SET вже відомих агресорів.
+     * <p>
+     * Для кожного вже відомого ворожого ASN знаходить AS-SET, що імпортуються/експортуються,
+     * витягує їхніх членів (з глибиною рекурсії {@code config.recursiveAsset}),
+     * і перевіряє кожного члена на відповідність {@link #AGGRESSOR_COMPILED}.
+     * Нові ворожі ASN додаються до {@code aggressorAsnResources} та {@link #resourcesForVerification}.
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}; модифікується на місці
+     * @return результат з виявленими MNT-BY та AS-SET для подальшого збереження
+     */
     private static DiscoveryResult discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
         int depth = Math.max(config.getRecursiveAsset(), 0);
         Set<String> discoveredMntBy = ConcurrentHashMap.newKeySet();
@@ -475,6 +550,15 @@ public class ASBlockWar {
     // Службові мантейнери RIPE, які присутні в будь-якому записі — не є ознакою належності до агресора
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
 
+    /**
+     * Зберігає виявлені MNT-BY ідентифікатори у файл {@code list_mntby}.
+     * <p>
+     * Об'єднує наявні записи з новими, фільтрує службові мантейнери RIPE
+     * (шаблон {@code RIPE-.*}), сортує і записує атомарно.
+     *
+     * @param discovered набір щойно виявлених MNT-BY ідентифікаторів
+     * @throws IOException якщо виникла помилка читання або запису файлу
+     */
     private static void storeMntByResources(Set<String> discovered) throws IOException {
         LOGGER.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
 
@@ -497,6 +581,15 @@ public class ASBlockWar {
         LOGGER.info("storeMntByResources: записано {} мантейнерів до {}", merged.size(), listMntbyFile);
     }
 
+    /**
+     * Зберігає виявлені AS-SET ідентифікатори у файл списку AS-SET.
+     * <p>
+     * Об'єднує наявні записи з новими, нормалізує до верхнього регістру,
+     * видаляє завершальні крапки з комою, сортує і записує атомарно.
+     *
+     * @param discovered набір щойно виявлених AS-SET ідентифікаторів
+     * @throws IOException якщо виникла помилка читання або запису файлу
+     */
     private static void storeListAsSet(Set<String> discovered) throws IOException {
         LOGGER.debug("storeListAsSet: знайдено AS-SET: {}", discovered);
 
@@ -521,6 +614,16 @@ public class ASBlockWar {
         LOGGER.info("storeListAsSet: записано {} AS-SET до {}", merged.size(), listAssetFile);
     }
 
+    /**
+     * Зберігає актуальний список ворожих ASN у файл {@code list.txt}.
+     * <p>
+     * Перед записом створює резервну копію з позначкою часу в імені.
+     * Запис виконується атомарно через тимчасовий файл і {@link FileLock}.
+     * Список відсортовано за числовим значенням ASN, по одному номеру на рядок (без префіксу «AS»).
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
+     * @throws IOException якщо виникла помилка запису або блокування файлу
+     */
     private static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
         Path source = Path.of(listFile);
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
@@ -561,6 +664,23 @@ public class ASBlockWar {
         }
     }
 
+    /**
+     * Оркеструє фінальне збереження всіх трьох ключових ресурсів.
+     * <p>
+     * Спочатку аналізує зміни у blackbgp ({@link #discoverBlackbgpChanges}),
+     * зливає будь-які нові ворожі ASN у {@code aggressorAsnResources},
+     * а потім паралельно виконує:
+     * <ul>
+     *   <li>{@link #storeWarResources} — Juniper WAR1/WAR2 regex</li>
+     *   <li>{@link #storeAggressorAsnResources} — оновлений list.txt</li>
+     *   <li>{@link #storeBlackbgpResources} — команди blackbgp</li>
+     * </ul>
+     * Усі три методи отримують фінальний, повний набір ворожих ASN.
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}; може бути розширена новими ворогами
+     * @return ефективний набір prefix'ів після застосування змін blackbgp
+     * @throws IOException якщо будь-який з методів запису завершився помилкою
+     */
     private static Set<String> storeResources(Map<String, String> aggressorAsnResources) throws IOException {
         // аналіз: виявляємо зміни у blackbgp і можливі нові ворожі AS
         BlackbgpChanges changes = discoverBlackbgpChanges(aggressorAsnResources);
@@ -603,6 +723,19 @@ public class ASBlockWar {
         return changes.effectivePrefixes();
     }
 
+    /**
+     * Генерує Juniper-конфігурацію WAR1 і WAR2 та записує її у файл.
+     * <p>
+     * Будує trie-оптимізований регулярний вираз з усіх ASN через {@link AsnRegexBuilder}
+     * і формує два рядки:
+     * <ul>
+     *   <li>{@code WAR1} — AS у середині шляху: {@code ".* REGEX .*"}</li>
+     *   <li>{@code WAR2} — AS у кінці шляху (origin AS): {@code ".* REGEX$"}</li>
+     * </ul>
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
+     * @throws IOException якщо виникла помилка запису файлу
+     */
     private static void storeWarResources(Map<String, String> aggressorAsnResources) throws IOException {
         AsnRegexBuilder builder = new AsnRegexBuilder();
         aggressorAsnResources.keySet().stream()
@@ -630,6 +763,22 @@ public class ASBlockWar {
                 rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
 
+    /**
+     * Обчислює необхідні зміни для таблиці маршрутизації blackbgp.
+     * <p>
+     * Алгоритм:
+     * <ol>
+     *   <li>Читає поточний стан blackbgp через SSH</li>
+     *   <li>Формує цільовий набір prefix'ів з локальної БД для всіх ворожих ASN</li>
+     *   <li>Обчислює {@code toDelete} = поточні − цільові; {@code toReplace} = цільові − поточні</li>
+     *   <li>Для кожного prefix у {@code toDelete} перевіряє origin-AS:
+     *       якщо належить вже відомій або щойно виявленій ворожій AS — скасовує видалення</li>
+     * </ol>
+     * Не виконує жодного запису на диск.
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
+     * @return обчислені зміни разом з набором нових ворожих ASN
+     */
     private static BlackbgpChanges discoverBlackbgpChanges(Map<String, String> aggressorAsnResources) {
         boolean ipv6 = config.isBlackbgpIpv6();
 
@@ -727,6 +876,15 @@ public class ASBlockWar {
         return new BlackbgpChanges(toDelete, toReplace, newEnemies, effectivePrefixes);
     }
 
+    /**
+     * Записує команди blackbgp у файл на основі заздалегідь обчислених змін.
+     * <p>
+     * Кожен рядок — це команда {@code ip r d bl PREFIX t blackbgp} (видалення)
+     * або {@code ip r r bl PREFIX t blackbgp} (заміна), відсортовані за {@link #CIDR_ORDER}.
+     *
+     * @param changes обчислені зміни blackbgp з {@link #discoverBlackbgpChanges}
+     * @throws IOException якщо виникла помилка запису файлу
+     */
     private static void storeBlackbgpResources(BlackbgpChanges changes) throws IOException {
         String content = Stream.concat(
                 changes.toDelete().stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
@@ -740,6 +898,16 @@ public class ASBlockWar {
                 changes.toDelete().size(), changes.toReplace().size(), config.getBlackbgpFile());
     }
 
+    /**
+     * Витягує перше значення вказаного поля RPSL з текстового блоку.
+     * <p>
+     * Наприклад, для {@code key = "org-name"} і блоку {@code "org-name: Example Corp\n..."}
+     * поверне {@code "Example Corp"}.
+     *
+     * @param block текстовий RPSL-блок
+     * @param key назва поля (без двокрапки)
+     * @return перше значення поля або порожній рядок, якщо поле відсутнє
+     */
     private static String rpslField(String block, String key) {
         if (block == null || block.isEmpty()) {
             return "";
@@ -752,6 +920,15 @@ public class ASBlockWar {
                 .orElse("");
     }
 
+    /**
+     * Записує людиночитаний перелік ворожих ASN у {@code STORE/AS.list}.
+     * <p>
+     * Кожен рядок містить числовий номер AS та, за наявності, назву організації й адресу
+     * у форматі {@code ASN     org-name, address}.
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
+     * @throws IOException якщо виникла помилка запису файлу
+     */
     private static void storeAsList(Map<String, String> aggressorAsnResources) throws IOException {
         Path base = Path.of(config.getStoreDir());
         ensureStoreDir(base);
@@ -776,6 +953,15 @@ public class ASBlockWar {
         LOGGER.info("storeAsList: записано {} AS до AS.list", aggressorAsnResources.size());
     }
 
+    /**
+     * Записує перелік мантейнерів з описом у {@code STORE/maintainers.list}.
+     * <p>
+     * Для кожного MNT-BY ідентифікатора завантажує повний RPSL-блок мантейнера і витягує
+     * поля {@code role} та {@code address}. Результат відсортовано за іменем мантейнера.
+     *
+     * @param allMntBy повний набір MNT-BY ідентифікаторів
+     * @throws IOException якщо виникла помилка запису файлу
+     */
     private static void storeMaintainersList(Set<String> allMntBy) throws IOException {
         Path base = Path.of(config.getStoreDir());
         ensureStoreDir(base);
@@ -815,6 +1001,19 @@ public class ASBlockWar {
         LOGGER.info("storeMaintainersList: записано {} мантейнерів до maintainers.list", allMntBy.size());
     }
 
+    /**
+     * Записує мережеві файли для ефективного набору prefix'ів blackbgp.
+     * <p>
+     * Генерує:
+     * <ul>
+     *   <li>{@code STORE/networks.list} — рядки {@code prefix  as1, as2, ...}</li>
+     *   <li>{@code STORE/NET/{addr.prefix}.txt} — один файл на prefix з переліком origin-AS</li>
+     * </ul>
+     * Використовує один bulk-запит до БД для отримання всіх origin-AS.
+     *
+     * @param effectivePrefixes набір активних prefix'ів після застосування змін blackbgp
+     * @throws IOException якщо виникла помилка запису файлу
+     */
     private static void storeNetworkFiles(Set<String> effectivePrefixes) throws IOException {
         if (effectivePrefixes.isEmpty()) {
             LOGGER.info("storeNetworkFiles: effectivePrefixes пустий, пропускаємо");
@@ -863,6 +1062,16 @@ public class ASBlockWar {
         LOGGER.info("storeNetworkFiles: завершено — {} файлів у NET/", count);
     }
 
+    /**
+     * Формує рядок команди для управління маршрутом у таблиці blackbgp.
+     * <p>
+     * Для IPv6-prefix додає прапор {@code -6}.
+     * Синтаксис: {@code sudo ip [-6] r VERB bl PREFIX t blackbgp}.
+     *
+     * @param verb дієслово команди: {@code "r"} (replace/add) або {@code "d"} (delete)
+     * @param prefix мережевий prefix у нотації CIDR
+     * @return готовий рядок команди
+     */
     private static String blackbgpCmd(String verb, String prefix) {
         boolean isIpv6 = prefix.contains(":");
         return "sudo ip " + (isIpv6 ? "-6 " : "") + "r " + verb + " bl " + prefix + " t blackbgp";
@@ -885,6 +1094,12 @@ public class ASBlockWar {
         return cidrAddr(a).compareTo(cidrAddr(b));
     };
 
+    /**
+     * Повертає довжину маски з CIDR-нотації.
+     *
+     * @param cidr рядок у нотації CIDR, наприклад {@code "192.168.0.0/24"}
+     * @return числова довжина маски або {@code 0}, якщо рядок не містить {@code /}
+     */
     private static int cidrLen(String cidr) {
         int i = cidr.lastIndexOf('/');
         try {
@@ -894,11 +1109,23 @@ public class ASBlockWar {
         }
     }
 
+    /**
+     * Повертає адресну частину з CIDR-нотації (без маски).
+     *
+     * @param cidr рядок у нотації CIDR, наприклад {@code "192.168.0.0/24"}
+     * @return адреса, наприклад {@code "192.168.0.0"}
+     */
     private static String cidrAddr(String cidr) {
         int i = cidr.lastIndexOf('/');
         return i >= 0 ? cidr.substring(0, i) : cidr;
     }
 
+    /**
+     * Перетворює IPv4-адресу у 32-розрядне ціле для числового порівняння.
+     *
+     * @param addr IPv4-адреса у крапково-десятковому форматі
+     * @return числове представлення адреси або {@code 0} при помилці парсингу
+     */
     private static long ipv4ToLong(String addr) {
         String[] p = addr.split("\\.", -1);
         if (p.length != 4) {
@@ -928,6 +1155,13 @@ public class ASBlockWar {
         return Integer.compare(cidrLen(a), cidrLen(b));
     };
 
+    /**
+     * Читає непорожні рядки файлу, пропускаючи коментарі ({@code #}, {@code ;}).
+     *
+     * @param path шлях до файлу
+     * @return {@link Set} рядків або порожня множина, якщо файл не існує
+     * @throws IOException якщо виникла помилка читання файлу
+     */
     private static Set<String> readFileEntries(Path path) throws IOException {
         if (!Files.exists(path)) {
             return Set.of();
@@ -940,6 +1174,14 @@ public class ASBlockWar {
         }
     }
 
+    /**
+     * Створює директорію (включно з батьківськими) та встановлює права {@code rwxr-x---}.
+     * <p>
+     * Якщо файлова система не підтримує POSIX-права, виняток тихо ігнорується.
+     *
+     * @param dir шлях до директорії
+     * @throws IOException якщо директорію не вдалося створити
+     */
     private static void ensureStoreDir(Path dir) throws IOException {
         Files.createDirectories(dir);
         try {
@@ -948,6 +1190,17 @@ public class ASBlockWar {
         }
     }
 
+    /**
+     * Атомарно записує вміст у файл через тимчасовий файл і файлове блокування.
+     * <p>
+     * Якщо {@code content} порожній або {@code null} — нічого не робить.
+     * Використовує {@link FileLock} для захисту від паралельного запису та
+     * {@link StandardCopyOption#ATOMIC_MOVE} для безпечної заміни файлу.
+     *
+     * @param file шлях до цільового файлу
+     * @param content вміст для запису
+     * @throws IOException якщо виникла помилка запису або переміщення файлу
+     */
     private static void writeStoreFile(Path file, String content) throws IOException {
         if (content == null || content.isBlank()) {
             return;
@@ -972,6 +1225,23 @@ public class ASBlockWar {
         }
     }
 
+    /**
+     * Записує детальні RPSL-файли для всіх ворожих ASN, мантейнерів та AS-SET.
+     * <p>
+     * Паралельно формує:
+     * <ul>
+     *   <li>{@code STORE/AS/{asn}.txt} — повний RPSL aut-num</li>
+     *   <li>{@code STORE/AS-NET/{asn}.txt} — повний RPSL route-origin</li>
+     *   <li>{@code STORE/MNT/{mnt}.txt} — повний RPSL mntner</li>
+     *   <li>{@code STORE/MNT-SET-AS/{mnt}.txt} — RPSL мантейнера разом з AS</li>
+     *   <li>{@code STORE/AS-SET/{asset}.txt} — повний RPSL as-set</li>
+     * </ul>
+     *
+     * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
+     * @param allMntBy повний набір MNT-BY ідентифікаторів
+     * @param allAsSets повний набір AS-SET ідентифікаторів
+     * @throws IOException якщо виникла помилка запису будь-якого файлу
+     */
     private static void storeDetails(Map<String, String> aggressorAsnResources, Set<String> allMntBy, Set<String> allAsSets) throws IOException {
         Path base = Path.of(config.getStoreDir());
         Path dirAS = base.resolve("AS");
@@ -1055,6 +1325,14 @@ public class ASBlockWar {
                 aggressorAsnResources.size(), allMntBy.size(), allAsSets.size());
     }
 
+    /**
+     * Виводить фінальний звіт про зміни поточного запуску.
+     * <p>
+     * Формує і логує таблицю у три колонки: вилучені / додані / модифіковані ASN
+     * з {@link #resourcesForVerification}, відсортовані за числовим значенням ASN.
+     *
+     * @param aggressorAsnResources фінальна карта {@code ASN → RPSL-блок}
+     */
     private static void report(Map<String, String> aggressorAsnResources) {
         LOGGER.info("Роботу завершено. Всього ASN: {}", aggressorAsnResources.size());
 

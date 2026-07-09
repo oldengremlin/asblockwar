@@ -16,9 +16,19 @@
 package net.ukrcom.asblockwar.serviceStructures;
 
 /**
+ * Перелік можливих дій над записом автономної системи.
+ *
+ * <p>Використовується разом із {@link ASN} для позначення типу операції:
+ * додавання нового запису ({@link #add}), видалення існуючого ({@link #remove})
+ * або оновлення даних ({@link #modify}).
  *
  * @author olden
  */
 public enum Action {
-    add, remove, modify
+    /** Додати запис. */
+    add,
+    /** Видалити запис. */
+    remove,
+    /** Оновити існуючий запис. */
+    modify
 }
