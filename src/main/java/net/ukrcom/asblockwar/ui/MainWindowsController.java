@@ -30,6 +30,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
@@ -51,11 +52,17 @@ public class MainWindowsController implements Initializable {
     @FXML private ListView<String> listAsSet;
     @FXML private TextArea textWarJuniper;
     @FXML private TextArea textWarBlackbgp;
+    @FXML private CheckBox wrapJuniper;
     @FXML private Label statusLabel;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         refreshUi();
+    }
+
+    @FXML
+    private void toggleWrapJuniper() {
+        textWarJuniper.setWrapText(wrapJuniper.isSelected());
     }
 
     @FXML
