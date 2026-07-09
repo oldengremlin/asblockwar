@@ -8,43 +8,62 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox spacing="10.0" prefWidth="660.0" style="-fx-padding: 12;"
+<VBox spacing="10.0" prefWidth="680.0" style="-fx-padding: 12;"
       xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ukrcom.asblockwar.ui.PropertiesController">
    <children>
       <GridPane hgap="8.0" vgap="6.0">
          <columnConstraints>
             <ColumnConstraints halignment="RIGHT" hgrow="NEVER" minWidth="190.0" />
-            <ColumnConstraints hgrow="ALWAYS" minWidth="320.0" />
+            <ColumnConstraints hgrow="ALWAYS" minWidth="340.0" />
          </columnConstraints>
          <children>
             <!-- Input files -->
             <Label text="List file:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
-            <TextField fx:id="fieldListFile" maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1">
+               <TextField fx:id="fieldListFile" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseListFile" />
+            </HBox>
 
             <Label text="MNT-BY file:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
-            <TextField fx:id="fieldListMntby" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1">
+               <TextField fx:id="fieldListMntby" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseListMntby" />
+            </HBox>
 
             <Label text="AS-SET file:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
-            <TextField fx:id="fieldListAsset" maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1">
+               <TextField fx:id="fieldListAsset" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseListAsset" />
+            </HBox>
 
-            <!-- Database -->
+            <!-- Database (no browse — JDBC URI) -->
             <Label text="DB URI (JDBC):" GridPane.rowIndex="3" GridPane.columnIndex="0" />
             <TextField fx:id="fieldWhoisUri" maxWidth="Infinity" GridPane.rowIndex="3" GridPane.columnIndex="1" />
 
             <!-- Output -->
             <Label text="Store directory:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
-            <TextField fx:id="fieldStoreDir" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1">
+               <TextField fx:id="fieldStoreDir" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseStoreDir" />
+            </HBox>
 
             <Label text="WAR file (JunOS):" GridPane.rowIndex="5" GridPane.columnIndex="0" />
-            <TextField fx:id="fieldWarFile" maxWidth="Infinity" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="5" GridPane.columnIndex="1">
+               <TextField fx:id="fieldWarFile" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseWarFile" />
+            </HBox>
 
             <Label text="Blackbgp file:" GridPane.rowIndex="6" GridPane.columnIndex="0" />
-            <TextField fx:id="fieldBlackbgpFile" maxWidth="Infinity" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="6" GridPane.columnIndex="1">
+               <TextField fx:id="fieldBlackbgpFile" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseBlackbgpFile" />
+            </HBox>
 
-            <!-- Commands -->
+            <!-- Commands (no browse — shell commands) -->
             <Label text="Get blackhole (IPv4):" GridPane.rowIndex="7" GridPane.columnIndex="0" />
             <TextField fx:id="fieldGetBlackhole" maxWidth="Infinity" GridPane.rowIndex="7" GridPane.columnIndex="1" />
 

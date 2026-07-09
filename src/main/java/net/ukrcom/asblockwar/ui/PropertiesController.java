@@ -15,12 +15,17 @@
  */
 package net.ukrcom.asblockwar.ui;
 
+import java.io.File;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ResourceBundle;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 
@@ -66,6 +71,58 @@ public class PropertiesController implements Initializable {
     public void setStage(Stage dialogStage) {
         this.stage = dialogStage;
     }
+
+    // --- Browse actions ---
+
+    @FXML private void browseListFile()     { browseFile(fieldListFile,      "Select List file"); }
+    @FXML private void browseListMntby()    { browseFile(fieldListMntby,     "Select MNT-BY file"); }
+    @FXML private void browseListAsset()    { browseFile(fieldListAsset,     "Select AS-SET file"); }
+    @FXML private void browseStoreDir()     { browseDir(fieldStoreDir,       "Select Store directory"); }
+    @FXML private void browseWarFile()      { browseFile(fieldWarFile,       "Select WAR file"); }
+    @FXML private void browseBlackbgpFile() { browseFile(fieldBlackbgpFile,  "Select Blackbgp file"); }
+
+    private void browseFile(TextField field, String title) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle(title);
+        String current = field.getText().trim();
+        if (!current.isEmpty()) {
+            Path p = Path.of(current).toAbsolutePath();
+            Path parent = p.getParent();
+            if (parent != null && Files.isDirectory(parent)) {
+                fc.setInitialDirectory(parent.toFile());
+                if (Files.isRegularFile(p)) {
+                    fc.setInitialFileName(p.getFileName().toString());
+                }
+            }
+        }
+        File selected = fc.showOpenDialog(stage);
+        if (selected != null) {
+            field.setText(selected.getAbsolutePath());
+        }
+    }
+
+    private void browseDir(TextField field, String title) {
+        DirectoryChooser dc = new DirectoryChooser();
+        dc.setTitle(title);
+        String current = field.getText().trim();
+        if (!current.isEmpty()) {
+            Path p = Path.of(current).toAbsolutePath();
+            if (Files.isDirectory(p)) {
+                dc.setInitialDirectory(p.toFile());
+            } else {
+                Path parent = p.getParent();
+                if (parent != null && Files.isDirectory(parent)) {
+                    dc.setInitialDirectory(parent.toFile());
+                }
+            }
+        }
+        File selected = dc.showDialog(stage);
+        if (selected != null) {
+            field.setText(selected.getAbsolutePath());
+        }
+    }
+
+    // --- Save / Cancel ---
 
     @FXML
     private void doSave() {
