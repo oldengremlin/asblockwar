@@ -40,16 +40,17 @@ public class Config {
     private String blackbgpFileOverride;
     private String getBlackholeOverride;
     private String getBlackholeIpv6Override;
-    private final String listFile;
-    private final String listMntbyFile;
-    private final String listAssetFile;
-    private final String whoisLiteLocalURI;
-    private final String storeDir;
-    private final String warFile;
-    private final String blackbgpFile;
-    private final String getBlackhole;
-    private final String getBlackholeIpv6;
+    private String listFile;
+    private String listMntbyFile;
+    private String listAssetFile;
+    private String whoisLiteLocalURI;
+    private String storeDir;
+    private String warFile;
+    private String blackbgpFile;
+    private String getBlackhole;
+    private String getBlackholeIpv6;
     private boolean blackbgpIpv6 = false;
+    private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -118,6 +119,8 @@ public class Config {
                 this.getBlackholeOverride = arg.substring("--get-blackhole=".length()).trim();
             } else if (arg.startsWith("--get-blackhole6=")) {
                 this.getBlackholeIpv6Override = arg.substring("--get-blackhole6=".length()).trim();
+            } else if (arg.equals("--gui") || arg.equals("-g")) {
+                this.gui = true;
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
             } else if (arg.equals("--recursive-asset")) {
@@ -151,6 +154,7 @@ public class Config {
         System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
         System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
+        System.out.println("  -g, --gui                 Launch graphical user interface");
         System.out.println("  -h, --help                Show this help and exit");
     }
 
@@ -218,4 +222,20 @@ public class Config {
     public boolean isBlackbgpIpv6() {
         return this.blackbgpIpv6;
     }
+
+    public boolean isGui() {
+        return this.gui;
+    }
+
+    public void setListFile(String v)           { this.listFile = v; }
+    public void setListMntbyFile(String v)      { this.listMntbyFile = v; }
+    public void setListAssetFile(String v)      { this.listAssetFile = v; }
+    public void setWhoisLiteLocalURI(String v)  { this.whoisLiteLocalURI = v; }
+    public void setStoreDir(String v)           { this.storeDir = v; }
+    public void setWarFile(String v)            { this.warFile = v; }
+    public void setBlackbgpFile(String v)       { this.blackbgpFile = v; }
+    public void setGetBlackhole(String v)       { this.getBlackhole = v; }
+    public void setGetBlackholeIpv6(String v)   { this.getBlackholeIpv6 = v; }
+    public void setBlackbgpIpv6(boolean v)      { this.blackbgpIpv6 = v; }
+    public void setRecursiveAsset(int v)        { this.recursiveAsset = v; }
 }

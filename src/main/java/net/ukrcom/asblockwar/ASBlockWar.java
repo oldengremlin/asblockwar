@@ -40,8 +40,11 @@ import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javafx.application.Application;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import net.ukrcom.asblockwar.ui.ASBlockWarApp;
 
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
@@ -101,122 +104,130 @@ public class ASBlockWar {
         try {
             config = new Config(args);
 
-            listFile = config.getListFile();
-            listMntbyFile = config.getListMntbyFile();
-
-            LOGGER.info("listFile: " + listFile);
-            LOGGER.info("listMntbyFile: " + listMntbyFile);
-
-            Map<String, String> aggressorAsnResources = makeAggressorAsnResources();
-            Map<String, String> aggressorMntbyResources = makeAggressorAssetAndMntbyResources();
-
-            LOGGER.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
-            LOGGER.info("Починаємо фільтрацію...");
-
-            aggressorAsnResources = filterAggressorAsnResources(
-                    makeAggressorResources(
-                            aggressorMntbyResources,
-                            filterAggressorAsnResources(aggressorAsnResources)
-                    )
-            );
-
-            DiscoveryResult discovery = discoverCooperatingAsnResources(aggressorAsnResources);
-            storeMntByResources(discovery.mntBy());
-
-            Set<String> allDiscoveredAsSets = new HashSet<>(discovery.asSets());
-            Arrays.stream(blockedAsSet).forEach(allDiscoveredAsSets::add);
-            storeListAsSet(allDiscoveredAsSets);
-
-            final var finalResources = aggressorAsnResources;
-            BlackbgpResult bgpOutcome;
-            try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
-                var warTask = exec.submit(() -> {
-                    storeWarResources(finalResources);
-                    return null;
-                });
-                var bgpTask = exec.submit(() -> storeBlackbgpResources(finalResources));
-                try {
-                    warTask.get();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } catch (ExecutionException e) {
-                    if (e.getCause() instanceof IOException ioe) {
-                        throw ioe;
-                    }
-                    throw new RuntimeException(e.getCause());
-                }
-                BlackbgpResult bgpResult = null;
-                try {
-                    bgpResult = bgpTask.get();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } catch (ExecutionException e) {
-                    if (e.getCause() instanceof IOException ioe) {
-                        throw ioe;
-                    }
-                    throw new RuntimeException(e.getCause());
-                }
-                bgpOutcome = bgpResult != null ? bgpResult : new BlackbgpResult(Map.of(), Set.of());
+            if (config.isGui()) {
+                Application.launch(ASBlockWarApp.class, args);
+                return;
             }
 
-            Map<String, String> newEnemies = bgpOutcome.newEnemies();
-            Set<String> effectivePrefixes = bgpOutcome.effectivePrefixes();
-
-            if (!newEnemies.isEmpty()) {
-                aggressorAsnResources.putAll(newEnemies);
-                storeWarResources(aggressorAsnResources);
-                LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
-                        newEnemies.size(), newEnemies.keySet());
-            }
-
-            // Записуємо остаточний список AS (з урахуванням нових ворогів)
-            storeAggressorAsnResources(aggressorAsnResources);
-
-            Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
-            Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
-
-            try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
-                final var fa = aggressorAsnResources;
-                final var fm = allMntBy;
-                final var fc = effectivePrefixes;
-                var detailsTask = exec.submit(() -> {
-                    storeDetails(fa, fm, allAsSets);
-                    return null;
-                });
-                var asListTask = exec.submit(() -> {
-                    storeAsList(fa);
-                    return null;
-                });
-                var mntListTask = exec.submit(() -> {
-                    storeMaintainersList(fm);
-                    return null;
-                });
-                var netTask = exec.submit(() -> {
-                    storeNetworkFiles(fc);
-                    return null;
-                });
-                for (var task : List.of(detailsTask, asListTask, mntListTask, netTask)) {
-                    try {
-                        task.get();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    } catch (ExecutionException e) {
-                        if (e.getCause() instanceof IOException ioe) {
-                            throw ioe;
-                        }
-                        throw new RuntimeException(e.getCause());
-                    }
-                }
-            }
-
-            report(aggressorAsnResources);
+            runProcessing();
 
         } catch (IOException ex) {
             LOGGER.error("Помилка вводу-виводу: ", ex);
         } catch (RuntimeException ex) {
             LOGGER.error("Непередбачена помилка: ", ex);
         }
+    }
 
+    public static void runProcessing() throws IOException, InterruptedException {
+        listFile = config.getListFile();
+        listMntbyFile = config.getListMntbyFile();
+        resourcesForVerification = new ConcurrentHashMap<>();
+
+        LOGGER.info("listFile: " + listFile);
+        LOGGER.info("listMntbyFile: " + listMntbyFile);
+
+        Map<String, String> aggressorAsnResources = makeAggressorAsnResources();
+        Map<String, String> aggressorMntbyResources = makeAggressorAssetAndMntbyResources();
+
+        LOGGER.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
+        LOGGER.info("Починаємо фільтрацію...");
+
+        aggressorAsnResources = filterAggressorAsnResources(
+                makeAggressorResources(
+                        aggressorMntbyResources,
+                        filterAggressorAsnResources(aggressorAsnResources)
+                )
+        );
+
+        DiscoveryResult discovery = discoverCooperatingAsnResources(aggressorAsnResources);
+        storeMntByResources(discovery.mntBy());
+
+        Set<String> allDiscoveredAsSets = new HashSet<>(discovery.asSets());
+        Arrays.stream(blockedAsSet).forEach(allDiscoveredAsSets::add);
+        storeListAsSet(allDiscoveredAsSets);
+
+        final var finalResources = aggressorAsnResources;
+        BlackbgpResult bgpOutcome;
+        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
+            var warTask = exec.submit(() -> {
+                storeWarResources(finalResources);
+                return null;
+            });
+            var bgpTask = exec.submit(() -> storeBlackbgpResources(finalResources));
+            try {
+                warTask.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException ioe) {
+                    throw ioe;
+                }
+                throw new RuntimeException(e.getCause());
+            }
+            BlackbgpResult bgpResult = null;
+            try {
+                bgpResult = bgpTask.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException ioe) {
+                    throw ioe;
+                }
+                throw new RuntimeException(e.getCause());
+            }
+            bgpOutcome = bgpResult != null ? bgpResult : new BlackbgpResult(Map.of(), Set.of());
+        }
+
+        Map<String, String> newEnemies = bgpOutcome.newEnemies();
+        Set<String> effectivePrefixes = bgpOutcome.effectivePrefixes();
+
+        if (!newEnemies.isEmpty()) {
+            aggressorAsnResources.putAll(newEnemies);
+            storeWarResources(aggressorAsnResources);
+            LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
+                    newEnemies.size(), newEnemies.keySet());
+        }
+
+        storeAggressorAsnResources(aggressorAsnResources);
+
+        Set<String> allMntBy = readFileEntries(Path.of(listMntbyFile));
+        Set<String> allAsSets = readFileEntries(Path.of(config.getListAssetFile()));
+
+        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
+            final var fa = aggressorAsnResources;
+            final var fm = allMntBy;
+            final var fc = effectivePrefixes;
+            var detailsTask = exec.submit(() -> {
+                storeDetails(fa, fm, allAsSets);
+                return null;
+            });
+            var asListTask = exec.submit(() -> {
+                storeAsList(fa);
+                return null;
+            });
+            var mntListTask = exec.submit(() -> {
+                storeMaintainersList(fm);
+                return null;
+            });
+            var netTask = exec.submit(() -> {
+                storeNetworkFiles(fc);
+                return null;
+            });
+            for (var task : List.of(detailsTask, asListTask, mntListTask, netTask)) {
+                try {
+                    task.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof IOException ioe) {
+                        throw ioe;
+                    }
+                    throw new RuntimeException(e.getCause());
+                }
+            }
+        }
+
+        report(aggressorAsnResources);
         LOGGER.info("Готово!");
     }
 
