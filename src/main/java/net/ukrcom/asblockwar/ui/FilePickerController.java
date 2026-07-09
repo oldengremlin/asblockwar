@@ -63,6 +63,12 @@ public class FilePickerController implements Initializable {
     private Stage stage;
     private String result;
 
+    /**
+     * Ініціалізує дерево директорій і список файлів після завантаження FXML.
+     *
+     * @param url URL FXML-ресурсу (не використовується)
+     * @param rb  ResourceBundle локалізації (не використовується)
+     */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         dirTree.setCellFactory(tv -> new TreeCell<>() {
@@ -161,7 +167,10 @@ public class FilePickerController implements Initializable {
         }
     }
 
-    /** Scroll the tree to the currently selected item (called after the Stage is shown). */
+    /**
+     * Прокручує дерево директорій до поточного виділеного вузла.
+     * Викликається після відображення Stage, щоб уникнути прокрутки до неправильного елемента.
+     */
     void scrollToSelection() {
         TreeItem<Path> sel = dirTree.getSelectionModel().getSelectedItem();
         if (sel != null) {
@@ -260,6 +269,11 @@ public class FilePickerController implements Initializable {
         }
     }
 
+    /**
+     * Повертає шлях, обраний користувачем у діалозі.
+     *
+     * @return рядок шляху, або {@code null}, якщо користувач скасував вибір
+     */
     public String getResult() {
         return result;
     }
@@ -284,10 +298,16 @@ public class FilePickerController implements Initializable {
     }
 
     /**
-     * Opens a modal file/directory picker dialog and returns the selected path,
-     * or empty if the user cancelled.
+     * Відкриває модальний діалог вибору файлу або директорії і повертає обраний шлях.
      *
-     * @param directoryOnly true = only directories can be selected
+     * <p>Використовує чистий JavaFX замість нативного GTK FileChooser,
+     * що запобігає збоям на деяких Linux-середовищах.
+     *
+     * @param owner         батьківське вікно для модальності
+     * @param title         заголовок діалогового вікна
+     * @param initialPath   початковий шлях для відображення (може бути {@code null})
+     * @param directoryOnly {@code true} — дозволяти вибирати лише директорії
+     * @return {@link Optional} з обраним шляхом, або порожній {@link Optional} при скасуванні
      */
     public static Optional<String> showFilePicker(Stage owner, String title,
                                                   String initialPath, boolean directoryOnly) {

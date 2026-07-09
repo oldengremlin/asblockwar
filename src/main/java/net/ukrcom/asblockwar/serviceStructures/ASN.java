@@ -16,7 +16,15 @@
 package net.ukrcom.asblockwar.serviceStructures;
 
 /**
+ * Незмінний запис, що описує одну операцію над автономною системою (ASN).
  *
+ * <p>Використовується для передачі дій (додавання, видалення, модифікація)
+ * між компонентами обробки, де {@code asn} — ідентифікатор АС,
+ * а {@code data} — додаткові дані (наприклад, список префіксів).
+ *
+ * @param action тип дії ({@link Action#add}, {@link Action#remove}, {@link Action#modify})
+ * @param asn    рядкове позначення автономної системи (наприклад, {@code "AS12345"})
+ * @param data   додаткові дані, пов'язані з операцією (може бути {@code null})
  * @author olden
  */
 public record ASN(Action action, String asn, String data) {

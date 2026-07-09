@@ -47,8 +47,11 @@ public class retrieveRouteOriginPrefixes {
     private final List<String> prefixes = new ArrayList<>();
 
     /**
+     * Відкриває з'єднання з БД і завантажує список префіксів для вказаного origin AS.
+     * Фільтрує сирітські записи: повертаються лише ті маршрути, для яких існує
+     * актуальний RPSL-блок у таблиці {@code rpsl}.
      *
-     * @param origin
+     * @param origin позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveRouteOriginPrefixes(String origin) {
         try (Connection conn = DriverManager.getConnection(
@@ -67,8 +70,10 @@ public class retrieveRouteOriginPrefixes {
     }
 
     /**
+     * Повертає список CIDR-префіксів (route/route6) для вказаного origin AS.
      *
-     * @return
+     * @return список CIDR-рядків, відсортованих за маршрутом;
+     *         порожній список, якщо маршрутів не знайдено або трапилася помилка
      */
     public List<String> get() {
         return prefixes;

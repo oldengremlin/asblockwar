@@ -26,6 +26,11 @@ import net.ukrcom.asblockwar.Config;
 import org.slf4j.Logger;
 
 /**
+ * Витягує синтетичне резюме ASN (з таблиці {@code asn}) та organisation-блок RPSL,
+ * на який посилається поле {@code org:} у aut-num-блоці.
+ *
+ * <p>Результати кешуються в статичній {@link ConcurrentHashMap} для уникнення
+ * повторних запитів до БД при обробці кількох AS одного власника.
  *
  * @author olden
  */
@@ -43,8 +48,10 @@ public class retrieveOrganisation {
     private Connection conn;
 
     /**
+     * Відкриває з'єднання з БД (якщо результат ще не закешовано) і завантажує
+     * ASN-резюме та пов'язаний organisation-блок для вказаного aut-num.
      *
-     * @param autNum
+     * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveOrganisation(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -68,8 +75,9 @@ public class retrieveOrganisation {
     }
 
     /**
+     * Повертає закешований текст RPSL для вказаного aut-num (ASN-резюме + org-блок).
      *
-     * @return
+     * @return рядок RPSL-тексту, або порожній рядок, якщо AS не знайдено
      */
     public String get() {
         String cached = cache.get(this.autNum);
@@ -139,9 +147,12 @@ public class retrieveOrganisation {
     }
 
     /**
+     * Завантажує синтетичне резюме ASN (country, name) з таблиці {@code asn}
+     * і форматує його як RPSL-подібний текст.
      *
-     * @param as
-     * @return
+     * @param as позначення автономної системи (наприклад, {@code "AS12345"})
+     * @return рядок у форматі {@code "as-num: ... country: ... as-name: ...\n"},
+     *         або порожній рядок, якщо ASN відсутній у таблиці
      */
     protected String getAsn(String as) {
         StringBuilder retVal = new StringBuilder();

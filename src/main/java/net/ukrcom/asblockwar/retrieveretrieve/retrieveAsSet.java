@@ -24,6 +24,8 @@ import net.ukrcom.asblockwar.Config;
 import org.slf4j.Logger;
 
 /**
+ * Витягує повний RPSL-блок as-set для заданого імені AS-SET
+ * з локальної бази даних whois-lite-local.
  *
  * @author olden
  */
@@ -38,8 +40,9 @@ public class retrieveAsSet {
     private Connection conn;
 
     /**
+     * Відкриває з'єднання з БД і завантажує RPSL-блок для вказаного AS-SET.
      *
-     * @param asSet
+     * @param asSet назва AS-SET (наприклад, {@code "AS-EXAMPLE"})
      */
     public retrieveAsSet(String asSet) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -59,8 +62,9 @@ public class retrieveAsSet {
     }
 
     /**
+     * Повертає RPSL-блок as-set у вигляді рядка.
      *
-     * @return
+     * @return текст RPSL-блоку, або порожній рядок, якщо AS-SET не знайдено
      */
     public String get() {
         logger.debug("retrieveAsSet({}).get(): {}", this.asSet, this.sb.toString());

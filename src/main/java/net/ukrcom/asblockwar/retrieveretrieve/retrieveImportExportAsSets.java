@@ -45,8 +45,10 @@ public class retrieveImportExportAsSets {
     private final Set<String> asSets = new HashSet<>();
 
     /**
+     * Відкриває з'єднання з БД, завантажує RPSL-блок aut-num і парсить
+     * конструкції {@code accept AS-...} у полях import/export/mp-import/mp-export.
      *
-     * @param autNum
+     * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveImportExportAsSets(String autNum) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -87,8 +89,9 @@ public class retrieveImportExportAsSets {
     }
 
     /**
+     * Повертає незмінну множину AS-SET, знайдених у import/export полях aut-num.
      *
-     * @return
+     * @return множина назв AS-SET у верхньому регістрі (наприклад, {@code "AS-EXAMPLE"})
      */
     public Set<String> get() {
         logger.debug("retrieveImportExportAsSets({}).get(): {}", autNum, asSets);

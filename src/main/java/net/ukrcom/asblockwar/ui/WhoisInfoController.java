@@ -30,8 +30,10 @@ import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
- * Controller for WhoisInfoDialog.fxml — displays a raw RPSL block
- * retrieved from the local whois-lite-local database.
+ * FXML-контролер діалогу WhoisInfoDialog.fxml — відображає сирий RPSL-блок,
+ * отриманий з локальної бази даних whois-lite-local.
+ *
+ * <p>Підтримує перемикання перенесення тексту через чекбокс у діалозі.
  *
  * @author olden
  */
@@ -45,9 +47,11 @@ public class WhoisInfoController implements Initializable {
     private Stage stage;
 
     /**
+     * Ініціалізує текстову область відповідно до стану чекбоксу перенесення
+     * після завантаження FXML.
      *
-     * @param url
-     * @param rb
+     * @param url URL FXML-ресурсу (не використовується)
+     * @param rb  ResourceBundle локалізації (не використовується)
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -59,10 +63,20 @@ public class WhoisInfoController implements Initializable {
         textArea.setWrapText(wrapText.isSelected());
     }
 
+    /**
+     * Встановлює посилання на вікно діалогу для подальшого приховання при закритті.
+     *
+     * @param dialogStage вікно Stage цього діалогу
+     */
     public void setStage(Stage dialogStage) {
         this.stage = dialogStage;
     }
 
+    /**
+     * Встановлює текст RPSL для відображення у текстовій області.
+     *
+     * @param text рядок RPSL-тексту
+     */
     public void setText(String text) {
         textArea.setText(text);
     }
@@ -75,8 +89,12 @@ public class WhoisInfoController implements Initializable {
     }
 
     /**
-     * Opens a modal dialog showing the given RPSL text.
-     * Must be called on the JavaFX Application Thread.
+     * Відкриває модальний діалог для перегляду заданого RPSL-тексту.
+     * Має викликатися з JavaFX Application Thread.
+     *
+     * @param owner вікно-власник для встановлення модальності
+     * @param title заголовок діалогового вікна (як правило, позначення RPSL-об'єкта)
+     * @param text  RPSL-текст для відображення
      */
     public static void show(Stage owner, String title, String text) {
         try {

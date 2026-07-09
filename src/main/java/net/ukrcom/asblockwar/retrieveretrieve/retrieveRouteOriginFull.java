@@ -37,8 +37,10 @@ public class retrieveRouteOriginFull {
     private final StringBuilder sb = new StringBuilder();
 
     /**
+     * Відкриває з'єднання з БД і завантажує усі route/route6 RPSL-блоки
+     * для вказаного origin AS.
      *
-     * @param origin
+     * @param origin позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveRouteOriginFull(String origin) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -73,8 +75,9 @@ public class retrieveRouteOriginFull {
     }
 
     /**
+     * Повертає конкатенований текст усіх route/route6 RPSL-блоків для вказаного origin.
      *
-     * @return
+     * @return рядок RPSL-тексту, або порожній рядок, якщо маршрутів не знайдено
      */
     public String get() {
         logger.debug("retrieveRouteOriginFull({}).get(): {} chars", origin, sb.length());

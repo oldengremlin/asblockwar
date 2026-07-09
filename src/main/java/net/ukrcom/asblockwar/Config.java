@@ -25,6 +25,12 @@ import java.util.Properties;
 import static net.ukrcom.asblockwar.ASBlockWar.LOGGER;
 
 /**
+ * Зберігає та надає доступ до конфігурації програми ASBlockWar.
+ *
+ * <p>Параметри завантажуються з файлу {@code asblockwar.properties}
+ * (спочатку з поточного каталогу, потім з classpath) або з файлу,
+ * вказаного аргументом {@code --config=<шлях>}. Значення CLI-аргументів
+ * мають вищий пріоритет і перекривають файлові налаштування.
  *
  * @author olden
  */
@@ -58,9 +64,11 @@ public class Config {
     private int recursiveAsset = -1;
 
     /**
+     * Ініціалізує конфігурацію: розбирає CLI-аргументи, завантажує
+     * properties-файл і зводить усі значення з пріоритетом CLI над файлом.
      *
-     * @param args
-     * @throws IOException
+     * @param args масив аргументів командного рядка (може бути {@code null})
+     * @throws IOException якщо файл конфігурації, вказаний через {@code --config=}, не може бути прочитаний
      */
     public Config(String[] args) throws IOException {
         this.properties = new Properties();
@@ -243,184 +251,207 @@ public class Config {
     }
 
     /**
+     * Повертає шлях до файлу зі списком ASN.
      *
-     * @return
+     * @return шлях до файлу зі списком ASN
      */
     public String getListFile() {
         return this.listFile;
     }
 
     /**
+     * Повертає шлях до файлу зі списком mnt-by дескрипторів.
      *
-     * @return
+     * @return шлях до файлу зі списком mnt-by
      */
     public String getListMntbyFile() {
         return this.listMntbyFile;
     }
 
     /**
+     * Повертає шлях до файлу зі списком AS-SET.
      *
-     * @return
+     * @return шлях до файлу зі списком AS-SET
      */
     public String getListAssetFile() {
         return this.listAssetFile;
     }
 
     /**
+     * Повертає JDBC URI до бази даних whois-lite-local.
      *
-     * @return
+     * @return JDBC URI (наприклад, {@code jdbc:sqlite:whoislitelocal.db})
      */
     public String getWhoisLiteLocalURI() {
         return this.whoisLiteLocalURI;
     }
 
     /**
+     * Повертає глибину рекурсії при обробці AS-SET.
      *
-     * @return
+     * @return глибина рекурсії ({@code -1} — рекурсія вимкнена, {@code 0} і більше — дозволена глибина)
      */
     public int getRecursiveAsset() {
         return this.recursiveAsset;
     }
 
     /**
+     * Повертає шлях до директорії для збереження вихідних файлів.
      *
-     * @return
+     * @return шлях до директорії STORE
      */
     public String getStoreDir() {
         return this.storeDir;
     }
 
     /**
+     * Повертає шлях до вихідного файлу конфігурації Juniper WAR.
      *
-     * @return
+     * @return шлях до WAR-файлу для Juniper
      */
     public String getWarFile() {
         return this.warFile;
     }
 
     /**
+     * Повертає шлях до вихідного файлу команд blackbgp.
      *
-     * @return
+     * @return шлях до файлу blackbgp-команд
      */
     public String getBlackbgpFile() {
         return this.blackbgpFile;
     }
 
     /**
+     * Повертає shell-команду для отримання IPv4-маршрутів таблиці blackbgp.
      *
-     * @return
+     * @return shell-команда (виконується через {@code sh -c})
      */
     public String getGetBlackhole() {
         return this.getBlackhole;
     }
 
     /**
+     * Повертає shell-команду для отримання IPv6-маршрутів таблиці blackbgp.
      *
-     * @return
+     * @return shell-команда (виконується через {@code sh -c})
      */
     public String getGetBlackholeIpv6() {
         return this.getBlackholeIpv6;
     }
 
     /**
+     * Вказує, чи включати IPv6-маршрути до виводу blackbgp.
      *
-     * @return
+     * @return {@code true}, якщо IPv6 увімкнено
      */
     public boolean isBlackbgpIpv6() {
         return this.blackbgpIpv6;
     }
 
     /**
+     * Вказує, чи запускати графічний інтерфейс замість CLI-режиму.
      *
-     * @return
+     * @return {@code true}, якщо GUI-режим активовано (прапор {@code --gui} / {@code -g})
      */
     public boolean isGui() {
         return this.gui;
     }
 
     /**
+     * Встановлює шлях до файлу зі списком ASN.
      *
-     * @param v
+     * @param v шлях до файлу
      */
     public void setListFile(String v) {
         this.listFile = v;
     }
 
     /**
+     * Встановлює шлях до файлу зі списком mnt-by.
      *
-     * @param v
+     * @param v шлях до файлу
      */
     public void setListMntbyFile(String v) {
         this.listMntbyFile = v;
     }
 
     /**
+     * Встановлює шлях до файлу зі списком AS-SET.
      *
-     * @param v
+     * @param v шлях до файлу
      */
     public void setListAssetFile(String v) {
         this.listAssetFile = v;
     }
 
     /**
+     * Встановлює JDBC URI до бази даних whois-lite-local.
      *
-     * @param v
+     * @param v JDBC URI
      */
     public void setWhoisLiteLocalURI(String v) {
         this.whoisLiteLocalURI = v;
     }
 
     /**
+     * Встановлює шлях до директорії для збереження вихідних файлів.
      *
-     * @param v
+     * @param v шлях до директорії STORE
      */
     public void setStoreDir(String v) {
         this.storeDir = v;
     }
 
     /**
+     * Встановлює шлях до вихідного WAR-файлу для Juniper.
      *
-     * @param v
+     * @param v шлях до WAR-файлу
      */
     public void setWarFile(String v) {
         this.warFile = v;
     }
 
     /**
+     * Встановлює шлях до вихідного файлу команд blackbgp.
      *
-     * @param v
+     * @param v шлях до файлу blackbgp-команд
      */
     public void setBlackbgpFile(String v) {
         this.blackbgpFile = v;
     }
 
     /**
+     * Встановлює shell-команду для отримання IPv4-маршрутів таблиці blackbgp.
      *
-     * @param v
+     * @param v shell-команда (виконується через {@code sh -c})
      */
     public void setGetBlackhole(String v) {
         this.getBlackhole = v;
     }
 
     /**
+     * Встановлює shell-команду для отримання IPv6-маршрутів таблиці blackbgp.
      *
-     * @param v
+     * @param v shell-команда (виконується через {@code sh -c})
      */
     public void setGetBlackholeIpv6(String v) {
         this.getBlackholeIpv6 = v;
     }
 
     /**
+     * Вмикає або вимикає включення IPv6-маршрутів до виводу blackbgp.
      *
-     * @param v
+     * @param v {@code true} — включати IPv6-маршрути
      */
     public void setBlackbgpIpv6(boolean v) {
         this.blackbgpIpv6 = v;
     }
 
     /**
+     * Встановлює глибину рекурсії при обробці AS-SET.
      *
-     * @param v
+     * @param v глибина рекурсії ({@code -1} — вимкнена, {@code 0} і більше — дозволена)
      */
     public void setRecursiveAsset(int v) {
         this.recursiveAsset = v;

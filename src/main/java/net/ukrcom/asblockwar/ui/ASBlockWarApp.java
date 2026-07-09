@@ -23,16 +23,19 @@ import javafx.scene.control.DialogPane;
 import javafx.stage.Stage;
 
 /**
- * JavaFX Application entry point for GUI mode (--gui / -g).
+ * Точка входу JavaFX-застосунку для GUI-режиму (прапор {@code --gui} / {@code -g}).
+ *
+ * <p>Завантажує головне вікно ({@code MainWindows.fxml}) і підключає CSS-стилі.
  *
  * @author olden
  */
 public class ASBlockWarApp extends Application {
 
     /**
+     * Ініціалізує та відображає головне вікно застосунку.
      *
-     * @param stage
-     * @throws Exception
+     * @param stage первинне вікно JavaFX Runtime
+     * @throws Exception якщо FXML або CSS-ресурс не вдається завантажити
      */
     @Override
     public void start(Stage stage) throws Exception {

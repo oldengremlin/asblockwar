@@ -40,8 +40,11 @@ public class retrieveBlackbgpPrefixes {
     private final Set<String> prefixes = new HashSet<>();
 
     /**
+     * Виконує зовнішні команди з конфігурації ({@code GetBlackhole} та, опційно,
+     * {@code GetBlackholeIpv6}) і збирає поточний перелік prefixes з blackbgp.
      *
-     * @param includeIpv6
+     * @param includeIpv6 якщо {@code true} — також виконується IPv6-команда
+     *                    і зібрані IPv6-префікси додаються до результату
      */
     public retrieveBlackbgpPrefixes(boolean includeIpv6) {
         fetch(net.ukrcom.asblockwar.ASBlockWar.config.getGetBlackhole(), false);
@@ -83,8 +86,9 @@ public class retrieveBlackbgpPrefixes {
     }
 
     /**
+     * Повертає незмінну множину CIDR-префіксів, наявних у таблиці маршрутизації blackbgp.
      *
-     * @return
+     * @return множина CIDR-рядків (IPv4 і/або IPv6 залежно від параметра конструктора)
      */
     public Set<String> get() {
         return Collections.unmodifiableSet(prefixes);

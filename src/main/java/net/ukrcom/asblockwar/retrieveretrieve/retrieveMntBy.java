@@ -24,6 +24,10 @@ import net.ukrcom.asblockwar.Config;
 import org.slf4j.Logger;
 
 /**
+ * Витягує всі aut-num та as-set RPSL-блоки, що обслуговуються заданим mnt-by дескриптором.
+ *
+ * <p>Пошук виконується через таблицю {@code rpsl_mntby}, потім завантажуються
+ * відповідні RPSL-блоки з таблиці {@code rpsl}.
  *
  * @author olden
  */
@@ -38,8 +42,9 @@ public class retrieveMntBy {
     private Connection conn;
 
     /**
+     * Відкриває з'єднання з БД і завантажує усі RPSL-блоки, обслуговувані вказаним мантейнером.
      *
-     * @param mntBy
+     * @param mntBy назва mnt-by (наприклад, {@code "MNTNER-UA"})
      */
     public retrieveMntBy(String mntBy) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
@@ -59,8 +64,10 @@ public class retrieveMntBy {
     }
 
     /**
+     * Повертає конкатенований текст усіх RPSL-блоків, обслуговуваних вказаним мантейнером.
      *
-     * @return
+     * @return рядок з RPSL-блоками, розділеними порожніми рядками;
+     *         порожній рядок, якщо мантейнер не знайдено або трапилася помилка
      */
     public String get() {
         logger.debug("retrieveMntBy({}).get(): {}", this.mntBy, this.sb.toString());
