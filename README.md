@@ -12,7 +12,7 @@
 
 | Компонент | Версія |
 |---|---|
-| Java | 21+ |
+| Java | 25+ |
 | Maven | 3.6+ |
 | [whois-lite-local](https://github.com/oldengremlin/whois-lite-local) | актуальна база `whoislitelocal.db` |
 

@@ -1,20 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
 <VBox spacing="6.0" prefHeight="520.0" prefWidth="680.0" style="-fx-padding: 8;"
       xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ukrcom.asblockwar.ui.WhoisInfoController">
    <children>
-      <TextArea fx:id="textArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"
+      <TextArea fx:id="textArea" editable="false" wrapText="false" VBox.vgrow="ALWAYS"
                 style="-fx-font-family: monospace; -fx-font-size: 12;" />
-      <ButtonBar>
-         <buttons>
+      <HBox alignment="CENTER_LEFT" spacing="8.0">
+         <children>
+            <CheckBox fx:id="wrapText" text="Wrap" onAction="#toggleWrap" />
+            <Region HBox.hgrow="ALWAYS" />
             <Button text="Close" onAction="#doClose" defaultButton="true" cancelButton="true" mnemonicParsing="false" />
-         </buttons>
-      </ButtonBar>
+         </children>
+      </HBox>
    </children>
 </VBox>
