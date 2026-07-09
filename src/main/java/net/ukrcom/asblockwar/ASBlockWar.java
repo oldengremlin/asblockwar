@@ -104,8 +104,11 @@ public class ASBlockWar {
 
     }
 
-    private record BlackbgpResult(Map<String, String> newEnemies, Set<String> effectivePrefixes) {
-
+    private record BlackbgpChanges(
+            Set<String> toDelete,
+            Set<String> toReplace,
+            Map<String, String> newEnemies,
+            Set<String> effectivePrefixes) {
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -539,21 +542,22 @@ public class ASBlockWar {
     }
 
     private static Set<String> storeResources(Map<String, String> aggressorAsnResources) throws IOException {
-        // blackbgp першим: може виявити нові ворожі AS через перевірку маршрутів на видалення
-        BlackbgpResult bgpOutcome = storeBlackbgpResources(aggressorAsnResources);
+        // аналіз: виявляємо зміни у blackbgp і можливі нові ворожі AS
+        BlackbgpChanges changes = discoverBlackbgpChanges(aggressorAsnResources);
 
-        Map<String, String> newEnemies = bgpOutcome.newEnemies();
+        Map<String, String> newEnemies = changes.newEnemies();
         if (!newEnemies.isEmpty()) {
             aggressorAsnResources.putAll(newEnemies);
             LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
                     newEnemies.size(), newEnemies.keySet());
         }
 
-        // war + збереження списку паралельно — map вже фінальний
+        // усі три store паралельно — map вже фінальний, changes вже обчислено
         try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
             var warTask = exec.submit(() -> { storeWarResources(aggressorAsnResources); return null; });
             var asnTask = exec.submit(() -> { storeAggressorAsnResources(aggressorAsnResources); return null; });
-            for (var task : List.of(warTask, asnTask)) {
+            var bgpTask = exec.submit(() -> { storeBlackbgpResources(changes); return null; });
+            for (var task : List.of(warTask, asnTask, bgpTask)) {
                 try {
                     task.get();
                 } catch (InterruptedException e) {
@@ -567,7 +571,7 @@ public class ASBlockWar {
             }
         }
 
-        return bgpOutcome.effectivePrefixes();
+        return changes.effectivePrefixes();
     }
 
     private static void storeWarResources(Map<String, String> aggressorAsnResources) throws IOException {
@@ -597,12 +601,12 @@ public class ASBlockWar {
                 rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
 
-    private static BlackbgpResult storeBlackbgpResources(Map<String, String> aggressorAsnResources) throws IOException {
+    private static BlackbgpChanges discoverBlackbgpChanges(Map<String, String> aggressorAsnResources) {
         boolean ipv6 = config.isBlackbgpIpv6();
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
         Set<String> currentPrefixes = new retrieveBlackbgpPrefixes(ipv6).get();
-        LOGGER.info("storeBlackbgpResources: поточних маршрутів у blackbgp: {}", currentPrefixes.size());
+        LOGGER.info("discoverBlackbgpChanges: поточних маршрутів у blackbgp: {}", currentPrefixes.size());
 
         // 2. Цільовий набір prefixes з БД (тільки IPv4 якщо не передано -6)
         Set<String> targetPrefixes = ConcurrentHashMap.newKeySet();
@@ -650,7 +654,7 @@ public class ASBlockWar {
                         // Перевірка 1: вже відома ворожа AS?
                         for (String origin : origins) {
                             if (aggressorAsnResources.containsKey(origin)) {
-                                LOGGER.warn("storeBlackbgpResources: {} належить ворожій {} — видалення скасовано",
+                                LOGGER.warn("discoverBlackbgpChanges: {} належить ворожій {} — видалення скасовано",
                                         prefix, origin);
                                 toDelete.remove(prefix);
                                 return;
@@ -667,7 +671,7 @@ public class ASBlockWar {
                                 dbLimit.release();
                             }
                             if (AGGRESSOR_COMPILED.matcher(block).find()) {
-                                LOGGER.warn("storeBlackbgpResources: {} — нова ворожа AS {} — додано до списку, видалення скасовано",
+                                LOGGER.warn("discoverBlackbgpChanges: {} — нова ворожа AS {} — додано до списку, видалення скасовано",
                                         prefix, origin);
                                 newEnemies.put(origin, block);
                                 toDelete.remove(prefix);
@@ -681,26 +685,30 @@ public class ASBlockWar {
             }
         }
 
-        // 5. Записуємо лише зміни
-        String content = Stream.concat(
-                toDelete.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
-                toReplace.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("r", p))
-        ).collect(Collectors.joining("\n", "", "\n"));
-
-        Path path = Path.of(config.getBlackbgpFile());
-        writeStoreFile(path, content);
-
-        LOGGER.info("storeBlackbgpResources: {} delete + {} replace (current={}, target={}, newEnemies={}) → {}",
-                toDelete.size(), toReplace.size(),
-                currentPrefixes.size(), targetPrefixes.size(), newEnemies.size(), config.getBlackbgpFile());
-
         // Ефективний стан після застосування war.blackbgp.txt:
         // ті що скасували видалення лишаються, нові додаються
         Set<String> effectivePrefixes = new HashSet<>(currentPrefixes);
         effectivePrefixes.removeAll(toDelete);
         effectivePrefixes.addAll(toReplace);
 
-        return new BlackbgpResult(newEnemies, effectivePrefixes);
+        LOGGER.info("discoverBlackbgpChanges: {} delete + {} replace (current={}, target={}, newEnemies={})",
+                toDelete.size(), toReplace.size(),
+                currentPrefixes.size(), targetPrefixes.size(), newEnemies.size());
+
+        return new BlackbgpChanges(toDelete, toReplace, newEnemies, effectivePrefixes);
+    }
+
+    private static void storeBlackbgpResources(BlackbgpChanges changes) throws IOException {
+        String content = Stream.concat(
+                changes.toDelete().stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
+                changes.toReplace().stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("r", p))
+        ).collect(Collectors.joining("\n", "", "\n"));
+
+        Path path = Path.of(config.getBlackbgpFile());
+        writeStoreFile(path, content);
+
+        LOGGER.info("storeBlackbgpResources: {} delete + {} replace → {}",
+                changes.toDelete().size(), changes.toReplace().size(), config.getBlackbgpFile());
     }
 
     private static String rpslField(String block, String key) {
