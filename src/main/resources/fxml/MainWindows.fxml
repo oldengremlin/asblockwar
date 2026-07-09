@@ -16,7 +16,6 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 
-
 <DialogPane id="MainPane" minHeight="-Infinity" minWidth="-Infinity" prefHeight="960.0" prefWidth="1152.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ukrcom.asblockwar.ui.MainWindowsController">
    <content>
       <GridPane prefHeight="713.0" prefWidth="1080.0">
@@ -65,11 +64,9 @@
               <items>
                 <AnchorPane maxHeight="50.0" minHeight="50.0" prefHeight="50.0">
                      <children>
-                        <HBox alignment="CENTER_LEFT" spacing="8.0"
-                              AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="14.0"
-                              AnchorPane.rightAnchor="8.0" AnchorPane.topAnchor="0.0">
+                        <HBox alignment="CENTER_LEFT" spacing="8.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="8.0" AnchorPane.topAnchor="0.0">
                            <Label text="JunOS AS-PATH" HBox.hgrow="ALWAYS" />
-                           <CheckBox fx:id="wrapJuniper" text="Wrap" onAction="#toggleWrapJuniper" />
+                           <CheckBox fx:id="wrapJuniper" onAction="#toggleWrapJuniper" selected="true" text="Wrap" />
                         </HBox>
                      </children>
                   </AnchorPane>
@@ -94,7 +91,7 @@
                   </AnchorPane>
               </items>
             </SplitPane>
-            <HBox alignment="CENTER_LEFT" spacing="8.0" GridPane.rowIndex="1" GridPane.columnSpan="3" style="-fx-padding: 4 8 4 8;">
+            <HBox alignment="CENTER_LEFT" spacing="8.0" style="-fx-padding: 4 8 4 8;" GridPane.columnSpan="3" GridPane.rowIndex="1">
                <children>
                   <Label fx:id="statusLabel" text="Ready." />
                </children>
