@@ -73,6 +73,14 @@ public class ASBlockWar {
     public static String listFile;
     public static String listMntbyFile;
 
+    /** Optional GUI callback for live highlighting; null in CLI mode. */
+    public interface UIProgressCallback {
+        void onAsnProcessing(String asn);
+        void onAsSetProcessing(String asSet);
+        void onMntByProcessing(String mntBy);
+    }
+    public static volatile UIProgressCallback uiCallback;
+
     // (?i) робить пошук регістронезалежним
     // MULTILINE (?m) дозволяє ^ та $ працювати з кожним рядком у багаторядковому значенні
     // $ зовні групи — всі альтернативи прив'язані до кінця рядка
@@ -247,6 +255,8 @@ public class ASBlockWar {
                         .filter(line -> line.matches("^[1-9]\\d*$"))
                         .map(str -> "AS" + str)
                         .forEach(asNumber -> executor.submit(() -> {
+                    UIProgressCallback cb = uiCallback;
+                    if (cb != null) cb.onAsnProcessing(asNumber);
                     try {
                         // Чекаємо дозволу на вхід до БД
                         dbLimit.acquire();
@@ -291,6 +301,8 @@ public class ASBlockWar {
             Stream.concat(Arrays.stream(blockedAsSet), fileAsSets.stream())
                     .distinct()
                     .forEach(asSet -> executor.submit(() -> {
+                UIProgressCallback cb = uiCallback;
+                if (cb != null) cb.onAsSetProcessing(asSet);
                 try {
                     dbLimit.acquire();
                     String result = new retrieveAsSet(asSet).get();
@@ -316,6 +328,8 @@ public class ASBlockWar {
                 lines
                         .filter(line -> !line.matches("^\\s*[#;].*"))
                         .forEach(mntBy -> executor.submit(() -> {
+                    UIProgressCallback cb = uiCallback;
+                    if (cb != null) cb.onMntByProcessing(mntBy);
                     try {
                         // Чекаємо дозволу на вхід до БД
                         dbLimit.acquire();

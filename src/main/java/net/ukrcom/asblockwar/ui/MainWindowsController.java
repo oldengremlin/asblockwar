@@ -29,11 +29,13 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TitledPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
@@ -47,6 +49,10 @@ public class MainWindowsController implements Initializable {
 
     @FXML private Button runButton;
     @FXML private Button propertiesButton;
+    @FXML private Accordion accordion;
+    @FXML private TitledPane paneListMntBy;
+    @FXML private TitledPane paneListAsSet;
+    @FXML private TitledPane paneListAs;
     @FXML private ListView<String> listAs;
     @FXML private ListView<String> listMntBy;
     @FXML private ListView<String> listAsSet;
@@ -82,7 +88,7 @@ public class MainWindowsController implements Initializable {
             dialog.setTitle("ASBlockWar — Processing");
             dialog.setScene(new Scene(root));
 
-            ctrl.startProcessing(dialog);
+            ctrl.startProcessing(dialog, this);
             dialog.showAndWait();
 
             refreshUi();
@@ -117,6 +123,44 @@ public class MainWindowsController implements Initializable {
         } catch (IOException e) {
             ASBlockWar.LOGGER.error("GUI: cannot open properties dialog", e);
             statusLabel.setText("Error: " + e.getMessage());
+        }
+    }
+
+    void highlightAsn(String asn) {
+        String bare = asn.startsWith("AS") ? asn.substring(2) : asn;
+        Platform.runLater(() -> {
+            accordion.setExpandedPane(paneListAs);
+            findInList(listAs, bare);
+        });
+    }
+
+    void highlightAsSet(String asSet) {
+        Platform.runLater(() -> {
+            accordion.setExpandedPane(paneListAsSet);
+            findInList(listAsSet, asSet);
+        });
+    }
+
+    void highlightMntBy(String mntBy) {
+        Platform.runLater(() -> {
+            accordion.setExpandedPane(paneListMntBy);
+            findInList(listMntBy, mntBy);
+        });
+    }
+
+    void clearHighlight() {
+        Platform.runLater(() -> {
+            listAs.getSelectionModel().clearSelection();
+            listAsSet.getSelectionModel().clearSelection();
+            listMntBy.getSelectionModel().clearSelection();
+        });
+    }
+
+    private void findInList(ListView<String> lv, String value) {
+        int idx = lv.getItems().indexOf(value);
+        if (idx >= 0) {
+            lv.getSelectionModel().select(idx);
+            lv.scrollTo(idx);
         }
     }
 
