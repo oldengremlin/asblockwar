@@ -691,6 +691,33 @@ public class ASBlockWar {
             }
         }
 
+        // 4.5. Маршрути нових ворожих AS: ті що не в поточному blackbgp, додаємо одразу
+        if (!newEnemies.isEmpty()) {
+            Set<String> newEnemyPrefixes = ConcurrentHashMap.newKeySet();
+            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                Semaphore dbLimit = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
+                newEnemies.keySet().forEach(asn -> executor.submit(() -> {
+                    try {
+                        dbLimit.acquire();
+                        try {
+                            new retrieveRouteOriginPrefixes(asn).get().stream()
+                                    .filter(p -> ipv6 || !p.contains(":"))
+                                    .filter(p -> !currentPrefixes.contains(p))
+                                    .forEach(newEnemyPrefixes::add);
+                        } finally {
+                            dbLimit.release();
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }));
+            }
+            if (!newEnemyPrefixes.isEmpty()) {
+                LOGGER.info("storeBlackbgpResources: додаємо {} маршрутів нових ворогів до blackbgp", newEnemyPrefixes.size());
+                toReplace.addAll(newEnemyPrefixes);
+            }
+        }
+
         // 5. Записуємо лише зміни
         String content = Stream.concat(
                 toDelete.stream().sorted(CIDR_ORDER).map(p -> blackbgpCmd("d", p)),
