@@ -85,15 +85,15 @@ public class ASBlockWar {
     public interface UIProgressCallback {
 
         /** Викликається перед запитом RPSL-блоку для ASN.
-         * @param asn */
+         * @param asn номер автономної системи у форматі {@code "ASNnnn"}, для якої запитується RPSL-блок */
         void onAsnProcessing(String asn);
 
         /** Викликається перед запитом RPSL-блоку для AS-SET.
-         * @param asSet */
+         * @param asSet назва набору AS-SET у форматі RPSL, наприклад {@code "AS-EXAMPLE"}, для якого запитується RPSL-блок */
         void onAsSetProcessing(String asSet);
 
         /** Викликається перед запитом RPSL-блоку для MNT-BY.
-         * @param mntBy */
+         * @param mntBy ідентифікатор мантейнера RPSL, наприклад {@code "EXAMPLE-MNT"}, для якого запитується RPSL-блок */
         void onMntByProcessing(String mntBy);
     }
     public static volatile UIProgressCallback uiCallback;
