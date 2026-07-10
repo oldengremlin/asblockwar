@@ -37,6 +37,7 @@ import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.AsnRegexBuilder;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAllRouteOrigins;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
@@ -51,6 +52,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
  * Охоплює запис файлів WAR1/WAR2, blackbgp, list.txt, AS.list, maintainers.list,
  * networks.list, а також детальних RPSL-файлів у STORE/.
  */
+@Slf4j
 public class StoreActions {
 
     private StoreActions() {}
@@ -65,7 +67,7 @@ public class StoreActions {
      * @throws IOException якщо виникла помилка читання або запису файлу
      */
     public static void storeMntByResources(Set<String> discovered) throws IOException {
-        ASBlockWar.LOGGER.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
+        log.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
 
         Path path = Path.of(ASBlockWar.listMntbyFile);
         Set<String> existing = FileUtils.readFileEntries(path);
@@ -78,12 +80,12 @@ public class StoreActions {
                 .toList();
 
         if (merged.isEmpty()) {
-            ASBlockWar.LOGGER.info("storeMntByResources: список мантейнерів порожній");
+            log.info("storeMntByResources: список мантейнерів порожній");
             return;
         }
 
         FileUtils.writeStoreFile(path, String.join("\n", merged) + "\n");
-        ASBlockWar.LOGGER.info("storeMntByResources: записано {} мантейнерів до {}", merged.size(), ASBlockWar.listMntbyFile);
+        log.info("storeMntByResources: записано {} мантейнерів до {}", merged.size(), ASBlockWar.listMntbyFile);
     }
 
     /**
@@ -96,7 +98,7 @@ public class StoreActions {
      * @throws IOException якщо виникла помилка читання або запису файлу
      */
     public static void storeListAsSet(Set<String> discovered) throws IOException {
-        ASBlockWar.LOGGER.debug("storeListAsSet: знайдено AS-SET: {}", discovered);
+        log.debug("storeListAsSet: знайдено AS-SET: {}", discovered);
 
         String listAssetFile = ASBlockWar.config.getListAssetFile();
         Path path = Path.of(listAssetFile);
@@ -111,12 +113,12 @@ public class StoreActions {
                 .toList();
 
         if (merged.isEmpty()) {
-            ASBlockWar.LOGGER.info("storeListAsSet: список AS-SET порожній");
+            log.info("storeListAsSet: список AS-SET порожній");
             return;
         }
 
         FileUtils.writeStoreFile(path, String.join("\n", merged) + "\n");
-        ASBlockWar.LOGGER.info("storeListAsSet: записано {} AS-SET до {}", merged.size(), listAssetFile);
+        log.info("storeListAsSet: записано {} AS-SET до {}", merged.size(), listAssetFile);
     }
 
     /**
@@ -147,7 +149,7 @@ public class StoreActions {
                                         : filename + "." + timestamp;
                 Path backup = source.resolveSibling(backupFilename);
                 Files.move(source, backup);
-                ASBlockWar.LOGGER.info("Резервна копія: {}", backup);
+                log.info("Резервна копія: {}", backup);
 
                 // Записуємо відсортований список (тільки числа, по одному на рядок)
                 String content = aggressorAsnResources.keySet().stream()
@@ -162,7 +164,7 @@ public class StoreActions {
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(tmp, source, StandardCopyOption.REPLACE_EXISTING);
                 }
-                ASBlockWar.LOGGER.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
+                log.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
             }
         } finally {
             Files.deleteIfExists(lockPath);
@@ -193,7 +195,7 @@ public class StoreActions {
         Map<String, String> newEnemies = changes.newEnemies();
         if (!newEnemies.isEmpty()) {
             aggressorAsnResources.putAll(newEnemies);
-            ASBlockWar.LOGGER.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
+            log.info("Виявлено {} нових ворожих ASN під час перевірки видалення: {}",
                     newEnemies.size(), newEnemies.keySet());
         }
 
@@ -263,7 +265,7 @@ public class StoreActions {
         Path path = Path.of(ASBlockWar.config.getWarFile());
         FileUtils.writeStoreFile(path, war1 + "\n" + war2 + "\n");
 
-        ASBlockWar.LOGGER.info("storeWarResources: WAR1+WAR2 записано у {} ({} ASN, {} → {} chars, -{} %)",
+        log.info("storeWarResources: WAR1+WAR2 записано у {} ({} ASN, {} → {} chars, -{} %)",
                 ASBlockWar.config.getWarFile(), aggressorAsnResources.size(),
                 rawLen, regex.length(), rawLen > 0 ? (rawLen - regex.length()) * 100 / rawLen : 0);
     }
@@ -286,7 +288,7 @@ public class StoreActions {
         Path path = Path.of(ASBlockWar.config.getBlackbgpFile());
         FileUtils.writeStoreFile(path, content);
 
-        ASBlockWar.LOGGER.info("storeBlackbgpResources: {} delete + {} replace → {}",
+        log.info("storeBlackbgpResources: {} delete + {} replace → {}",
                 changes.toDelete().size(), changes.toReplace().size(), ASBlockWar.config.getBlackbgpFile());
     }
 
@@ -320,7 +322,7 @@ public class StoreActions {
                 .collect(Collectors.joining("\n", "", "\n"));
 
         FileUtils.writeStoreFile(base.resolve("AS.list"), content);
-        ASBlockWar.LOGGER.info("storeAsList: записано {} AS до AS.list", aggressorAsnResources.size());
+        log.info("storeAsList: записано {} AS до AS.list", aggressorAsnResources.size());
     }
 
     /**
@@ -368,7 +370,7 @@ public class StoreActions {
                 .collect(Collectors.joining("\n", "", "\n"));
 
         FileUtils.writeStoreFile(base.resolve("maintainers.list"), content);
-        ASBlockWar.LOGGER.info("storeMaintainersList: записано {} мантейнерів до maintainers.list", allMntBy.size());
+        log.info("storeMaintainersList: записано {} мантейнерів до maintainers.list", allMntBy.size());
     }
 
     /**
@@ -386,7 +388,7 @@ public class StoreActions {
      */
     public static void storeNetworkFiles(Set<String> effectivePrefixes) throws IOException {
         if (effectivePrefixes.isEmpty()) {
-            ASBlockWar.LOGGER.info("storeNetworkFiles: effectivePrefixes пустий, пропускаємо");
+            log.info("storeNetworkFiles: effectivePrefixes пустий, пропускаємо");
             return;
         }
         Path base = Path.of(ASBlockWar.config.getStoreDir());
@@ -394,9 +396,9 @@ public class StoreActions {
         FileUtils.ensureStoreDir(dirNet);
 
         // 1. Один bulk-запит замість N індивідуальних з'єднань
-        ASBlockWar.LOGGER.info("storeNetworkFiles: читаємо origins з БД (bulk)...");
+        log.info("storeNetworkFiles: читаємо origins з БД (bulk)...");
         Map<String, List<String>> allOrigins = new retrieveAllRouteOrigins().get();
-        ASBlockWar.LOGGER.info("storeNetworkFiles: отримано origins для {} маршрутів з БД", allOrigins.size());
+        log.info("storeNetworkFiles: отримано origins для {} маршрутів з БД", allOrigins.size());
 
         // 2. Відбираємо тільки ті префікси, що є в effectivePrefixes
         List<Map.Entry<String, List<String>>> sorted = effectivePrefixes.stream()
@@ -414,7 +416,7 @@ public class StoreActions {
                 })
                 .collect(Collectors.joining("\n", "", "\n"));
         FileUtils.writeStoreFile(base.resolve("networks.list"), networksList);
-        ASBlockWar.LOGGER.info("storeNetworkFiles: networks.list записано ({} рядків)", sorted.size());
+        log.info("storeNetworkFiles: networks.list записано ({} рядків)", sorted.size());
 
         // 4. Записуємо STORE/NET/{addr.prefix}.txt
         int count = 0;
@@ -425,11 +427,11 @@ public class StoreActions {
                     .collect(Collectors.joining("\n", "", "\n"));
             FileUtils.writeStoreFile(dirNet.resolve(filename), content);
             if (++count % 10000 == 0) {
-                ASBlockWar.LOGGER.info("storeNetworkFiles: NET/ {}/{}", count, sorted.size());
+                log.info("storeNetworkFiles: NET/ {}/{}", count, sorted.size());
             }
         }
 
-        ASBlockWar.LOGGER.info("storeNetworkFiles: завершено — {} файлів у NET/", count);
+        log.info("storeNetworkFiles: завершено — {} файлів у NET/", count);
     }
 
     /**
@@ -485,7 +487,7 @@ public class StoreActions {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (IOException e) {
-                    ASBlockWar.LOGGER.error("storeDetails: помилка запису для {}", asn, e);
+                    log.error("storeDetails: помилка запису для {}", asn, e);
                 }
             }));
 
@@ -507,7 +509,7 @@ public class StoreActions {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (IOException e) {
-                    ASBlockWar.LOGGER.error("storeDetails: помилка запису для мантейнера {}", mnt, e);
+                    log.error("storeDetails: помилка запису для мантейнера {}", mnt, e);
                 }
             }));
 
@@ -523,12 +525,12 @@ public class StoreActions {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (IOException e) {
-                    ASBlockWar.LOGGER.error("storeDetails: помилка запису для AS-SET {}", asSet, e);
+                    log.error("storeDetails: помилка запису для AS-SET {}", asSet, e);
                 }
             }));
         }
 
-        ASBlockWar.LOGGER.info("storeDetails: завершено (AS={}, MNT={}, AS-SET={})",
+        log.info("storeDetails: завершено (AS={}, MNT={}, AS-SET={})",
                 aggressorAsnResources.size(), allMntBy.size(), allAsSets.size());
     }
 }

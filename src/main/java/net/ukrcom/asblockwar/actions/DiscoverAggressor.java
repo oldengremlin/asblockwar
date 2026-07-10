@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveBlackbgpPrefixes;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveImportExportAsSets;
@@ -41,6 +42,7 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
  * Містить логіку виявлення суміжних AS через AS-SET та обчислення delta
  * для таблиці маршрутизації blackbgp.
  */
+@Slf4j
 public class DiscoverAggressor {
 
     private DiscoverAggressor() {}
@@ -97,7 +99,7 @@ public class DiscoverAggressor {
                             try {
                                 String block = new retrieveOrganisation(memberAsn).get();
                                 if (ASBlockWar.AGGRESSOR_COMPILED.matcher(block).find()) {
-                                    ASBlockWar.LOGGER.debug("discoverCooperating: {} -> {} -> {}", asn, asSet, memberAsn);
+                                    log.debug("discoverCooperating: {} -> {} -> {}", asn, asSet, memberAsn);
                                     ASBlockWar.resourcesForVerification.put(memberAsn, new ASN(Action.add, memberAsn, block));
                                     aggressorAsnResources.put(memberAsn, block);
                                     block.lines()
@@ -141,7 +143,7 @@ public class DiscoverAggressor {
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
         Set<String> currentPrefixes = new retrieveBlackbgpPrefixes(ipv6).get();
-        ASBlockWar.LOGGER.info("discoverBlackbgpChanges: поточних маршрутів у blackbgp: {}", currentPrefixes.size());
+        log.info("discoverBlackbgpChanges: поточних маршрутів у blackbgp: {}", currentPrefixes.size());
 
         // 2. Цільовий набір prefixes з БД (тільки IPv4 якщо не передано -6)
         Set<String> targetPrefixes = ConcurrentHashMap.newKeySet();
@@ -189,7 +191,7 @@ public class DiscoverAggressor {
                         // Перевірка 1: вже відома ворожа AS?
                         for (String origin : origins) {
                             if (aggressorAsnResources.containsKey(origin)) {
-                                ASBlockWar.LOGGER.warn("discoverBlackbgpChanges: {} належить ворожій {} — видалення скасовано",
+                                log.warn("discoverBlackbgpChanges: {} належить ворожій {} — видалення скасовано",
                                         prefix, origin);
                                 toDelete.remove(prefix);
                                 return;
@@ -206,7 +208,7 @@ public class DiscoverAggressor {
                                 dbLimit.release();
                             }
                             if (ASBlockWar.AGGRESSOR_COMPILED.matcher(block).find()) {
-                                ASBlockWar.LOGGER.warn("discoverBlackbgpChanges: {} — нова ворожа AS {} — додано до списку, видалення скасовано",
+                                log.warn("discoverBlackbgpChanges: {} — нова ворожа AS {} — додано до списку, видалення скасовано",
                                         prefix, origin);
                                 newEnemies.put(origin, block);
                                 toDelete.remove(prefix);
@@ -226,7 +228,7 @@ public class DiscoverAggressor {
         effectivePrefixes.removeAll(toDelete);
         effectivePrefixes.addAll(toReplace);
 
-        ASBlockWar.LOGGER.info("discoverBlackbgpChanges: {} delete + {} replace (current={}, target={}, newEnemies={})",
+        log.info("discoverBlackbgpChanges: {} delete + {} replace (current={}, target={}, newEnemies={})",
                 toDelete.size(), toReplace.size(),
                 currentPrefixes.size(), targetPrefixes.size(), newEnemies.size());
 

@@ -19,12 +19,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
 /**
  * Формує та виводить фінальний звіт про зміни поточного запуску ASBlockWar.
  */
+@Slf4j
 public class Reporter {
 
     private Reporter() {}
@@ -38,7 +40,7 @@ public class Reporter {
      * @param aggressorAsnResources фінальна карта {@code ASN → RPSL-блок}
      */
     public static void report(Map<String, String> aggressorAsnResources) {
-        ASBlockWar.LOGGER.info("Роботу завершено. Всього ASN: {}", aggressorAsnResources.size());
+        log.info("Роботу завершено. Всього ASN: {}", aggressorAsnResources.size());
 
         Comparator<ASN> byAsn = Comparator.comparingLong(a -> Long.parseLong(a.asn().substring(2)));
 
@@ -66,17 +68,17 @@ public class Reporter {
                             .concat("┿")
                             .concat("━".repeat(COL + 1));
 
-            ASBlockWar.LOGGER.info("");
-            ASBlockWar.LOGGER.info(String.format(FMT, "Вилучено", "Додано", "Модифіковано"));
-            ASBlockWar.LOGGER.info(String.format(FMT, removed.size(), added.size(), modified.size()));
-            ASBlockWar.LOGGER.info(SEP);
+            log.info("");
+            log.info(String.format(FMT, "Вилучено", "Додано", "Модифіковано"));
+            log.info(String.format(FMT, removed.size(), added.size(), modified.size()));
+            log.info(SEP);
 
             int rows = Math.max(removed.size(), Math.max(added.size(), modified.size()));
             for (int i = 0; i < rows; i++) {
                 String r = i < removed.size() ? removed.get(i).asn() : "";
                 String a = i < added.size() ? added.get(i).asn() : "";
                 String m = i < modified.size() ? modified.get(i).asn() : "";
-                ASBlockWar.LOGGER.info(String.format(FMT, r, a, m));
+                log.info(String.format(FMT, r, a, m));
             }
         }
     }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -37,6 +38,7 @@ import net.ukrcom.asblockwar.ASBlockWar;
  *
  * @author olden
  */
+@Slf4j
 public class WhoisInfoController implements Initializable {
 
     @FXML
@@ -113,7 +115,7 @@ public class WhoisInfoController implements Initializable {
             ctrl.setText(text);
             dialog.showAndWait();
         } catch (IOException e) {
-            ASBlockWar.LOGGER.error("GUI: cannot open whois info dialog", e);
+            log.error("GUI: cannot open whois info dialog", e);
         }
     }
 }

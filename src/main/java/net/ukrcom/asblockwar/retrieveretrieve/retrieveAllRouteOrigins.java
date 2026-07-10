@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -34,6 +35,7 @@ import java.util.Map;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveAllRouteOrigins {
 
     private static final String SQL
@@ -60,8 +62,7 @@ public class retrieveAllRouteOrigins {
                         .add(rs.getString("origin").toUpperCase());
             }
         } catch (SQLException ex) {
-            net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                    .error("retrieveAllRouteOrigins: помилка при читанні rpsl_origin", ex);
+            log.error("retrieveAllRouteOrigins: помилка при читанні rpsl_origin", ex);
         }
     }
 

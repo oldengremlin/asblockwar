@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,7 +26,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує AS-номери з members: поля RPSL as-set блоку.
@@ -33,6 +33,7 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveAsSetMembers {
 
     private static final Pattern AS_NUMBER = Pattern.compile(
@@ -41,7 +42,6 @@ public class retrieveAsSetMembers {
             "\\b(AS-[^\\s,{}]+)\\b", Pattern.CASE_INSENSITIVE);
 
     private final Config config;
-    private final Logger logger;
     private final String asSet;
     private final int recursionDepth;
     private final Set<String> members = new HashSet<>();
@@ -54,16 +54,14 @@ public class retrieveAsSetMembers {
      *                       ({@code 0} — тільки прямі члени, без рекурсії)
      */
     public retrieveAsSetMembers(String asSet, int recursionDepth) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.asSet = asSet;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.asSet = asSet;
         this.recursionDepth = recursionDepth;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             Set<String> visited = new HashSet<>();
             collect(conn, asSet, recursionDepth, visited);
         } catch (SQLException ex) {
-            this.logger.error("Помилка при читанні as-set {}", asSet, ex);
+            log.error("Помилка при читанні as-set {}", asSet, ex);
         }
     }
 
@@ -117,7 +115,7 @@ public class retrieveAsSetMembers {
      * @return множина рядків у форматі {@code "AS<номер>"} (наприклад, {@code "AS12345"})
      */
     public Set<String> get() {
-        logger.debug("retrieveAsSetMembers({}, depth={}).get(): {} members", asSet, recursionDepth, members.size());
+        log.debug("retrieveAsSetMembers({}, depth={}).get(): {} members", asSet, recursionDepth, members.size());
         return Set.copyOf(members);
     }
 }

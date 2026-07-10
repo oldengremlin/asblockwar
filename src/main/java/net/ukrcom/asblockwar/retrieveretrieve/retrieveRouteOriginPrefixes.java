@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,6 +34,7 @@ import java.util.List;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveRouteOriginPrefixes {
 
     private static final String SQL
@@ -64,8 +66,7 @@ public class retrieveRouteOriginPrefixes {
                 }
             }
         } catch (SQLException ex) {
-            net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                    .error("Помилка при отриманні prefixes для {}", origin, ex);
+            log.error("Помилка при отриманні prefixes для {}", origin, ex);
         }
     }
 

@@ -22,7 +22,9 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
-import static net.ukrcom.asblockwar.ASBlockWar.LOGGER;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Зберігає та надає доступ до конфігурації програми ASBlockWar.
@@ -34,6 +36,9 @@ import static net.ukrcom.asblockwar.ASBlockWar.LOGGER;
  *
  * @author olden
  */
+@Slf4j
+@Getter
+@Setter
 public class Config {
 
     private final String[] args;
@@ -136,7 +141,8 @@ public class Config {
      * Persists current config values to disk.
      * Saves to the path it was loaded from, or to {@code asblockwar.properties}
      * in the current working directory if no external file was used.
-     * @throws java.io.IOException
+     *
+     * @throws IOException якщо не вдалося записати файл конфігурації
      */
     public void save() throws IOException {
         String savePath = this.configPath != null ? this.configPath : "asblockwar.properties";
@@ -162,7 +168,7 @@ public class Config {
             p.store(out, "ASBlockWar configuration");
         }
         this.configPath = savePath;
-        LOGGER.info("Конфігурацію збережено до {}", savePath);
+        log.info("Конфігурацію збережено до {}", savePath);
     }
 
     private void parseArgs() {
@@ -241,18 +247,16 @@ public class Config {
 
     private void loadProperties() throws IOException {
         if (this.configPath != null) {
-            // Explicit --config=<path>
             try (InputStream input = new FileInputStream(this.configPath)) {
                 this.properties.load(input);
             } catch (IOException e) {
-                LOGGER.warn("Не можу завантажити конфігураційний файл: " + this.configPath, e);
+                log.warn("Не можу завантажити конфігураційний файл: " + this.configPath, e);
                 throw new IOException("Не можу завантажити конфігураційний файл: " + this.configPath, e);
             }
         } else {
-            // CWD file takes precedence over classpath resource (GUI saves here)
             Path cwdConfig = Path.of("asblockwar.properties");
             if (Files.exists(cwdConfig)) {
-                LOGGER.info("Завантажую конфігурацію з {}", cwdConfig.toAbsolutePath());
+                log.info("Завантажую конфігурацію з {}", cwdConfig.toAbsolutePath());
                 try (InputStream input = Files.newInputStream(cwdConfig)) {
                     this.properties.load(input);
                 }
@@ -260,256 +264,13 @@ public class Config {
             } else {
                 try (InputStream input = getClass().getClassLoader().getResourceAsStream("asblockwar.properties")) {
                     if (input == null) {
-                        LOGGER.info("Конфігураційний файл asblockwar.properties не знайдено, використовуються значення за замовчуванням.");
+                        log.info("Конфігураційний файл asblockwar.properties не знайдено, використовуються значення за замовчуванням.");
                         return;
                     }
                     this.properties.load(input);
                 }
             }
         }
-    }
-
-    /**
-     * Повертає шлях до файлу зі списком ASN.
-     *
-     * @return шлях до файлу зі списком ASN
-     */
-    public String getListFile() {
-        return this.listFile;
-    }
-
-    /**
-     * Повертає шлях до файлу зі списком mnt-by дескрипторів.
-     *
-     * @return шлях до файлу зі списком mnt-by
-     */
-    public String getListMntbyFile() {
-        return this.listMntbyFile;
-    }
-
-    /**
-     * Повертає шлях до файлу зі списком AS-SET.
-     *
-     * @return шлях до файлу зі списком AS-SET
-     */
-    public String getListAssetFile() {
-        return this.listAssetFile;
-    }
-
-    /**
-     * Повертає JDBC URI до бази даних whois-lite-local.
-     *
-     * @return JDBC URI (наприклад, {@code jdbc:sqlite:whoislitelocal.db})
-     */
-    public String getWhoisLiteLocalURI() {
-        return this.whoisLiteLocalURI;
-    }
-
-    /**
-     * Повертає глибину рекурсії при обробці AS-SET.
-     *
-     * @return глибина рекурсії ({@code -1} — рекурсія вимкнена, {@code 0} і більше — дозволена глибина)
-     */
-    public int getRecursiveAsset() {
-        return this.recursiveAsset;
-    }
-
-    /**
-     * Повертає шлях до директорії для збереження вихідних файлів.
-     *
-     * @return шлях до директорії STORE
-     */
-    public String getStoreDir() {
-        return this.storeDir;
-    }
-
-    /**
-     * Повертає шлях до вихідного файлу конфігурації Juniper WAR.
-     *
-     * @return шлях до WAR-файлу для Juniper
-     */
-    public String getWarFile() {
-        return this.warFile;
-    }
-
-    /**
-     * Повертає шлях до вихідного файлу команд blackbgp.
-     *
-     * @return шлях до файлу blackbgp-команд
-     */
-    public String getBlackbgpFile() {
-        return this.blackbgpFile;
-    }
-
-    /**
-     * Повертає shell-команду для отримання IPv4-маршрутів таблиці blackbgp.
-     *
-     * @return shell-команда (виконується через {@code sh -c})
-     */
-    public String getGetBlackhole() {
-        return this.getBlackhole;
-    }
-
-    /**
-     * Повертає shell-команду для отримання IPv6-маршрутів таблиці blackbgp.
-     *
-     * @return shell-команда (виконується через {@code sh -c})
-     */
-    public String getGetBlackholeIpv6() {
-        return this.getBlackholeIpv6;
-    }
-
-    /**
-     * Вказує, чи включати IPv6-маршрути до виводу blackbgp.
-     *
-     * @return {@code true}, якщо IPv6 увімкнено
-     */
-    public boolean isBlackbgpIpv6() {
-        return this.blackbgpIpv6;
-    }
-
-    /**
-     * Вказує, чи запускати графічний інтерфейс замість CLI-режиму.
-     *
-     * @return {@code true}, якщо GUI-режим активовано (прапор {@code --gui} / {@code -g})
-     */
-    public boolean isGui() {
-        return this.gui;
-    }
-
-    /**
-     * Встановлює шлях до файлу зі списком ASN.
-     *
-     * @param v шлях до файлу
-     */
-    public void setListFile(String v) {
-        this.listFile = v;
-    }
-
-    /**
-     * Встановлює шлях до файлу зі списком mnt-by.
-     *
-     * @param v шлях до файлу
-     */
-    public void setListMntbyFile(String v) {
-        this.listMntbyFile = v;
-    }
-
-    /**
-     * Встановлює шлях до файлу зі списком AS-SET.
-     *
-     * @param v шлях до файлу
-     */
-    public void setListAssetFile(String v) {
-        this.listAssetFile = v;
-    }
-
-    /**
-     * Встановлює JDBC URI до бази даних whois-lite-local.
-     *
-     * @param v JDBC URI
-     */
-    public void setWhoisLiteLocalURI(String v) {
-        this.whoisLiteLocalURI = v;
-    }
-
-    /**
-     * Встановлює шлях до директорії для збереження вихідних файлів.
-     *
-     * @param v шлях до директорії STORE
-     */
-    public void setStoreDir(String v) {
-        this.storeDir = v;
-    }
-
-    /**
-     * Встановлює шлях до вихідного WAR-файлу для Juniper.
-     *
-     * @param v шлях до WAR-файлу
-     */
-    public void setWarFile(String v) {
-        this.warFile = v;
-    }
-
-    /**
-     * Встановлює шлях до вихідного файлу команд blackbgp.
-     *
-     * @param v шлях до файлу blackbgp-команд
-     */
-    public void setBlackbgpFile(String v) {
-        this.blackbgpFile = v;
-    }
-
-    /**
-     * Встановлює shell-команду для отримання IPv4-маршрутів таблиці blackbgp.
-     *
-     * @param v shell-команда (виконується через {@code sh -c})
-     */
-    public void setGetBlackhole(String v) {
-        this.getBlackhole = v;
-    }
-
-    /**
-     * Встановлює shell-команду для отримання IPv6-маршрутів таблиці blackbgp.
-     *
-     * @param v shell-команда (виконується через {@code sh -c})
-     */
-    public void setGetBlackholeIpv6(String v) {
-        this.getBlackholeIpv6 = v;
-    }
-
-    /**
-     * Вмикає або вимикає включення IPv6-маршрутів до виводу blackbgp.
-     *
-     * @param v {@code true} — включати IPv6-маршрути
-     */
-    public void setBlackbgpIpv6(boolean v) {
-        this.blackbgpIpv6 = v;
-    }
-
-    /**
-     * Встановлює глибину рекурсії при обробці AS-SET.
-     *
-     * @param v глибина рекурсії ({@code -1} — вимкнена, {@code 0} і більше — дозволена)
-     */
-    public void setRecursiveAsset(int v) {
-        this.recursiveAsset = v;
-    }
-
-    /**
-     * Вказує, чи увімкнено пакетний режим (запуск AfterCommand після обробки).
-     *
-     * @return {@code true}, якщо пакетний режим активовано (прапор {@code --batch} / {@code -b})
-     */
-    public boolean isBatchMode() {
-        return this.batchMode;
-    }
-
-    /**
-     * Вмикає або вимикає пакетний режим.
-     *
-     * @param v {@code true} — запускати AfterCommand після завершення обробки
-     */
-    public void setBatchMode(boolean v) {
-        this.batchMode = v;
-    }
-
-    /**
-     * Повертає шлях до скрипту AfterCommand, який виконується в пакетному режимі.
-     *
-     * @return шлях до скрипту (за замовчуванням {@code after.sh} на Unix або {@code after.cmd} на Windows)
-     */
-    public String getAfterCommand() {
-        return this.afterCommand;
-    }
-
-    /**
-     * Встановлює шлях до скрипту AfterCommand.
-     *
-     * @param v шлях до скрипту
-     */
-    public void setAfterCommand(String v) {
-        this.afterCommand = v;
     }
 
     private static String defaultAfterCommand() {

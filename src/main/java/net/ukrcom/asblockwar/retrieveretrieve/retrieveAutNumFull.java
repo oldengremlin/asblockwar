@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -23,7 +24,6 @@ import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує повний RPSL-блок aut-num: aut-num блок + синтетичне резюме з таблиці asn
@@ -32,10 +32,10 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveAutNumFull {
 
     private final Config config;
-    private final Logger logger;
     private final String autNum;
     private final StringBuilder sb = new StringBuilder();
 
@@ -45,14 +45,12 @@ public class retrieveAutNumFull {
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveAutNumFull(String autNum) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.autNum = autNum;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.autNum = autNum;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             loadAutNum(conn);
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні AutNumFull {}", autNum, ex);
+            log.error("Помилка при отриманні AutNumFull {}", autNum, ex);
         }
     }
 
@@ -142,7 +140,7 @@ public class retrieveAutNumFull {
      *         або порожній рядок, якщо AS не знайдено
      */
     public String get() {
-        logger.debug("retrieveAutNumFull({}).get(): {} chars", autNum, sb.length());
+        log.debug("retrieveAutNumFull({}).get(): {} chars", autNum, sb.length());
         return sb.toString();
     }
 }

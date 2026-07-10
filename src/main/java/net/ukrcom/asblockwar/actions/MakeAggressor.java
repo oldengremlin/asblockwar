@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.UIProgressCallback;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntBy;
@@ -40,6 +41,7 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
  * Містить логіку завантаження організаційних блоків, обробки AS-SET/MNT-BY записів
  * та крос-перевірки через мантейнерів.
  */
+@Slf4j
 public class MakeAggressor {
 
     private MakeAggressor() {}
@@ -93,7 +95,7 @@ public class MakeAggressor {
                     }
                 }));
             } catch (IOException e) {
-                ASBlockWar.LOGGER.error("Помилка читання файлу", e);
+                log.error("Помилка читання файлу", e);
             }
 
             // В try-with-resources executor.close() викличеться автоматично,
@@ -125,7 +127,7 @@ public class MakeAggressor {
             try {
                 fileAsSets = FileUtils.readFileEntries(Path.of(ASBlockWar.config.getListAssetFile()));
             } catch (IOException e) {
-                ASBlockWar.LOGGER.error("Помилка читання {}", ASBlockWar.config.getListAssetFile(), e);
+                log.error("Помилка читання {}", ASBlockWar.config.getListAssetFile(), e);
                 fileAsSets = Set.of();
             }
 
@@ -178,7 +180,7 @@ public class MakeAggressor {
                     }
                 }));
             } catch (IOException e) {
-                ASBlockWar.LOGGER.error("Помилка читання файлу", e);
+                log.error("Помилка читання файлу", e);
             }
 
             // В try-with-resources executor.close() викличеться автоматично,
@@ -225,7 +227,7 @@ public class MakeAggressor {
                                         new ASN(Action.modify, asn, block)
                                 );
                                 aggressorAsnResources.put(asn, block);
-                                ASBlockWar.LOGGER.debug("Змінено ASN: {}", asn);
+                                log.debug("Змінено ASN: {}", asn);
                             }
                         } else {
                             ASBlockWar.resourcesForVerification.put(
@@ -233,7 +235,7 @@ public class MakeAggressor {
                                     new ASN(Action.add, asn, block)
                             );
                             aggressorAsnResources.put(asn, block);
-                            ASBlockWar.LOGGER.debug("Додано новий ASN: {}:\n{}\n", asn, block);
+                            log.debug("Додано новий ASN: {}:\n{}\n", asn, block);
                         }
                     } else {
                         if (aggressorAsnResources.containsKey(asn)) {
@@ -242,9 +244,9 @@ public class MakeAggressor {
                                     new ASN(Action.remove, asn, aggressorAsnResources.get(asn))
                             );
                             aggressorAsnResources.remove(asn);
-                            ASBlockWar.LOGGER.debug("Видалено ASN: {}", asn);
+                            log.debug("Видалено ASN: {}", asn);
                         } else {
-                            ASBlockWar.LOGGER.debug("Знайдено ASN: {}", asn);
+                            log.debug("Знайдено ASN: {}", asn);
                         }
                     }
                 } catch (InterruptedException e) {

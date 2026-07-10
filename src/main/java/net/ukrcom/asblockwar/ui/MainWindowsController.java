@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -54,6 +55,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
  *
  * @author olden
  */
+@Slf4j
 public class MainWindowsController implements Initializable {
 
     @FXML
@@ -163,7 +165,7 @@ public class MainWindowsController implements Initializable {
             refreshUi();
             statusLabel.setText("Done.");
         } catch (IOException e) {
-            ASBlockWar.LOGGER.error("GUI: cannot open progress dialog", e);
+            log.error("GUI: cannot open progress dialog", e);
             statusLabel.setText("Error: " + e.getMessage());
         } finally {
             runButton.setDisable(false);
@@ -190,7 +192,7 @@ public class MainWindowsController implements Initializable {
 
             refreshUi();
         } catch (IOException e) {
-            ASBlockWar.LOGGER.error("GUI: cannot open properties dialog", e);
+            log.error("GUI: cannot open properties dialog", e);
             statusLabel.setText("Error: " + e.getMessage());
         }
     }
@@ -276,7 +278,7 @@ public class MainWindowsController implements Initializable {
                 Platform.runLater(() -> lv.setItems(FXCollections.observableList(items)));
             }
         } catch (IOException e) {
-            ASBlockWar.LOGGER.warn("GUI: cannot read {}", path, e);
+            log.warn("GUI: cannot read {}", path, e);
         }
     }
 
@@ -287,7 +289,7 @@ public class MainWindowsController implements Initializable {
                 Platform.runLater(() -> ta.setText(content));
             }
         } catch (IOException e) {
-            ASBlockWar.LOGGER.warn("GUI: cannot read {}", path, e);
+            log.warn("GUI: cannot read {}", path, e);
         }
     }
 }

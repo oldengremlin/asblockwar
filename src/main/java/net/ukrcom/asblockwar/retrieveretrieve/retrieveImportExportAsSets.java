@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,7 +26,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує AS-SET-и з полів import/export/mp-import/mp-export RPSL-блоку aut-num.
@@ -33,6 +33,7 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveImportExportAsSets {
 
     // Зупиняємось на пробілі, комі, дужці, крапці з комою — все це роздільники в RPSL-фільтрах
@@ -40,7 +41,6 @@ public class retrieveImportExportAsSets {
             "\\baccept\\s+(AS-[^\\s,{};]+)", Pattern.CASE_INSENSITIVE);
 
     private final Config config;
-    private final Logger logger;
     private final String autNum;
     private final Set<String> asSets = new HashSet<>();
 
@@ -51,9 +51,7 @@ public class retrieveImportExportAsSets {
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveImportExportAsSets(String autNum) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.autNum = autNum;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.autNum = autNum;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI());
              PreparedStatement stmt = conn.prepareStatement(
@@ -64,7 +62,7 @@ public class retrieveImportExportAsSets {
                 parse(rs.getString("block"));
             }
         } catch (SQLException ex) {
-            this.logger.error("Помилка при читанні import/export для {}", autNum, ex);
+            log.error("Помилка при читанні import/export для {}", autNum, ex);
         }
     }
 
@@ -94,7 +92,7 @@ public class retrieveImportExportAsSets {
      * @return множина назв AS-SET у верхньому регістрі (наприклад, {@code "AS-EXAMPLE"})
      */
     public Set<String> get() {
-        logger.debug("retrieveImportExportAsSets({}).get(): {}", autNum, asSets);
+        log.debug("retrieveImportExportAsSets({}).get(): {}", autNum, asSets);
         return Set.copyOf(asSets);
     }
 }

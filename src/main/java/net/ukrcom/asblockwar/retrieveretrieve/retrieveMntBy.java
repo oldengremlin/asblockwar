@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,7 +22,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує всі aut-num та as-set RPSL-блоки, що обслуговуються заданим mnt-by дескриптором.
@@ -31,10 +31,10 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveMntBy {
 
     private final Config config;
-    private final Logger logger;
     private StringBuilder sb;
 
     private final String mntBy;
@@ -47,9 +47,7 @@ public class retrieveMntBy {
      * @param mntBy назва mnt-by (наприклад, {@code "MNTNER-UA"})
      */
     public retrieveMntBy(String mntBy) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.sb = new StringBuilder();
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.sb = new StringBuilder();
 
         this.mntBy = mntBy;
 
@@ -59,7 +57,7 @@ public class retrieveMntBy {
             this.loadMntBy();
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні Organisation", ex);
+            log.error("Помилка при отриманні Organisation", ex);
         }
     }
 
@@ -70,7 +68,7 @@ public class retrieveMntBy {
      *         порожній рядок, якщо мантейнер не знайдено або трапилася помилка
      */
     public String get() {
-        logger.debug("retrieveMntBy({}).get(): {}", this.mntBy, this.sb.toString());
+        log.debug("retrieveMntBy({}).get(): {}", this.mntBy, this.sb.toString());
         return this.sb.toString();
     }
 
@@ -87,7 +85,7 @@ public class retrieveMntBy {
             }
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні aut-num для Organisation", ex);
+            log.error("Помилка при отриманні aut-num для Organisation", ex);
         }
     }
 
@@ -104,7 +102,7 @@ public class retrieveMntBy {
             }
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні aut-num/as-set для MntBy", ex);
+            log.error("Помилка при отриманні aut-num/as-set для MntBy", ex);
         }
     }
 }

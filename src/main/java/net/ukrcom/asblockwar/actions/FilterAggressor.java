@@ -18,12 +18,14 @@ package net.ukrcom.asblockwar.actions;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 
 /**
  * Фільтрація карти ворожих ASN за RPSL-патерном агресора.
  */
+@Slf4j
 public class FilterAggressor {
 
     private FilterAggressor() {}
@@ -46,7 +48,7 @@ public class FilterAggressor {
                             entry.getKey(),
                             new ASN(Action.remove, entry.getKey(), entry.getValue())
                     );
-                    ASBlockWar.LOGGER.warn("Вилучено елемент: {}", entry.getKey());
+                    log.warn("Вилучено елемент: {}", entry.getKey());
                     return false;
                 })
                 .collect(Collectors.toConcurrentMap(

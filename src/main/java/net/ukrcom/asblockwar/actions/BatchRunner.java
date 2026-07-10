@@ -16,6 +16,7 @@
 package net.ukrcom.asblockwar.actions;
 
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.UIProgressCallback;
 
 /**
@@ -23,6 +24,7 @@ import net.ukrcom.asblockwar.UIProgressCallback;
  * <p>
  * Підтримує CLI-режим (вивід у консоль) та GUI-режим (потоковий рядок за рядком через {@link UIProgressCallback}).
  */
+@Slf4j
 public class BatchRunner {
 
     private BatchRunner() {}
@@ -42,15 +44,15 @@ public class BatchRunner {
         String cmd = ASBlockWar.config.getAfterCommand();
         java.io.File scriptFile = new java.io.File(cmd);
         if (!scriptFile.exists()) {
-            ASBlockWar.LOGGER.warn("AfterCommand: файл не знайдено: {}", cmd);
+            log.warn("AfterCommand: файл не знайдено: {}", cmd);
             return;
         }
         boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
         if (!isWindows && !scriptFile.canExecute()) {
-            ASBlockWar.LOGGER.warn("AfterCommand: файл не має атрибуту виконання: {}", cmd);
+            log.warn("AfterCommand: файл не має атрибуту виконання: {}", cmd);
             return;
         }
-        ASBlockWar.LOGGER.info("AfterCommand: запуск {}", cmd);
+        log.info("AfterCommand: запуск {}", cmd);
         ProcessBuilder pb = isWindows
                             ? new ProcessBuilder("cmd.exe", "/c", scriptFile.getAbsolutePath())
                             : new ProcessBuilder(scriptFile.getAbsolutePath());
@@ -61,7 +63,7 @@ public class BatchRunner {
                 // CLI-режим: вивід успадковується консоллю
                 pb.inheritIO();
                 int code = pb.start().waitFor();
-                ASBlockWar.LOGGER.info("AfterCommand: завершено з кодом {}", code);
+                log.info("AfterCommand: завершено з кодом {}", code);
             } else {
                 // GUI-режим: потоковий вивід рядок за рядком з розрізненням stdout/stderr
                 pb.redirectErrorStream(false);
@@ -89,10 +91,10 @@ public class BatchRunner {
                 int code = proc.waitFor();
                 stdoutThread.join();
                 stderrThread.join();
-                ASBlockWar.LOGGER.info("AfterCommand: завершено з кодом {}", code);
+                log.info("AfterCommand: завершено з кодом {}", code);
             }
         } catch (java.io.IOException | InterruptedException e) {
-            ASBlockWar.LOGGER.error("AfterCommand: помилка виконання: {}", e.getMessage());
+            log.error("AfterCommand: помилка виконання: {}", e.getMessage());
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }

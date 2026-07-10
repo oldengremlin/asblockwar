@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,7 +22,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує повний RPSL-блок mntner: блок мантейнера + role-блоки пов'язаних контактів.
@@ -29,10 +29,10 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveMntnerFull {
 
     private final Config config;
-    private final Logger logger;
     private final String mntner;
     private final StringBuilder sb = new StringBuilder();
 
@@ -43,14 +43,12 @@ public class retrieveMntnerFull {
      * @param mntner назва мантейнера (наприклад, {@code "MNTNER-UA"})
      */
     public retrieveMntnerFull(String mntner) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.mntner = mntner;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.mntner = mntner;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             loadMntner(conn);
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні MntnerFull {}", mntner, ex);
+            log.error("Помилка при отриманні MntnerFull {}", mntner, ex);
         }
     }
 
@@ -91,7 +89,7 @@ public class retrieveMntnerFull {
      * @return конкатенований RPSL-текст, або порожній рядок, якщо мантейнер не знайдено
      */
     public String get() {
-        logger.debug("retrieveMntnerFull({}).get(): {} chars", mntner, sb.length());
+        log.debug("retrieveMntnerFull({}).get(): {} chars", mntner, sb.length());
         return sb.toString();
     }
 }
