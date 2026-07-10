@@ -109,7 +109,7 @@ public class WhoisInfoController implements Initializable {
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(owner);
             dialog.setTitle(title);
-            dialog.setScene(new Scene(root));
+            dialog.setScene(UiUtils.styledScene(root));
 
             ctrl.setStage(dialog);
             ctrl.setText(text);
