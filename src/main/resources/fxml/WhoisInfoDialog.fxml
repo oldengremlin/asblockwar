@@ -8,6 +8,7 @@
 <?import javafx.scene.layout.VBox?>
 
 <VBox spacing="6.0" prefHeight="520.0" prefWidth="680.0" style="-fx-padding: 8;"
+      stylesheets="@../styles/mainwindows.css"
       xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ukrcom.asblockwar.ui.WhoisInfoController">
    <children>

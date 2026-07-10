@@ -43,7 +43,7 @@ public class ASBlockWarApp extends Application {
         FXMLLoader loader = new FXMLLoader(fxmlUrl);
         DialogPane root = loader.load();
 
-        Scene scene = UiUtils.styledScene(root);
+        Scene scene = new Scene(root);
 
         stage.setTitle("ASBlockWar");
         stage.setScene(scene);
