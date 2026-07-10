@@ -21,7 +21,7 @@
       <HBox alignment="CENTER_LEFT" spacing="6.0">
          <children>
             <Label text="Selected:" />
-            <TextField fx:id="selectedPath" styleClass="text-field" HBox.hgrow="ALWAYS" />
+            <TextField fx:id="selectedPath" HBox.hgrow="ALWAYS" />
          </children>
       </HBox>
       <ButtonBar>
