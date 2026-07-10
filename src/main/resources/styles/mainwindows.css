@@ -1,7 +1,35 @@
-/*
- * Empty Stylesheet file.
- */
+/* ASBlockWar UI stylesheet */
 
 .mainFxmlClass {
+}
 
+/* Drop shadows on interactive / display controls */
+
+.text-field {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+.text-area {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+.list-view {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+.tree-view {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+/* Log panel in Run Progress dialog (ScrollPane with fx:id="logScroll") */
+#logScroll {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+.button {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 4, 0, 0, 1);
+}
+
+.progress-bar {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 0, 1);
 }
