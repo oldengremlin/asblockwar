@@ -158,7 +158,7 @@ public class MainWindowsController implements Initializable {
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(runButton.getScene().getWindow());
             dialog.setTitle("ASBlockWar — Processing");
-            dialog.setScene(UiUtils.styledScene(root));
+            dialog.setScene(new Scene(root));
 
             ctrl.startProcessing(dialog, this);
             dialog.showAndWait();
@@ -186,7 +186,7 @@ public class MainWindowsController implements Initializable {
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(propertiesButton.getScene().getWindow());
             dialog.setTitle("Properties");
-            dialog.setScene(UiUtils.styledScene(root));
+            dialog.setScene(new Scene(root));
 
             ctrl.setStage(dialog);
             dialog.showAndWait();

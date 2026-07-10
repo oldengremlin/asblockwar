@@ -323,7 +323,7 @@ public class FilePickerController implements Initializable {
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(owner);
             dialog.setTitle(title);
-            dialog.setScene(UiUtils.styledScene(root));
+            dialog.setScene(new Scene(root));
 
             ctrl.configure(initialPath, directoryOnly, dialog);
             dialog.setOnShown(e -> ctrl.scrollToSelection());
