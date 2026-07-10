@@ -25,7 +25,10 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 import org.slf4j.LoggerFactory;
@@ -41,7 +44,9 @@ public class RunProgressController implements Initializable {
     @FXML
     private ProgressBar progressBar;
     @FXML
-    private TextArea logArea;
+    private ScrollPane logScroll;
+    @FXML
+    private TextFlow logFlow;
     @FXML
     private Button closeButton;
 
@@ -49,14 +54,14 @@ public class RunProgressController implements Initializable {
     private GuiLogAppender appender;
 
     /**
-     * Порожня ініціалізація після завантаження FXML — налаштування відкладено до
-     * виклику {@link #startProcessing}.
+     * Встановлює авто-прокрутку: ScrollPane слідкує за нижньою межею TextFlow при зміні висоти.
      *
      * @param url URL FXML-ресурсу (не використовується)
      * @param rb  ResourceBundle локалізації (не використовується)
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
+        logFlow.heightProperty().addListener((obs, old, nw) -> logScroll.setVvalue(1.0));
     }
 
     private static final long HIGHLIGHT_INTERVAL_MS = 100;
@@ -97,6 +102,11 @@ public class RunProgressController implements Initializable {
                 if (throttle(lastHighlight)) {
                     mainCtrl.highlightMntBy(mntBy);
                 }
+            }
+
+            @Override
+            public void onBatchOutputLine(String line, boolean stderr) {
+                appendBatchLine(line, stderr);
             }
         };
 
@@ -148,9 +158,16 @@ public class RunProgressController implements Initializable {
     }
 
     private void appendLine(String line) {
+        Platform.runLater(() -> logFlow.getChildren().add(new Text(line + "\n")));
+    }
+
+    private void appendBatchLine(String line, boolean stderr) {
         Platform.runLater(() -> {
-            logArea.appendText(line + "\n");
-            logArea.setScrollTop(Double.MAX_VALUE);
+            Text t = new Text(line + "\n");
+            if (stderr) {
+                t.setFill(Color.rgb(204, 0, 0));
+            }
+            logFlow.getChildren().add(t);
         });
     }
 

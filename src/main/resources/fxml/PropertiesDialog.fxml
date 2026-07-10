@@ -76,6 +76,16 @@
 
             <Label text="Recursive AS-SET depth:" GridPane.rowIndex="10" GridPane.columnIndex="0" />
             <TextField fx:id="fieldRecursiveAsset" promptText="-1 = disabled" maxWidth="100.0" GridPane.rowIndex="10" GridPane.columnIndex="1" />
+
+            <!-- Batch mode -->
+            <Label text="Batch mode (-b):" GridPane.rowIndex="11" GridPane.columnIndex="0" />
+            <CheckBox fx:id="fieldBatch" GridPane.rowIndex="11" GridPane.columnIndex="1" />
+
+            <Label text="After command:" GridPane.rowIndex="12" GridPane.columnIndex="0" />
+            <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="12" GridPane.columnIndex="1">
+               <TextField fx:id="fieldAfterCommand" HBox.hgrow="ALWAYS" />
+               <Button text="…" prefWidth="28.0" onAction="#browseAfterCommand" />
+            </HBox>
          </children>
       </GridPane>
       <Separator />

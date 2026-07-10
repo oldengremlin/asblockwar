@@ -95,6 +95,13 @@ public class ASBlockWar {
         /** Викликається перед запитом RPSL-блоку для MNT-BY.
          * @param mntBy ідентифікатор мантейнера RPSL, наприклад {@code "EXAMPLE-MNT"}, для якого запитується RPSL-блок */
         void onMntByProcessing(String mntBy);
+
+        /**
+         * Викликається для кожного рядка виводу AfterCommand-скрипту в пакетному режимі ({@code -b}).
+         * @param line  рядок виводу скрипту
+         * @param stderr {@code true}, якщо рядок надійшов зі stderr (відображається червоним у GUI)
+         */
+        default void onBatchOutputLine(String line, boolean stderr) {}
     }
     public static volatile UIProgressCallback uiCallback;
 
@@ -243,6 +250,7 @@ public class ASBlockWar {
 
         report(aggressorAsnResources);
         LOGGER.info("Готово!");
+        runBatchCommand();
     }
 
     /**
@@ -1326,6 +1334,76 @@ public class ASBlockWar {
 
         LOGGER.info("storeDetails: завершено (AS={}, MNT={}, AS-SET={})",
                 aggressorAsnResources.size(), allMntBy.size(), allAsSets.size());
+    }
+
+    /**
+     * Запускає AfterCommand-скрипт після завершення обробки, якщо увімкнено пакетний режим ({@code -b}).
+     *
+     * <p>Відсутність файлу або відсутність прав виконання (на Unix-подібних системах) не призводить
+     * до аварійного завершення — лише до попередження в лозі. В CLI-режимі вивід скрипту
+     * успадковується консоллю процесу; в GUI-режимі кожен рядок передається через
+     * {@link UIProgressCallback#onBatchOutputLine(String, boolean)}.
+     */
+    private static void runBatchCommand() {
+        if (!config.isBatchMode()) {
+            return;
+        }
+        String cmd = config.getAfterCommand();
+        java.io.File scriptFile = new java.io.File(cmd);
+        if (!scriptFile.exists()) {
+            LOGGER.warn("AfterCommand: файл не знайдено: {}", cmd);
+            return;
+        }
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
+        if (!isWindows && !scriptFile.canExecute()) {
+            LOGGER.warn("AfterCommand: файл не має атрибуту виконання: {}", cmd);
+            return;
+        }
+        LOGGER.info("AfterCommand: запуск {}", cmd);
+        ProcessBuilder pb = isWindows
+                ? new ProcessBuilder("cmd.exe", "/c", scriptFile.getAbsolutePath())
+                : new ProcessBuilder(scriptFile.getAbsolutePath());
+        pb.directory(new java.io.File(System.getProperty("user.dir")));
+        UIProgressCallback cb = uiCallback;
+        try {
+            if (cb == null) {
+                // CLI-режим: вивід успадковується консоллю
+                pb.inheritIO();
+                int code = pb.start().waitFor();
+                LOGGER.info("AfterCommand: завершено з кодом {}", code);
+            } else {
+                // GUI-режим: потоковий вивід рядок за рядком з розрізненням stdout/stderr
+                pb.redirectErrorStream(false);
+                Process proc = pb.start();
+                Thread stdoutThread = Thread.ofVirtual().start(() -> {
+                    try (java.io.BufferedReader r = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(proc.getInputStream()))) {
+                        String line;
+                        while ((line = r.readLine()) != null) {
+                            cb.onBatchOutputLine(line, false);
+                        }
+                    } catch (java.io.IOException ignored) {}
+                });
+                Thread stderrThread = Thread.ofVirtual().start(() -> {
+                    try (java.io.BufferedReader r = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(proc.getErrorStream()))) {
+                        String line;
+                        while ((line = r.readLine()) != null) {
+                            cb.onBatchOutputLine(line, true);
+                        }
+                    } catch (java.io.IOException ignored) {}
+                });
+                int code = proc.waitFor();
+                stdoutThread.join();
+                stderrThread.join();
+                LOGGER.info("AfterCommand: завершено з кодом {}", code);
+            }
+        } catch (java.io.IOException | InterruptedException e) {
+            LOGGER.error("AfterCommand: помилка виконання: {}", e.getMessage());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     /**

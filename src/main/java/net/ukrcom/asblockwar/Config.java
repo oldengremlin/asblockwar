@@ -49,6 +49,7 @@ public class Config {
     private String blackbgpFileOverride;
     private String getBlackholeOverride;
     private String getBlackholeIpv6Override;
+    private String afterCommandOverride;
     private String listFile;
     private String listMntbyFile;
     private String listAssetFile;
@@ -58,7 +59,9 @@ public class Config {
     private String blackbgpFile;
     private String getBlackhole;
     private String getBlackholeIpv6;
+    private String afterCommand;
     private boolean blackbgpIpv6 = false;
+    private boolean batchMode = false;
     private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
@@ -105,11 +108,18 @@ public class Config {
                                 ? this.getBlackholeIpv6Override
                                 : this.properties.getProperty("GetBlackholeIpv6",
                         "ssh blackbgp \"sudo ip -6 r l t blackbgp\"").trim();
+        this.afterCommand = this.afterCommandOverride != null
+                            ? this.afterCommandOverride
+                            : this.properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
 
-        // CLI flag wins; fall back to properties file value
+        // CLI flags win; fall back to properties file values
         if (!this.blackbgpIpv6) {
             this.blackbgpIpv6 = Boolean.parseBoolean(
                     this.properties.getProperty("BlackbgpIpv6", "false").trim());
+        }
+        if (!this.batchMode) {
+            this.batchMode = Boolean.parseBoolean(
+                    this.properties.getProperty("BatchMode", "false").trim());
         }
         if (this.recursiveAsset < 0) {
             String ra = this.properties.getProperty("RecursiveAsset");
@@ -142,6 +152,8 @@ public class Config {
         p.setProperty("GetBlackhole", this.getBlackhole);
         p.setProperty("GetBlackholeIpv6", this.getBlackholeIpv6);
         p.setProperty("BlackbgpIpv6", String.valueOf(this.blackbgpIpv6));
+        p.setProperty("BatchMode", String.valueOf(this.batchMode));
+        p.setProperty("AfterCommand", this.afterCommand);
         if (this.recursiveAsset >= 0) {
             p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
         }
@@ -183,6 +195,10 @@ public class Config {
                 this.getBlackholeIpv6Override = arg.substring("--get-blackhole6=".length()).trim();
             } else if (arg.equals("--gui") || arg.equals("-g")) {
                 this.gui = true;
+            } else if (arg.equals("--batch") || arg.equals("-b")) {
+                this.batchMode = true;
+            } else if (arg.startsWith("--after-command=")) {
+                this.afterCommandOverride = arg.substring("--after-command=".length()).trim();
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
             } else if (arg.equals("--recursive-asset")) {
@@ -216,6 +232,9 @@ public class Config {
         System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
         System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
+        System.out.println("  -b, --batch               Run AfterCommand script after processing");
+        System.out.println("  --after-command=<path>    Script to run in batch mode");
+        System.out.println("                            (default: after.sh on Unix, after.cmd on Windows)");
         System.out.println("  -g, --gui                 Launch graphical user interface");
         System.out.println("  -h, --help                Show this help and exit");
     }
@@ -455,5 +474,46 @@ public class Config {
      */
     public void setRecursiveAsset(int v) {
         this.recursiveAsset = v;
+    }
+
+    /**
+     * Вказує, чи увімкнено пакетний режим (запуск AfterCommand після обробки).
+     *
+     * @return {@code true}, якщо пакетний режим активовано (прапор {@code --batch} / {@code -b})
+     */
+    public boolean isBatchMode() {
+        return this.batchMode;
+    }
+
+    /**
+     * Вмикає або вимикає пакетний режим.
+     *
+     * @param v {@code true} — запускати AfterCommand після завершення обробки
+     */
+    public void setBatchMode(boolean v) {
+        this.batchMode = v;
+    }
+
+    /**
+     * Повертає шлях до скрипту AfterCommand, який виконується в пакетному режимі.
+     *
+     * @return шлях до скрипту (за замовчуванням {@code after.sh} на Unix або {@code after.cmd} на Windows)
+     */
+    public String getAfterCommand() {
+        return this.afterCommand;
+    }
+
+    /**
+     * Встановлює шлях до скрипту AfterCommand.
+     *
+     * @param v шлях до скрипту
+     */
+    public void setAfterCommand(String v) {
+        this.afterCommand = v;
+    }
+
+    private static String defaultAfterCommand() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win")
+               ? "after.cmd" : "after.sh";
     }
 }

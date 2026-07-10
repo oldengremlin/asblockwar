@@ -57,6 +57,10 @@ public class PropertiesController implements Initializable {
     private CheckBox fieldIpv6;
     @FXML
     private TextField fieldRecursiveAsset;
+    @FXML
+    private CheckBox fieldBatch;
+    @FXML
+    private TextField fieldAfterCommand;
 
     private Stage stage;
 
@@ -82,6 +86,8 @@ public class PropertiesController implements Initializable {
         fieldGetBlackholeIpv6.setText(ASBlockWar.config.getGetBlackholeIpv6());
         fieldIpv6.setSelected(ASBlockWar.config.isBlackbgpIpv6());
         fieldRecursiveAsset.setText(String.valueOf(ASBlockWar.config.getRecursiveAsset()));
+        fieldBatch.setSelected(ASBlockWar.config.isBatchMode());
+        fieldAfterCommand.setText(ASBlockWar.config.getAfterCommand());
     }
 
     /**
@@ -124,6 +130,11 @@ public class PropertiesController implements Initializable {
         pick(false, fieldBlackbgpFile, "Select Blackbgp file");
     }
 
+    @FXML
+    private void browseAfterCommand() {
+        pick(false, fieldAfterCommand, "Select After command script");
+    }
+
     private void pick(boolean dirOnly, TextField field, String title) {
         FilePickerController.showFilePicker(stage, title, field.getText().trim(), dirOnly)
                 .ifPresent(field::setText);
@@ -148,6 +159,8 @@ public class PropertiesController implements Initializable {
                         Integer.parseInt(fieldRecursiveAsset.getText().trim()));
             } catch (NumberFormatException ignored) {
             }
+            ASBlockWar.config.setBatchMode(fieldBatch.isSelected());
+            ASBlockWar.config.setAfterCommand(fieldAfterCommand.getText().trim());
             try {
                 ASBlockWar.config.save();
             } catch (IOException e) {
