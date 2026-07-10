@@ -101,7 +101,8 @@ public class ASBlockWar {
          * @param line  рядок виводу скрипту
          * @param stderr {@code true}, якщо рядок надійшов зі stderr (відображається червоним у GUI)
          */
-        default void onBatchOutputLine(String line, boolean stderr) {}
+        default void onBatchOutputLine(String line, boolean stderr) {
+        }
     }
     public static volatile UIProgressCallback uiCallback;
 
@@ -1361,8 +1362,8 @@ public class ASBlockWar {
         }
         LOGGER.info("AfterCommand: запуск {}", cmd);
         ProcessBuilder pb = isWindows
-                ? new ProcessBuilder("cmd.exe", "/c", scriptFile.getAbsolutePath())
-                : new ProcessBuilder(scriptFile.getAbsolutePath());
+                            ? new ProcessBuilder("cmd.exe", "/c", scriptFile.getAbsolutePath())
+                            : new ProcessBuilder(scriptFile.getAbsolutePath());
         pb.directory(new java.io.File(System.getProperty("user.dir")));
         UIProgressCallback cb = uiCallback;
         try {
@@ -1382,7 +1383,8 @@ public class ASBlockWar {
                         while ((line = r.readLine()) != null) {
                             cb.onBatchOutputLine(line, false);
                         }
-                    } catch (java.io.IOException ignored) {}
+                    } catch (java.io.IOException ignored) {
+                    }
                 });
                 Thread stderrThread = Thread.ofVirtual().start(() -> {
                     try (java.io.BufferedReader r = new java.io.BufferedReader(
@@ -1391,7 +1393,8 @@ public class ASBlockWar {
                         while ((line = r.readLine()) != null) {
                             cb.onBatchOutputLine(line, true);
                         }
-                    } catch (java.io.IOException ignored) {}
+                    } catch (java.io.IOException ignored) {
+                    }
                 });
                 int code = proc.waitFor();
                 stdoutThread.join();
@@ -1432,7 +1435,7 @@ public class ASBlockWar {
                 .sorted(byAsn)
                 .toList();
 
-        if (removed.size() > 0 || added.size() > 0 || modified.size() > 0) {
+        if (!removed.isEmpty() || !added.isEmpty() || !modified.isEmpty()) {
             // "AS4294967295" = 12 chars = "Модифіковано" = 12 chars
             final int COL = 12;
             final String FMT = "%-" + COL + "s │ %-" + COL + "s │ %-" + COL + "s";
