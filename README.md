@@ -542,6 +542,110 @@ java -jar target/ASBlockWar-3.3.0-00000001.jar --batch
 - У **CLI-режимі** stdout і stderr успадковуються від батьківського процесу (`inheritIO`).
 - У **GUI-режимі** stdout і stderr стрімяться у панель Run Progress: рядки зі stderr виводяться червоним кольором, рядки зі stdout — стандартним.
 
+### Приклад повної автоматизації
+
+Нижче наведено приклад реальних скриптів, що замикають цикл: Juniper-маршрутизатор отримує оновлену AS-path фільтрацію, а blackbgp-сервер — актуальну таблицю блокувань.
+
+**`after.sh`** — головний скрипт, що передається до `AfterCommand`:
+
+```bash
+#!/bin/bash
+
+CURDIR=$( pwd )
+
+# Застосувати AS-path конфігурацію на Juniper-маршрутизаторі
+./after.juniper.tcl
+
+echo
+echo "# BLACKBGP"
+# Скопіювати diff-команди та виконати їх на blackbgp-сервері
+scp war.blackbgp.txt blackbgp:~/asblockwar.txt
+ssh blackbgp ~/asblockwar.sh
+echo
+
+echo "# HISTORY"
+# Перемістити резервні копії list.txt до STORE/LIST/
+find . -type f -name 'list.[0-9]*.txt' -print -exec mv {} STORE/LIST/ ';'
+echo
+
+echo "# GIT"
+# Зафіксувати всі зміни STORE у git та відправити на remote
+cd STORE
+git add *
+git add AS/ AS-NET/ LIST/ MNT/ NET/ PRESCRIPT/
+git commit -m "$( date --rfc-email )"
+git push -uf upstream main
+git push -uf origin main
+echo
+
+cd ${CURDIR}
+```
+
+**`after.juniper.tcl`** — Expect-скрипт для застосування конфігурації на Juniper:
+
+```tcl
+#!/usr/bin/expect -f
+
+set env(TERM) vt100
+
+spawn ssh user@juniper-gw.example.net
+
+expect ">" {
+    send "configure private\n"
+}
+expect "#" {
+    send [exec cat war.juniper.txt]
+    send "\n"
+}
+expect "#" {
+    send "commit synchronize and-quit\n"
+}
+expect ">" {
+    send "exit\n"
+}
+```
+
+**`asblockwar.sh`** — скрипт на blackbgp-сервері:
+
+```bash
+#!/bin/bash
+
+# war.blackbgp.txt є shell-скриптом: source виконує ip r d/r команди безпосередньо
+source ~/asblockwar.txt
+
+sudo /usr/local/bin/routeStore
+```
+
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.3.0-00000001.jar --batch`:
+
+```mermaid
+flowchart TD
+    AW["ASBlockWar --batch"]
+    PR["[1–12] обробка ASN\nwar.juniper.txt · war.blackbgp.txt"]
+    AF["[13] after.sh"]
+    JT["after.juniper.tcl\nSSH → Juniper"]
+    JC["configure private\ncommit synchronize and-quit"]
+    BB["scp war.blackbgp.txt\n→ blackbgp-сервер"]
+    AS["asblockwar.sh\nsource asblockwar.txt\nsudo routeStore"]
+    GT["git commit + push STORE/\n→ upstream · origin"]
+
+    AW --> PR
+    PR --> AF
+    AF --> JT
+    AF --> BB
+    AF --> GT
+    JT --> JC
+    BB --> AS
+
+    classDef main  fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef batch fill:#dcfce7,stroke:#22c55e,color:#14532d
+    classDef ext   fill:#f3e8ff,stroke:#a855f7,color:#581c87
+
+    class AW,PR main
+    class AF,GT batch
+    class JT,JC,BB,AS ext
+```
+
 ---
 
 ## Логування
