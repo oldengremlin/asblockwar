@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -30,6 +31,7 @@ import java.util.regex.Pattern;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveBlackbgpPrefixes {
 
     private static final Pattern CIDR4 = Pattern.compile(
@@ -70,15 +72,12 @@ public class retrieveBlackbgpPrefixes {
             }
             int exit = proc.waitFor();
             if (exit != 0) {
-                net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                        .warn("retrieveBlackbgpPrefixes: '{}' завершився з кодом {}", command, exit);
+                log.warn("retrieveBlackbgpPrefixes: '{}' завершився з кодом {}", command, exit);
             } else {
-                net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                        .debug("retrieveBlackbgpPrefixes: прочитано {} prefixes ({})", prefixes.size(), command);
+                log.debug("retrieveBlackbgpPrefixes: прочитано {} prefixes ({})", prefixes.size(), command);
             }
         } catch (IOException | InterruptedException e) {
-            net.ukrcom.asblockwar.ASBlockWar.LOGGER
-                    .error("retrieveBlackbgpPrefixes: помилка '{}': {}", command, e.getMessage());
+            log.error("retrieveBlackbgpPrefixes: помилка '{}': {}", command, e.getMessage());
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }

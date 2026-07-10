@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,7 +22,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує всі route/route6 RPSL-блоки для заданого origin AS.
@@ -29,10 +29,10 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveRouteOriginFull {
 
     private final Config config;
-    private final Logger logger;
     private final String origin;
     private final StringBuilder sb = new StringBuilder();
 
@@ -43,14 +43,12 @@ public class retrieveRouteOriginFull {
      * @param origin позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveRouteOriginFull(String origin) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.origin = origin;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.origin = origin;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             loadRoutes(conn);
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні RouteOriginFull {}", origin, ex);
+            log.error("Помилка при отриманні RouteOriginFull {}", origin, ex);
         }
     }
 
@@ -80,7 +78,7 @@ public class retrieveRouteOriginFull {
      * @return рядок RPSL-тексту, або порожній рядок, якщо маршрутів не знайдено
      */
     public String get() {
-        logger.debug("retrieveRouteOriginFull({}).get(): {} chars", origin, sb.length());
+        log.debug("retrieveRouteOriginFull({}).get(): {} chars", origin, sb.length());
         return sb.toString();
     }
 }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,7 +22,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує повний RPSL-блок as-set для заданого імені AS-SET
@@ -29,10 +29,10 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveAsSet {
 
     private final Config config;
-    private final Logger logger;
     private StringBuilder sb;
 
     private final String asSet;
@@ -45,9 +45,7 @@ public class retrieveAsSet {
      * @param asSet назва AS-SET (наприклад, {@code "AS-EXAMPLE"})
      */
     public retrieveAsSet(String asSet) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.sb = new StringBuilder();
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.sb = new StringBuilder();
 
         this.asSet = asSet;
 
@@ -57,7 +55,7 @@ public class retrieveAsSet {
             this.loadAsSet();
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні AsSet", ex);
+            log.error("Помилка при отриманні AsSet", ex);
         }
     }
 
@@ -67,7 +65,7 @@ public class retrieveAsSet {
      * @return текст RPSL-блоку, або порожній рядок, якщо AS-SET не знайдено
      */
     public String get() {
-        logger.debug("retrieveAsSet({}).get(): {}", this.asSet, this.sb.toString());
+        log.debug("retrieveAsSet({}).get(): {}", this.asSet, this.sb.toString());
         return this.sb.toString();
     }
 
@@ -85,7 +83,7 @@ public class retrieveAsSet {
             }
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні as-set для AsSet", ex);
+            log.error("Помилка при отриманні as-set для AsSet", ex);
         }
     }
 }

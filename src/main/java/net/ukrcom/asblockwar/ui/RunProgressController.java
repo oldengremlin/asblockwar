@@ -31,6 +31,8 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
+import lombok.extern.slf4j.Slf4j;
+import net.ukrcom.asblockwar.UIProgressCallback;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author olden
  */
+@Slf4j
 public class RunProgressController implements Initializable {
 
     @FXML
@@ -82,7 +85,7 @@ public class RunProgressController implements Initializable {
         lc.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME).addAppender(appender);
 
         AtomicLong lastHighlight = new AtomicLong(0);
-        ASBlockWar.uiCallback = new ASBlockWar.UIProgressCallback() {
+        ASBlockWar.uiCallback = new UIProgressCallback() {
             @Override
             public void onAsnProcessing(String asn) {
                 if (throttle(lastHighlight)) {
@@ -141,7 +144,7 @@ public class RunProgressController implements Initializable {
             detachAppender();
             progressBar.setProgress(0.0);
             appendLine("--- Error: " + (ex != null ? ex.getMessage() : "unknown") + " ---");
-            ASBlockWar.LOGGER.error("GUI: runProcessing failed", ex);
+            log.error("GUI: runProcessing failed", ex);
             closeButton.setDisable(false);
             stage.setTitle("ASBlockWar — Error");
         });

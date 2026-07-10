@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -33,6 +34,7 @@ import net.ukrcom.asblockwar.ASBlockWar;
  *
  * @author olden
  */
+@Slf4j
 public class PropertiesController implements Initializable {
 
     @FXML
@@ -164,7 +166,7 @@ public class PropertiesController implements Initializable {
             try {
                 ASBlockWar.config.save();
             } catch (IOException e) {
-                ASBlockWar.LOGGER.error("GUI: не вдалося зберегти конфігурацію", e);
+                log.error("GUI: не вдалося зберегти конфігурацію", e);
             }
         }
         if (stage != null) {

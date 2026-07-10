@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -23,7 +24,6 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.ukrcom.asblockwar.Config;
-import org.slf4j.Logger;
 
 /**
  * Витягує синтетичне резюме ASN (з таблиці {@code asn}) та organisation-блок RPSL,
@@ -34,12 +34,12 @@ import org.slf4j.Logger;
  *
  * @author olden
  */
+@Slf4j
 public class retrieveOrganisation {
 
     private final static Map<String, String> cache = new ConcurrentHashMap<>();
 
     private final Config config;
-    private final Logger logger;
     private StringBuilder sb;
 
     private final String autNum;
@@ -54,12 +54,10 @@ public class retrieveOrganisation {
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveOrganisation(String autNum) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
-        this.logger = net.ukrcom.asblockwar.ASBlockWar.LOGGER;
-        this.autNum = autNum;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.autNum = autNum;
 
         if (cache.containsKey(autNum)) {
-            logger.debug("retrieveOrganisation({}) — cache hit", autNum);
+            log.debug("retrieveOrganisation({}) — cache hit", autNum);
             return;
         }
 
@@ -69,7 +67,7 @@ public class retrieveOrganisation {
             this.loadAsn();
             this.loadOrg();
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні Organisation", ex);
+            log.error("Помилка при отриманні Organisation", ex);
         }
         cache.put(autNum, this.sb.toString());
     }
@@ -82,13 +80,13 @@ public class retrieveOrganisation {
     public String get() {
         String cached = cache.get(this.autNum);
         if (cached != null) {
-            logger.debug("retrieveOrganisation({}).get(): [cache]", this.autNum);
+            log.debug("retrieveOrganisation({}).get(): [cache]", this.autNum);
             return cached;
         }
         // fallback: значення не потрапило в cache (наприклад, помилка SQL)
         String result = this.sb != null ? this.sb.toString() : "";
         cache.put(this.autNum, result);
-        logger.debug("retrieveOrganisation({}).get(): {}", this.autNum, result);
+        log.debug("retrieveOrganisation({}).get(): {}", this.autNum, result);
         return result;
     }
 
@@ -106,7 +104,7 @@ public class retrieveOrganisation {
             }
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні aut-num для Organisation", ex);
+            log.error("Помилка при отриманні aut-num для Organisation", ex);
         }
     }
 
@@ -141,7 +139,7 @@ public class retrieveOrganisation {
             }
 
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні organisation для Organisation", ex);
+            log.error("Помилка при отриманні organisation для Organisation", ex);
         }
         return retVal.toString();
     }
@@ -174,7 +172,7 @@ public class retrieveOrganisation {
                 retVal.append("\n");
             }
         } catch (SQLException ex) {
-            this.logger.error("Помилка при отриманні asn для Organisation", ex);
+            log.error("Помилка при отриманні asn для Organisation", ex);
         }
         return retVal.toString();
     }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -46,6 +47,7 @@ import net.ukrcom.asblockwar.ASBlockWar;
  *
  * @author olden
  */
+@Slf4j
 public class FilePickerController implements Initializable {
 
     @FXML
@@ -329,7 +331,7 @@ public class FilePickerController implements Initializable {
 
             return Optional.ofNullable(ctrl.getResult());
         } catch (IOException e) {
-            ASBlockWar.LOGGER.error("GUI: cannot open file picker", e);
+            log.error("GUI: cannot open file picker", e);
             return Optional.empty();
         }
     }
