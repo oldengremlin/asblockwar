@@ -35,3 +35,4 @@ replay_pid*
 /logs/
 /STORE/
 dependency-reduced-pom.xml
+*.tcl
