@@ -3,31 +3,37 @@
 .mainFxmlClass {
 }
 
-/* Drop shadows on interactive / display controls */
+/* Main controls: rounded corners + drop shadow */
 
-.text-field {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
-}
-
-.text-area {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
-}
-
-.list-view {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
-}
-
-.tree-view {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
-}
-
-/* Log panel in Run Progress dialog (ScrollPane with fx:id="logScroll") */
+.text-field,
+.text-area,
+.list-view,
+.tree-view,
 #logScroll {
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+/* TextArea inner content node needs its own rounding */
+.text-area .content {
+    -fx-background-radius: 5;
 }
 
 .button {
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 4, 0, 0, 1);
+}
+
+/* ProgressBar: round track and filled bar separately */
+.progress-bar > .track {
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+}
+
+.progress-bar > .bar {
+    -fx-background-radius: 5;
 }
 
 .progress-bar {
