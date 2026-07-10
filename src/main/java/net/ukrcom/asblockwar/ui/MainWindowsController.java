@@ -95,6 +95,7 @@ public class MainWindowsController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         textWarJuniper.setWrapText(wrapJuniper.isSelected());
+        accordion.setExpandedPane(paneListAs);
         refreshUi();
         setupDoubleClick();
     }
