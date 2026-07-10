@@ -618,14 +618,32 @@ sudo /usr/local/bin/routeStore
 
 Повний ланцюг після одного запуску `java -jar ASBlockWar-3.3.0-00000001.jar --batch`:
 
-```
-ASBlockWar
- ├─ [1–12] обробка ASN, генерація war.juniper.txt і war.blackbgp.txt
- └─ [13] after.sh
-       ├─ after.juniper.tcl  →  SSH → Juniper: configure private → commit synchronize
-       ├─ scp war.blackbgp.txt → blackbgp-сервер
-       │     └─ asblockwar.sh: source asblockwar.txt → sudo routeStore
-       └─ git commit + push STORE/ → два remote
+```mermaid
+flowchart TD
+    AW["ASBlockWar --batch"]
+    PR["[1–12] обробка ASN\nwar.juniper.txt · war.blackbgp.txt"]
+    AF["[13] after.sh"]
+    JT["after.juniper.tcl\nSSH → Juniper"]
+    JC["configure private\ncommit synchronize and-quit"]
+    BB["scp war.blackbgp.txt\n→ blackbgp-сервер"]
+    AS["asblockwar.sh\nsource asblockwar.txt\nsudo routeStore"]
+    GT["git commit + push STORE/\n→ upstream · origin"]
+
+    AW --> PR
+    PR --> AF
+    AF --> JT
+    AF --> BB
+    AF --> GT
+    JT --> JC
+    BB --> AS
+
+    classDef main  fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    classDef batch fill:#dcfce7,stroke:#22c55e,color:#14532d
+    classDef ext   fill:#f3e8ff,stroke:#a855f7,color:#581c87
+
+    class AW,PR main
+    class AF,GT batch
+    class JT,JC,BB,AS ext
 ```
 
 ---
