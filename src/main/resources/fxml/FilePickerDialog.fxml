@@ -10,10 +10,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox spacing="6.0" prefHeight="480.0" prefWidth="680.0" style="-fx-padding: 8;"
-      stylesheets="@../styles/mainwindows.css"
-      xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="net.ukrcom.asblockwar.ui.FilePickerController">
+<VBox prefHeight="480.0" prefWidth="680.0" spacing="6.0" style="-fx-padding: 8;" stylesheets="@../styles/mainwindows.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ukrcom.asblockwar.ui.FilePickerController">
    <children>
       <SplitPane fx:id="contentSplit" dividerPositions="0.38" VBox.vgrow="ALWAYS">
          <items>
@@ -21,16 +18,16 @@
             <ListView fx:id="fileList" minWidth="120.0" />
          </items>
       </SplitPane>
-      <HBox spacing="6.0" alignment="CENTER_LEFT">
+      <HBox alignment="CENTER_LEFT" spacing="6.0">
          <children>
             <Label text="Selected:" />
-            <TextField fx:id="selectedPath" HBox.hgrow="ALWAYS" />
+            <TextField fx:id="selectedPath" styleClass="text-field" HBox.hgrow="ALWAYS" />
          </children>
       </HBox>
       <ButtonBar>
          <buttons>
-            <Button fx:id="okButton" text="Select" onAction="#doSelect" defaultButton="true" mnemonicParsing="false" />
-            <Button text="Cancel" onAction="#doCancel" cancelButton="true" mnemonicParsing="false" />
+            <Button fx:id="okButton" defaultButton="true" mnemonicParsing="false" onAction="#doSelect" text="Select" />
+            <Button cancelButton="true" mnemonicParsing="false" onAction="#doCancel" text="Cancel" />
          </buttons>
       </ButtonBar>
    </children>
