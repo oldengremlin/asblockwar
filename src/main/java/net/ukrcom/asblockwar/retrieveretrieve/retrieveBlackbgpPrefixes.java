@@ -38,6 +38,9 @@ public class retrieveBlackbgpPrefixes {
             "\\b(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2})\\b");
     private static final Pattern CIDR6 = Pattern.compile(
             "\\b([0-9a-fA-F]*:[0-9a-fA-F:]+/\\d{1,3})\\b");
+    // ip route list не виводить /32 для хостових маршрутів
+    private static final Pattern HOST4 = Pattern.compile(
+            "\\b(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})\\b");
 
     private final Set<String> prefixes = new HashSet<>();
 
@@ -67,6 +70,11 @@ public class retrieveBlackbgpPrefixes {
                     Matcher m = pattern.matcher(line);
                     if (m.find()) {
                         prefixes.add(m.group(1));
+                    } else if (!ipv6) {
+                        Matcher mh = HOST4.matcher(line);
+                        if (mh.find()) {
+                            prefixes.add(mh.group(1) + "/32");
+                        }
                     }
                 });
             }
