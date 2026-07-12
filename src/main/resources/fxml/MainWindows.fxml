@@ -10,12 +10,14 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
 
 <DialogPane id="MainPane" minHeight="-Infinity" minWidth="-Infinity" prefHeight="960.0" prefWidth="1152.0" stylesheets="@../styles/mainwindows.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ukrcom.asblockwar.ui.MainWindowsController">
    <content>
@@ -30,40 +32,54 @@
             <RowConstraints maxHeight="32.0" minHeight="32.0" vgrow="NEVER" />
          </rowConstraints>
          <children>
-            <Accordion fx:id="accordion">
-              <panes>
-                <TitledPane fx:id="paneListMntBy" animated="false" text="List MNT-BY">
-                  <content>
-                    <AnchorPane>
-                           <children>
-                              <ListView fx:id="listMntBy" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                           </children>
-                        </AnchorPane>
-                  </content>
-                </TitledPane>
-                <TitledPane fx:id="paneListAsSet" animated="false" text="List AS-SET">
-                  <content>
-                    <AnchorPane>
-                           <children>
-                              <ListView fx:id="listAsSet" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                           </children>
-                        </AnchorPane>
-                  </content>
-                </TitledPane>
-                <TitledPane fx:id="paneListAs" animated="false" text="List AS">
-                  <content>
-                    <AnchorPane>
-                           <children>
-                              <ListView fx:id="listAs" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                           </children>
-                        </AnchorPane>
-                  </content>
-                </TitledPane>
-              </panes>
+            <VBox>
+               <children>
+                  <Accordion fx:id="accordion" VBox.vgrow="ALWAYS">
+                    <panes>
+                      <TitledPane fx:id="paneListMntBy" animated="false" text="List MNT-BY">
+                        <content>
+                          <AnchorPane>
+                                 <children>
+                                    <ListView fx:id="listMntBy" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </TitledPane>
+                      <TitledPane fx:id="paneListAsSet" animated="false" text="List AS-SET">
+                        <content>
+                          <AnchorPane>
+                                 <children>
+                                    <ListView fx:id="listAsSet" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </TitledPane>
+                      <TitledPane fx:id="paneListAs" animated="false" text="List AS">
+                        <content>
+                          <AnchorPane>
+                                 <children>
+                                    <ListView fx:id="listAs" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </TitledPane>
+                      <TitledPane fx:id="paneListPrefixes" animated="false" text="List Prefixes">
+                        <content>
+                          <AnchorPane>
+                                 <children>
+                                    <ListView fx:id="listPrefixes" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </TitledPane>
+                    </panes>
+                  </Accordion>
+                  <TextField fx:id="filterField" promptText="Filter..." />
+               </children>
                <GridPane.margin>
                   <Insets right="1.0" />
                </GridPane.margin>
-            </Accordion>
+            </VBox>
             <SplitPane dividerPositions="0.07" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0" GridPane.columnIndex="1">
               <items>
                 <AnchorPane maxHeight="50.0" minHeight="50.0" prefHeight="50.0">
