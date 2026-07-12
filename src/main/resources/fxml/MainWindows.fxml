@@ -77,7 +77,7 @@
                   <HBox alignment="CENTER_LEFT" spacing="4.0">
                      <children>
                         <TextField fx:id="filterField" promptText="Filter..." HBox.hgrow="ALWAYS" />
-                        <Button mnemonicParsing="false" onAction="#clearFilter" text="×" />
+                        <Button mnemonicParsing="false" onAction="#clearFilter" styleClass="round-button" text="×" />
                      </children>
                   </HBox>
                </children>
