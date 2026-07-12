@@ -74,7 +74,12 @@
                       </TitledPane>
                     </panes>
                   </Accordion>
-                  <TextField fx:id="filterField" promptText="Filter..." />
+                  <HBox alignment="CENTER_LEFT" spacing="4.0">
+                     <children>
+                        <TextField fx:id="filterField" promptText="Filter..." HBox.hgrow="ALWAYS" />
+                        <Button mnemonicParsing="false" onAction="#clearFilter" text="×" />
+                     </children>
+                  </HBox>
                </children>
                <GridPane.margin>
                   <Insets right="1.0" />

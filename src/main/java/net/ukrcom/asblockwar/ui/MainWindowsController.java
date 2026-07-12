@@ -208,6 +208,11 @@ public class MainWindowsController implements Initializable {
     // ── FXML actions ─────────────────────────────────────────────────────────
 
     @FXML
+    private void clearFilter() {
+        filterField.clear();
+    }
+
+    @FXML
     private void toggleWrapJuniper() {
         textWarJuniper.setWrapText(wrapJuniper.isSelected());
     }
