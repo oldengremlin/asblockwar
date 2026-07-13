@@ -130,7 +130,7 @@
                   </HBox>
 
                   <!-- Aggressor pattern -->
-                  <Label text="Aggressor pattern (Java regex, applied after country filter):" />
+                  <Label text="Aggressor pattern (Java regex; broad check — country filter applied after to exclude false positives):" />
                   <TextArea fx:id="fieldAggressorPattern" wrapText="true" prefHeight="80.0"
                             style="-fx-font-family: monospace; -fx-font-size: 11;" />
 
