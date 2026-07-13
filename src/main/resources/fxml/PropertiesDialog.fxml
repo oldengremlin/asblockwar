@@ -87,6 +87,10 @@
                <TextField fx:id="fieldAfterCommand" HBox.hgrow="ALWAYS" />
                <Button text="…" prefWidth="28.0" onAction="#browseAfterCommand" />
             </HBox>
+
+            <!-- Block country filter -->
+            <Label text="Block countries (CSV):" GridPane.rowIndex="13" GridPane.columnIndex="0" />
+            <TextField fx:id="fieldBlockCountry" promptText="e.g. RU,BY" maxWidth="Infinity" GridPane.rowIndex="13" GridPane.columnIndex="1" />
          </children>
       </GridPane>
       <Separator />
