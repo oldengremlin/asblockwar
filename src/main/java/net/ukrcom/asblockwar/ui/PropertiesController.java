@@ -21,11 +21,16 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldListCell;
@@ -60,6 +65,7 @@ public class PropertiesController implements Initializable {
     @FXML private ListView<String> listBlockCountry;
     @FXML private ListView<String> listForceAsBlock;
     @FXML private ListView<String> listForceNetBlock;
+    @FXML private TextArea         fieldAggressorPattern;
 
     private Stage stage;
 
@@ -88,6 +94,7 @@ public class PropertiesController implements Initializable {
         setupList(listBlockCountry, ASBlockWar.config.getBlockCountry());
         setupList(listForceAsBlock, ASBlockWar.config.getForceAsBlock());
         setupList(listForceNetBlock, ASBlockWar.config.getForceNetBlock());
+        fieldAggressorPattern.setText(ASBlockWar.config.getAggressorPattern());
     }
 
     private static void setupList(ListView<String> lv, java.util.List<String> items) {
@@ -171,6 +178,17 @@ public class PropertiesController implements Initializable {
             ASBlockWar.config.setBlockCountry(new ArrayList<>(listBlockCountry.getItems()));
             ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
             ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));
+            String patternText = fieldAggressorPattern.getText().trim();
+            try {
+                Pattern compiled = Pattern.compile(patternText);
+                ASBlockWar.config.setAggressorPattern(patternText);
+                ASBlockWar.AGGRESSOR_COMPILED = compiled;
+            } catch (PatternSyntaxException e) {
+                new Alert(Alert.AlertType.ERROR,
+                        "Помилковий regex агресора:\n" + e.getMessage(),
+                        ButtonType.OK).showAndWait();
+                return;
+            }
             try {
                 ASBlockWar.config.save();
             } catch (IOException e) {

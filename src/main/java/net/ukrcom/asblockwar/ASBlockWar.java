@@ -62,13 +62,8 @@ public class ASBlockWar {
 
     public static volatile UIProgressCallback uiCallback;
 
-    // (?i) робить пошук регістронезалежним
-    // MULTILINE (?m) дозволяє ^ та $ працювати з кожним рядком у багаторядковому значенні
-    // $ зовні групи — всі альтернативи прив'язані до кінця рядка
-    // .* після ключових слів — дозволяє довільний текст після збігу в тому ж рядку
-    public static String AGGRESSOR_PATTERN = "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
-    // Скомпільований патерн для використання з find() — без (?s), щоб .* не перетинав рядки
-    public static final Pattern AGGRESSOR_COMPILED = Pattern.compile(AGGRESSOR_PATTERN);
+    // Скомпільований патерн для використання з find() — ініціалізується у main() з config.getAggressorPattern()
+    public static Pattern AGGRESSOR_COMPILED;
 
     // Створюємо мапу для вилучених елементів
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
@@ -84,6 +79,7 @@ public class ASBlockWar {
     public static void main(String[] args) throws InterruptedException {
         try {
             config = new Config(args);
+            AGGRESSOR_COMPILED = Pattern.compile(config.getAggressorPattern());
 
             if (config.isGui()) {
                 Application.launch(ASBlockWarApp.class, args);

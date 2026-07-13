@@ -61,7 +61,7 @@ public class FilterAggressor {
      * Повертає {@code true}, якщо RPSL-блок одночасно:
      * <ol>
      *   <li>містить {@code country:} з кодом зі списку {@code blocked}</li>
-     *   <li>відповідає {@link ASBlockWar#AGGRESSOR_COMPILED}</li>
+     *   <li>відповідає {@link ASBlockWar#AGGRESSOR_COMPILED} (налаштовується через {@code AggressorPattern})</li>
      * </ol>
      * Використовується як єдина точка прийняття рішення «ворог чи ні».
      *
@@ -76,7 +76,7 @@ public class FilterAggressor {
 
     /**
      * Фільтрує карту ASN: спочатку обов'язкова перевірка країни (BlockCountry),
-     * потім перевірка {@link ASBlockWar#AGGRESSOR_COMPILED}.
+     * потім перевірка {@link ASBlockWar#AGGRESSOR_COMPILED} (патерн з {@code AggressorPattern}).
      * <p>
      * Відфільтровані ASN реєструються у {@link ASBlockWar#resourcesForVerification} з дією {@link Action#remove}.
      *
