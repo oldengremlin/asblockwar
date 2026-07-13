@@ -55,6 +55,7 @@ public class Config {
     private String getBlackholeOverride;
     private String getBlackholeIpv6Override;
     private String afterCommandOverride;
+    private String blockCountryOverride;
     private String listFile;
     private String listMntbyFile;
     private String listAssetFile;
@@ -65,6 +66,7 @@ public class Config {
     private String getBlackhole;
     private String getBlackholeIpv6;
     private String afterCommand;
+    private String blockCountry;
     private boolean blackbgpIpv6 = true;
     private boolean blackbgpIpv6Explicit = false;
     private boolean batchMode = false;
@@ -117,6 +119,9 @@ public class Config {
         this.afterCommand = this.afterCommandOverride != null
                             ? this.afterCommandOverride
                             : this.properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
+        this.blockCountry = this.blockCountryOverride != null
+                            ? this.blockCountryOverride
+                            : this.properties.getProperty("BlockCountry", "RU").trim();
 
         // CLI flags win; fall back to properties file values
         if (!this.blackbgpIpv6Explicit) {
@@ -161,6 +166,7 @@ public class Config {
         p.setProperty("BlackbgpIpv6", String.valueOf(this.blackbgpIpv6));
         p.setProperty("BatchMode", String.valueOf(this.batchMode));
         p.setProperty("AfterCommand", this.afterCommand);
+        p.setProperty("BlockCountry", this.blockCountry);
         if (this.recursiveAsset >= 0) {
             p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
         }
@@ -206,6 +212,8 @@ public class Config {
                 this.batchMode = true;
             } else if (arg.startsWith("--after-command=")) {
                 this.afterCommandOverride = arg.substring("--after-command=".length()).trim();
+            } else if (arg.startsWith("--block-country=")) {
+                this.blockCountryOverride = arg.substring("--block-country=".length()).trim();
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
                 this.blackbgpIpv6Explicit = true;
@@ -245,6 +253,7 @@ public class Config {
         System.out.println("  -no6, --no-ipv6           Disable IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -b, --batch               Run AfterCommand script after processing");
+        System.out.println("  --block-country=<CC,...>  Comma-separated country codes to block (default: RU)");
         System.out.println("  --after-command=<path>    Script to run in batch mode");
         System.out.println("                            (default: after.sh on Unix, after.cmd on Windows)");
         System.out.println("  -g, --gui                 Launch graphical user interface");
