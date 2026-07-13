@@ -15,7 +15,6 @@
  */
 package net.ukrcom.asblockwar.actions;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -53,9 +52,8 @@ public class FilterAggressor {
      * @return незмінна множина кодів країн у верхньому регістрі
      */
     public static Set<String> blockedCountries() {
-        return Arrays.stream(ASBlockWar.config.getBlockCountry().split(","))
-                .map(s -> s.trim().toUpperCase())
-                .filter(s -> !s.isEmpty())
+        return ASBlockWar.config.getBlockCountry().stream()
+                .map(String::toUpperCase)
                 .collect(Collectors.toSet());
     }
 

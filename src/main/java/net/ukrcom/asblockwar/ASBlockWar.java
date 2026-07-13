@@ -38,6 +38,7 @@ import net.ukrcom.asblockwar.actions.DiscoverAggressor;
 import net.ukrcom.asblockwar.actions.DiscoveryResult;
 import net.ukrcom.asblockwar.actions.FileUtils;
 import net.ukrcom.asblockwar.actions.FilterAggressor;
+import net.ukrcom.asblockwar.actions.ForceBlockActions;
 import net.ukrcom.asblockwar.actions.MakeAggressor;
 import net.ukrcom.asblockwar.actions.Reporter;
 import net.ukrcom.asblockwar.actions.StoreActions;
@@ -135,6 +136,9 @@ public class ASBlockWar {
                         FilterAggressor.filterAggressorAsnResources(aggressorAsnResources)
                 )
         );
+
+        // Примусово заблоковані AS — обходять country + AGGRESSOR_PATTERN фільтри
+        ForceBlockActions.applyForceAsBlock(aggressorAsnResources);
 
         DiscoveryResult discovery = DiscoverAggressor.discoverCooperatingAsnResources(aggressorAsnResources);
         StoreActions.storeMntByResources(discovery.mntBy());

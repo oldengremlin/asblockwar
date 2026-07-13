@@ -18,11 +18,17 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.util.ResourceBundle;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextField;
+import javafx.scene.control.cell.TextFieldListCell;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 
@@ -37,42 +43,28 @@ import net.ukrcom.asblockwar.ASBlockWar;
 @Slf4j
 public class PropertiesController implements Initializable {
 
-    @FXML
-    private TextField fieldListFile;
-    @FXML
-    private TextField fieldListMntby;
-    @FXML
-    private TextField fieldListAsset;
-    @FXML
-    private TextField fieldWhoisUri;
-    @FXML
-    private TextField fieldStoreDir;
-    @FXML
-    private TextField fieldWarFile;
-    @FXML
-    private TextField fieldBlackbgpFile;
-    @FXML
-    private TextField fieldGetBlackhole;
-    @FXML
-    private TextField fieldGetBlackholeIpv6;
-    @FXML
-    private CheckBox fieldIpv6;
-    @FXML
-    private TextField fieldRecursiveAsset;
-    @FXML
-    private CheckBox fieldBatch;
-    @FXML
-    private TextField fieldAfterCommand;
-    @FXML
-    private TextField fieldBlockCountry;
+    @FXML private TextField fieldListFile;
+    @FXML private TextField fieldListMntby;
+    @FXML private TextField fieldListAsset;
+    @FXML private TextField fieldWhoisUri;
+    @FXML private TextField fieldStoreDir;
+    @FXML private TextField fieldWarFile;
+    @FXML private TextField fieldBlackbgpFile;
+    @FXML private TextField fieldGetBlackhole;
+    @FXML private TextField fieldGetBlackholeIpv6;
+    @FXML private CheckBox  fieldIpv6;
+    @FXML private TextField fieldRecursiveAsset;
+    @FXML private CheckBox  fieldBatch;
+    @FXML private TextField fieldAfterCommand;
+
+    @FXML private ListView<String> listBlockCountry;
+    @FXML private ListView<String> listForceAsBlock;
+    @FXML private ListView<String> listForceNetBlock;
 
     private Stage stage;
 
     /**
      * Заповнює поля діалогу поточними значеннями конфігурації після завантаження FXML.
-     *
-     * @param url URL FXML-ресурсу (не використовується)
-     * @param rb  ResourceBundle локалізації (не використовується)
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -92,57 +84,67 @@ public class PropertiesController implements Initializable {
         fieldRecursiveAsset.setText(String.valueOf(ASBlockWar.config.getRecursiveAsset()));
         fieldBatch.setSelected(ASBlockWar.config.isBatchMode());
         fieldAfterCommand.setText(ASBlockWar.config.getAfterCommand());
-        fieldBlockCountry.setText(ASBlockWar.config.getBlockCountry());
+
+        setupList(listBlockCountry, ASBlockWar.config.getBlockCountry());
+        setupList(listForceAsBlock, ASBlockWar.config.getForceAsBlock());
+        setupList(listForceNetBlock, ASBlockWar.config.getForceNetBlock());
+    }
+
+    private static void setupList(ListView<String> lv, java.util.List<String> items) {
+        lv.setEditable(true);
+        lv.setCellFactory(TextFieldListCell.forListView());
+        lv.setItems(FXCollections.observableArrayList(items));
     }
 
     /**
      * Встановлює посилання на вікно діалогу для подальшого приховання при закритті.
-     *
-     * @param dialogStage вікно Stage цього діалогу
      */
     public void setStage(Stage dialogStage) {
         this.stage = dialogStage;
     }
 
-    // --- Browse actions (delegate to pure-JavaFX FilePickerController) ---
-    @FXML
-    private void browseListFile() {
-        pick(false, fieldListFile, "Select List file");
-    }
-
-    @FXML
-    private void browseListMntby() {
-        pick(false, fieldListMntby, "Select MNT-BY file");
-    }
-
-    @FXML
-    private void browseListAsset() {
-        pick(false, fieldListAsset, "Select AS-SET file");
-    }
-
-    @FXML
-    private void browseStoreDir() {
-        pick(true, fieldStoreDir, "Select Store directory");
-    }
-
-    @FXML
-    private void browseWarFile() {
-        pick(false, fieldWarFile, "Select WAR file");
-    }
-
-    @FXML
-    private void browseBlackbgpFile() {
-        pick(false, fieldBlackbgpFile, "Select Blackbgp file");
-    }
-
-    @FXML
-    private void browseAfterCommand() {
-        pick(false, fieldAfterCommand, "Select After command script");
-    }
+    // --- Browse actions ---
+    @FXML private void browseListFile()     { pick(false, fieldListFile,     "Select List file"); }
+    @FXML private void browseListMntby()    { pick(false, fieldListMntby,    "Select MNT-BY file"); }
+    @FXML private void browseListAsset()    { pick(false, fieldListAsset,    "Select AS-SET file"); }
+    @FXML private void browseStoreDir()     { pick(true,  fieldStoreDir,     "Select Store directory"); }
+    @FXML private void browseWarFile()      { pick(false, fieldWarFile,      "Select WAR file"); }
+    @FXML private void browseBlackbgpFile() { pick(false, fieldBlackbgpFile, "Select Blackbgp file"); }
+    @FXML private void browseAfterCommand() { pick(false, fieldAfterCommand, "Select After command script"); }
 
     private void pick(boolean dirOnly, TextField field, String title) {
         FilePickerController.showFilePicker(stage, title, field.getText().trim(), dirOnly)
                 .ifPresent(field::setText);
+    }
+
+    // --- List add/remove actions ---
+    @FXML private void addBlockCountry()     { promptAdd(listBlockCountry, "Country code", "e.g. RU", String::toUpperCase); }
+    @FXML private void removeBlockCountry()  { removeSelected(listBlockCountry); }
+    @FXML private void addForceAsBlock()     { promptAdd(listForceAsBlock, "ASN", "e.g. AS209671", s -> s.toUpperCase().startsWith("AS") ? s.toUpperCase() : "AS" + s.toUpperCase()); }
+    @FXML private void removeForceAsBlock()  { removeSelected(listForceAsBlock); }
+    @FXML private void addForceNetBlock()    { promptAdd(listForceNetBlock, "Network prefix", "e.g. 52.29.77.149/32", s -> s); }
+    @FXML private void removeForceNetBlock() { removeSelected(listForceNetBlock); }
+
+    private void promptAdd(ListView<String> lv, String label, String hint, java.util.function.UnaryOperator<String> normalize) {
+        TextInputDialog dlg = new TextInputDialog();
+        dlg.setTitle("Add item");
+        dlg.setHeaderText(null);
+        dlg.setContentText(label + " (" + hint + "):");
+        if (stage != null) {
+            dlg.initOwner(stage);
+        }
+        Optional<String> result = dlg.showAndWait();
+        result.map(String::trim)
+              .filter(s -> !s.isEmpty())
+              .map(normalize)
+              .ifPresent(lv.getItems()::add);
+    }
+
+    private static void removeSelected(ListView<String> lv) {
+        int idx = lv.getSelectionModel().getSelectedIndex();
+        if (idx >= 0) {
+            lv.getItems().remove(idx);
+        }
     }
 
     // --- Save / Cancel ---
@@ -166,7 +168,9 @@ public class PropertiesController implements Initializable {
             }
             ASBlockWar.config.setBatchMode(fieldBatch.isSelected());
             ASBlockWar.config.setAfterCommand(fieldAfterCommand.getText().trim());
-            ASBlockWar.config.setBlockCountry(fieldBlockCountry.getText().trim());
+            ASBlockWar.config.setBlockCountry(new ArrayList<>(listBlockCountry.getItems()));
+            ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
+            ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));
             try {
                 ASBlockWar.config.save();
             } catch (IOException e) {
