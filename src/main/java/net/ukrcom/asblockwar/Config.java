@@ -133,7 +133,10 @@ public class Config {
                             : this.properties.getProperty("BlockCountry", "RU"));
         this.forceAsBlock = parseList(this.forceAsBlockOverride != null
                             ? this.forceAsBlockOverride
-                            : this.properties.getProperty("ForceASBlock", ""));
+                            : this.properties.getProperty("ForceASBlock", ""))
+                            .stream()
+                            .map(s -> { String u = s.toUpperCase(); return u.startsWith("AS") ? u : "AS" + u; })
+                            .collect(Collectors.toCollection(ArrayList::new));
         this.forceNetBlock = parseList(this.forceNetBlockOverride != null
                              ? this.forceNetBlockOverride
                              : this.properties.getProperty("ForceNETBlock", ""));
