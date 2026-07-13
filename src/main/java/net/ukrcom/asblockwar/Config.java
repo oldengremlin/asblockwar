@@ -48,6 +48,9 @@ public class Config {
     private final String[] args;
     private final Properties properties;
 
+    public static final String DEFAULT_AGGRESSOR_PATTERN =
+            "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
+
     private String configPath;
     private String listFileOverride;
     private String listMntbyFileOverride;
@@ -62,6 +65,7 @@ public class Config {
     private String blockCountryOverride;
     private String forceAsBlockOverride;
     private String forceNetBlockOverride;
+    private String aggressorPatternOverride;
 
     private String listFile;
     private String listMntbyFile;
@@ -76,6 +80,7 @@ public class Config {
     private List<String> blockCountry;
     private List<String> forceAsBlock;
     private List<String> forceNetBlock;
+    private String aggressorPattern;
     private boolean blackbgpIpv6 = true;
     private boolean blackbgpIpv6Explicit = false;
     private boolean batchMode = false;
@@ -140,6 +145,9 @@ public class Config {
         this.forceNetBlock = parseList(this.forceNetBlockOverride != null
                              ? this.forceNetBlockOverride
                              : this.properties.getProperty("ForceNETBlock", ""));
+        this.aggressorPattern = this.aggressorPatternOverride != null
+                                ? this.aggressorPatternOverride
+                                : this.properties.getProperty("AggressorPattern", DEFAULT_AGGRESSOR_PATTERN).trim();
 
         // CLI flags win; fall back to properties file values
         if (!this.blackbgpIpv6Explicit) {
@@ -187,6 +195,7 @@ public class Config {
         p.setProperty("BlockCountry", joinList(this.blockCountry));
         p.setProperty("ForceASBlock", joinList(this.forceAsBlock));
         p.setProperty("ForceNETBlock", joinList(this.forceNetBlock));
+        p.setProperty("AggressorPattern", this.aggressorPattern);
         if (this.recursiveAsset >= 0) {
             p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
         }
@@ -238,6 +247,8 @@ public class Config {
                 this.forceAsBlockOverride = arg.substring("--force-as=".length()).trim();
             } else if (arg.startsWith("--force-net=")) {
                 this.forceNetBlockOverride = arg.substring("--force-net=".length()).trim();
+            } else if (arg.startsWith("--aggressor-pattern=")) {
+                this.aggressorPatternOverride = arg.substring("--aggressor-pattern=".length()).trim();
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
                 this.blackbgpIpv6Explicit = true;
@@ -278,6 +289,7 @@ public class Config {
         System.out.println("  --block-country=<CC,...>  Country codes to block, comma-separated (default: RU)");
         System.out.println("  --force-as=<AS,...>       ASNs to force-block regardless of country filter");
         System.out.println("  --force-net=<pfx,...>     Prefixes to force into blackbgp target (blackhole only)");
+        System.out.println("  --aggressor-pattern=<rx>  Regex to match aggressor RPSL blocks (overrides config)");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -b, --batch               Run AfterCommand script after processing");
         System.out.println("  --after-command=<path>    Script to run in batch mode");

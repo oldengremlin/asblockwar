@@ -7,6 +7,7 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -127,6 +128,11 @@
                         <Button text="−" prefWidth="28.0" onAction="#removeForceNetBlock" />
                      </VBox>
                   </HBox>
+
+                  <!-- Aggressor pattern -->
+                  <Label text="Aggressor pattern (Java regex, applied after country filter):" />
+                  <TextArea fx:id="fieldAggressorPattern" wrapText="true" prefHeight="80.0"
+                            style="-fx-font-family: monospace; -fx-font-size: 11;" />
 
                </children>
             </VBox>
