@@ -167,9 +167,11 @@ public class DiscoverAggressor {
         }
 
         // ForceNETBlock: примусово додаємо до цілі незалежно від БД
+        // Нормалізуємо: хост без префіксу → /32 (IPv4) або /128 (IPv6)
         ASBlockWar.config.getForceNetBlock().stream()
                 .map(String::trim)
                 .filter(p -> !p.isEmpty())
+                .map(p -> p.contains("/") ? p : (p.contains(":") ? p + "/128" : p + "/32"))
                 .filter(p -> ipv6 || !p.contains(":"))
                 .forEach(targetPrefixes::add);
 
