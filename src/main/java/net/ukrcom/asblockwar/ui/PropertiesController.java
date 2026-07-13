@@ -63,6 +63,8 @@ public class PropertiesController implements Initializable {
     private CheckBox fieldBatch;
     @FXML
     private TextField fieldAfterCommand;
+    @FXML
+    private TextField fieldBlockCountry;
 
     private Stage stage;
 
@@ -90,6 +92,7 @@ public class PropertiesController implements Initializable {
         fieldRecursiveAsset.setText(String.valueOf(ASBlockWar.config.getRecursiveAsset()));
         fieldBatch.setSelected(ASBlockWar.config.isBatchMode());
         fieldAfterCommand.setText(ASBlockWar.config.getAfterCommand());
+        fieldBlockCountry.setText(ASBlockWar.config.getBlockCountry());
     }
 
     /**
@@ -163,6 +166,7 @@ public class PropertiesController implements Initializable {
             }
             ASBlockWar.config.setBatchMode(fieldBatch.isSelected());
             ASBlockWar.config.setAfterCommand(fieldAfterCommand.getText().trim());
+            ASBlockWar.config.setBlockCountry(fieldBlockCountry.getText().trim());
             try {
                 ASBlockWar.config.save();
             } catch (IOException e) {
