@@ -65,6 +65,7 @@ public class DiscoverAggressor {
         int depth = Math.max(ASBlockWar.config.getRecursiveAsset(), 0);
         Set<String> discoveredMntBy = ConcurrentHashMap.newKeySet();
         Set<String> discoveredAsSets = ConcurrentHashMap.newKeySet();
+        Set<String> blocked = FilterAggressor.blockedCountries();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
@@ -98,7 +99,7 @@ public class DiscoverAggressor {
                             dbLimit.acquire();
                             try {
                                 String block = new retrieveOrganisation(memberAsn).get();
-                                if (ASBlockWar.AGGRESSOR_COMPILED.matcher(block).find()) {
+                                if (FilterAggressor.isAggressor(block, blocked)) {
                                     log.debug("discoverCooperating: {} -> {} -> {}", asn, asSet, memberAsn);
                                     ASBlockWar.resourcesForVerification.put(memberAsn, new ASN(Action.add, memberAsn, block));
                                     aggressorAsnResources.put(memberAsn, block);
@@ -174,6 +175,7 @@ public class DiscoverAggressor {
         toReplace.removeAll(currentPrefixes);
 
         // 4. Перевірка маршрутів на видалення: чи не належать вони ворогу?
+        Set<String> blocked = FilterAggressor.blockedCountries();
         Map<String, String> newEnemies = new ConcurrentHashMap<>();
         if (!toDelete.isEmpty()) {
             try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -207,7 +209,7 @@ public class DiscoverAggressor {
                             } finally {
                                 dbLimit.release();
                             }
-                            if (ASBlockWar.AGGRESSOR_COMPILED.matcher(block).find()) {
+                            if (FilterAggressor.isAggressor(block, blocked)) {
                                 log.warn("discoverBlackbgpChanges: {} — нова ворожа AS {} — додано до списку, видалення скасовано",
                                         prefix, origin);
                                 newEnemies.put(origin, block);

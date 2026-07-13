@@ -48,6 +48,35 @@ public class FilterAggressor {
     }
 
     /**
+     * Будує множину кодів країн з поточної конфігурації {@code BlockCountry}.
+     *
+     * @return незмінна множина кодів країн у верхньому регістрі
+     */
+    public static Set<String> blockedCountries() {
+        return Arrays.stream(ASBlockWar.config.getBlockCountry().split(","))
+                .map(s -> s.trim().toUpperCase())
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Повертає {@code true}, якщо RPSL-блок одночасно:
+     * <ol>
+     *   <li>містить {@code country:} з кодом зі списку {@code blocked}</li>
+     *   <li>відповідає {@link ASBlockWar#AGGRESSOR_COMPILED}</li>
+     * </ol>
+     * Використовується як єдина точка прийняття рішення «ворог чи ні».
+     *
+     * @param rpsl    повний RPSL-блок AS
+     * @param blocked множина кодів країн для блокування (результат {@link #blockedCountries()})
+     * @return {@code true} якщо AS слід заблокувати
+     */
+    public static boolean isAggressor(String rpsl, Set<String> blocked) {
+        return isCountryBlocked(rpsl, blocked)
+                && ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl).find();
+    }
+
+    /**
      * Фільтрує карту ASN: спочатку обов'язкова перевірка країни (BlockCountry),
      * потім перевірка {@link ASBlockWar#AGGRESSOR_COMPILED}.
      * <p>
@@ -57,29 +86,22 @@ public class FilterAggressor {
      * @return нова карта, що містить тільки підтверджені ворожі ASN
      */
     public static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
-        Set<String> blocked = Arrays.stream(ASBlockWar.config.getBlockCountry().split(","))
-                .map(s -> s.trim().toUpperCase())
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toSet());
+        Set<String> blocked = blockedCountries();
 
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
-                    if (!isCountryBlocked(entry.getValue(), blocked)) {
-                        ASBlockWar.resourcesForVerification.put(
-                                entry.getKey(),
-                                new ASN(Action.remove, entry.getKey(), entry.getValue())
-                        );
-                        log.warn("Вилучено (country не в блокованих {}): {}", blocked, entry.getKey());
-                        return false;
-                    }
-                    if (ASBlockWar.AGGRESSOR_COMPILED.matcher(entry.getValue()).find()) {
+                    if (isAggressor(entry.getValue(), blocked)) {
                         return true;
+                    }
+                    if (!isCountryBlocked(entry.getValue(), blocked)) {
+                        log.warn("Вилучено (country не в блокованих {}): {}", blocked, entry.getKey());
+                    } else {
+                        log.warn("Вилучено елемент (pattern не збігається): {}", entry.getKey());
                     }
                     ASBlockWar.resourcesForVerification.put(
                             entry.getKey(),
                             new ASN(Action.remove, entry.getKey(), entry.getValue())
                     );
-                    log.warn("Вилучено елемент: {}", entry.getKey());
                     return false;
                 })
                 .collect(Collectors.toConcurrentMap(

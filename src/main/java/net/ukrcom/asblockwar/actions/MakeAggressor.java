@@ -203,6 +203,7 @@ public class MakeAggressor {
      * @return та сама карта {@code aggressorAsnResources} після оновлення
      */
     public static Map<String, String> makeAggressorResources(Map<String, String> aggressorMntbyResources, Map<String, String> aggressorAsnResources) {
+        Set<String> blocked = FilterAggressor.blockedCountries();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
@@ -219,7 +220,7 @@ public class MakeAggressor {
                 try {
                     dbLimit.acquire();
                     String block = new retrieveOrganisation(asn).get();
-                    if (ASBlockWar.AGGRESSOR_COMPILED.matcher(block).find()) {
+                    if (FilterAggressor.isAggressor(block, blocked)) {
                         if (aggressorAsnResources.containsKey(asn)) {
                             if (!block.equals(aggressorAsnResources.get(asn))) {
                                 ASBlockWar.resourcesForVerification.put(
