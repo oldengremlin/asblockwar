@@ -166,6 +166,13 @@ public class DiscoverAggressor {
             }));
         }
 
+        // ForceNETBlock: примусово додаємо до цілі незалежно від БД
+        ASBlockWar.config.getForceNetBlock().stream()
+                .map(String::trim)
+                .filter(p -> !p.isEmpty())
+                .filter(p -> ipv6 || !p.contains(":"))
+                .forEach(targetPrefixes::add);
+
         // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні
         Set<String> toDelete = ConcurrentHashMap.newKeySet();
         toDelete.addAll(currentPrefixes);

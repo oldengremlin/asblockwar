@@ -21,7 +21,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +60,9 @@ public class Config {
     private String getBlackholeIpv6Override;
     private String afterCommandOverride;
     private String blockCountryOverride;
+    private String forceAsBlockOverride;
+    private String forceNetBlockOverride;
+
     private String listFile;
     private String listMntbyFile;
     private String listAssetFile;
@@ -66,7 +73,9 @@ public class Config {
     private String getBlackhole;
     private String getBlackholeIpv6;
     private String afterCommand;
-    private String blockCountry;
+    private List<String> blockCountry;
+    private List<String> forceAsBlock;
+    private List<String> forceNetBlock;
     private boolean blackbgpIpv6 = true;
     private boolean blackbgpIpv6Explicit = false;
     private boolean batchMode = false;
@@ -119,9 +128,15 @@ public class Config {
         this.afterCommand = this.afterCommandOverride != null
                             ? this.afterCommandOverride
                             : this.properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
-        this.blockCountry = this.blockCountryOverride != null
+        this.blockCountry = parseList(this.blockCountryOverride != null
                             ? this.blockCountryOverride
-                            : this.properties.getProperty("BlockCountry", "RU").trim();
+                            : this.properties.getProperty("BlockCountry", "RU"));
+        this.forceAsBlock = parseList(this.forceAsBlockOverride != null
+                            ? this.forceAsBlockOverride
+                            : this.properties.getProperty("ForceASBlock", ""));
+        this.forceNetBlock = parseList(this.forceNetBlockOverride != null
+                             ? this.forceNetBlockOverride
+                             : this.properties.getProperty("ForceNETBlock", ""));
 
         // CLI flags win; fall back to properties file values
         if (!this.blackbgpIpv6Explicit) {
@@ -166,7 +181,9 @@ public class Config {
         p.setProperty("BlackbgpIpv6", String.valueOf(this.blackbgpIpv6));
         p.setProperty("BatchMode", String.valueOf(this.batchMode));
         p.setProperty("AfterCommand", this.afterCommand);
-        p.setProperty("BlockCountry", this.blockCountry);
+        p.setProperty("BlockCountry", joinList(this.blockCountry));
+        p.setProperty("ForceASBlock", joinList(this.forceAsBlock));
+        p.setProperty("ForceNETBlock", joinList(this.forceNetBlock));
         if (this.recursiveAsset >= 0) {
             p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
         }
@@ -214,6 +231,10 @@ public class Config {
                 this.afterCommandOverride = arg.substring("--after-command=".length()).trim();
             } else if (arg.startsWith("--block-country=")) {
                 this.blockCountryOverride = arg.substring("--block-country=".length()).trim();
+            } else if (arg.startsWith("--force-as=")) {
+                this.forceAsBlockOverride = arg.substring("--force-as=".length()).trim();
+            } else if (arg.startsWith("--force-net=")) {
+                this.forceNetBlockOverride = arg.substring("--force-net=".length()).trim();
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
                 this.blackbgpIpv6Explicit = true;
@@ -251,9 +272,11 @@ public class Config {
         System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
         System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output (default: enabled)");
         System.out.println("  -no6, --no-ipv6           Disable IPv6 routes in blackbgp output");
+        System.out.println("  --block-country=<CC,...>  Country codes to block, comma-separated (default: RU)");
+        System.out.println("  --force-as=<AS,...>       ASNs to force-block regardless of country filter");
+        System.out.println("  --force-net=<pfx,...>     Prefixes to force into blackbgp target (blackhole only)");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -b, --batch               Run AfterCommand script after processing");
-        System.out.println("  --block-country=<CC,...>  Comma-separated country codes to block (default: RU)");
         System.out.println("  --after-command=<path>    Script to run in batch mode");
         System.out.println("                            (default: after.sh on Unix, after.cmd on Windows)");
         System.out.println("  -g, --gui                 Launch graphical user interface");
@@ -286,6 +309,20 @@ public class Config {
                 }
             }
         }
+    }
+
+    private static List<String> parseList(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        return Arrays.stream(s.split(","))
+                .map(String::trim)
+                .filter(v -> !v.isEmpty())
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    private static String joinList(List<String> list) {
+        return list == null ? "" : String.join(",", list);
     }
 
     private static String defaultAfterCommand() {
