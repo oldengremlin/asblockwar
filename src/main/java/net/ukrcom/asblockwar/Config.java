@@ -65,7 +65,7 @@ public class Config {
     private String getBlackhole;
     private String getBlackholeIpv6;
     private String afterCommand;
-    private boolean blackbgpIpv6 = false;
+    private boolean blackbgpIpv6 = true;
     private boolean batchMode = false;
     private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
