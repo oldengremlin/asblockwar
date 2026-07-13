@@ -60,8 +60,8 @@ public class FilterAggressor {
     /**
      * Повертає {@code true}, якщо RPSL-блок одночасно:
      * <ol>
-     *   <li>містить {@code country:} з кодом зі списку {@code blocked}</li>
-     *   <li>відповідає {@link ASBlockWar#AGGRESSOR_COMPILED} (налаштовується через {@code AggressorPattern})</li>
+     *   <li>відповідає {@link ASBlockWar#AGGRESSOR_COMPILED} — ширша перевірка (org-name, phone, address, abuse-mailbox, country)</li>
+     *   <li>містить {@code country:} з кодом зі списку {@code blocked} — вужча фільтрація хибних спрацювань</li>
      * </ol>
      * Використовується як єдина точка прийняття рішення «ворог чи ні».
      *
@@ -70,8 +70,8 @@ public class FilterAggressor {
      * @return {@code true} якщо AS слід заблокувати
      */
     public static boolean isAggressor(String rpsl, Set<String> blocked) {
-        return isCountryBlocked(rpsl, blocked)
-                && ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl).find();
+        return ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl).find()
+                && isCountryBlocked(rpsl, blocked);
     }
 
     /**
@@ -91,10 +91,10 @@ public class FilterAggressor {
                     if (isAggressor(entry.getValue(), blocked)) {
                         return true;
                     }
-                    if (!isCountryBlocked(entry.getValue(), blocked)) {
-                        log.warn("Вилучено (country не в блокованих {}): {}", blocked, entry.getKey());
-                    } else {
+                    if (!ASBlockWar.AGGRESSOR_COMPILED.matcher(entry.getValue()).find()) {
                         log.warn("Вилучено елемент (pattern не збігається): {}", entry.getKey());
+                    } else {
+                        log.warn("Вилучено (country не в блокованих {}): {}", blocked, entry.getKey());
                     }
                     ASBlockWar.resourcesForVerification.put(
                             entry.getKey(),

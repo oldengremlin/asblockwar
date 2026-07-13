@@ -423,31 +423,31 @@ flowchart TD
 
 ASN вважається ворожим лише при одночасному виконанні **обох** умов:
 
-**1. Обов'язкова умова — країна (`BlockCountry`)**
+**1. Патерн агресора (`AGGRESSOR_PATTERN`) — ширша перевірка**
 
-RPSL-блок повинен містити поле `country:` зі значенням, яке входить до переліку `BlockCountry` (за замовчуванням: `RU`). Якщо поле `country:` відсутнє або його значення не збігається — AS не блокується, незалежно від інших атрибутів.
-
-**2. Патерн агресора (`AGGRESSOR_PATTERN`)**
-
-Після проходження country-фільтра RPSL-блок перевіряється на відповідність хоча б одному з критеріїв:
+RPSL-блок перевіряється на відповідність хоча б одному з критеріїв:
 
 | Атрибут | Критерій |
 |---|---|
 | `org-name:` | містить `Kaspersky` або `Qrator` |
 | `country:` | містить `ru` |
-| `phone:` | містить `+7` (код Росії/Казахстану; KZ відхиляється country-фільтром, тому `phone:` безпечний) |
+| `phone:` | містить `+7` (код Росії/Казахстану; KZ відсіюється на кроці 2) |
 | `address:` | містить `moscow`, `moskow`, `russia`, `rusia` тощо |
 | `abuse-mailbox:` | закінчується на `.ru` |
 
-Патерн налаштовується через властивість `AggressorPattern` у файлі конфігурації або через діалог Properties у GUI (з валідацією regex перед збереженням). За замовчуванням:
+Патерн налаштовується через властивість `AggressorPattern` або через діалог Properties у GUI (з валідацією regex перед збереженням). За замовчуванням:
 
 ```
 (?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\.ru)$
 ```
 
-> **Приклад:** AS з `org-name: Qrator Labs CZ s.r.o.` та `country: CZ` **не блокуватиметься** — country-фільтр (`RU`) її відхилить ще до перевірки патерну, навіть попри збіг `org-name:.*(Qrator).*`.
+**2. Фільтр країни (`BlockCountry`) — вужчий відсів хибних спрацювань**
 
-Country-фільтр застосовується єдино і послідовно у всіх точках прийняття рішення: первинна фільтрація (`filterAggressorAsnResources`), виявлення суміжних AS (`makeAggressorResources`, `discoverCooperatingAsnResources`) та перевірка під час blackbgp-звірки (`discoverBlackbgpChanges`).
+З тих, що пройшли патерн, залишаються лише AS, чий `country:` входить до переліку `BlockCountry` (за замовчуванням: `RU`). Це запобігає блокуванню AS з таких само org-name/phone, але зареєстрованих в інших країнах.
+
+> **Приклад:** AS з `org-name: Qrator Labs CZ s.r.o.` та `country: CZ` — патерн збігається (`org-name:.*(Qrator).*`), але `country: CZ` не входить до `BlockCountry=RU` → AS **не блокується**.
+
+Обидва кроки застосовуються послідовно і єдино у всіх точках прийняття рішення: первинна фільтрація (`filterAggressorAsnResources`), виявлення суміжних AS (`makeAggressorResources`, `discoverCooperatingAsnResources`) та перевірка під час blackbgp-звірки (`discoverBlackbgpChanges`).
 
 ### Примусове блокування (ForceASBlock і ForceNETBlock)
 
