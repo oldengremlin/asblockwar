@@ -412,7 +412,7 @@ public class StoreActions {
                     String asns = e.getValue().stream()
                             .map(String::toLowerCase)
                             .collect(Collectors.joining(", "));
-                    return String.format("%-19s%s", e.getKey(), asns);
+                    return e.getKey() + "\t" + asns;
                 })
                 .collect(Collectors.joining("\n", "", "\n"));
         FileUtils.writeStoreFile(base.resolve("networks.list"), networksList);

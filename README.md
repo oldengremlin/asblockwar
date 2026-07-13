@@ -35,13 +35,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.3.5-<buildNumber>.jar
+target/ASBlockWar-3.3.7-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.3.5-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.3.7-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -127,7 +127,7 @@ AfterCommand=after.sh
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.3.5-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.3.7-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -181,7 +181,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.3.5-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.3.7-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -211,7 +211,7 @@ java -jar target/ASBlockWar-3.3.5-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.3.5-00000001.jar --gui
+java -jar target/ASBlockWar-3.3.7-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -520,7 +520,7 @@ IPv6-маршрути враховуються лише з прапорцем `-
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.3.5-00000001.jar --batch
+java -jar target/ASBlockWar-3.3.7-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -618,7 +618,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.3.5-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.3.7-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD

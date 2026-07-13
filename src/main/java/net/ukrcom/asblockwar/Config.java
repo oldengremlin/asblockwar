@@ -65,7 +65,8 @@ public class Config {
     private String getBlackhole;
     private String getBlackholeIpv6;
     private String afterCommand;
-    private boolean blackbgpIpv6 = false;
+    private boolean blackbgpIpv6 = true;
+    private boolean blackbgpIpv6Explicit = false;
     private boolean batchMode = false;
     private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
@@ -118,9 +119,9 @@ public class Config {
                             : this.properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
 
         // CLI flags win; fall back to properties file values
-        if (!this.blackbgpIpv6) {
+        if (!this.blackbgpIpv6Explicit) {
             this.blackbgpIpv6 = Boolean.parseBoolean(
-                    this.properties.getProperty("BlackbgpIpv6", "false").trim());
+                    this.properties.getProperty("BlackbgpIpv6", "true").trim());
         }
         if (!this.batchMode) {
             this.batchMode = Boolean.parseBoolean(
@@ -207,6 +208,10 @@ public class Config {
                 this.afterCommandOverride = arg.substring("--after-command=".length()).trim();
             } else if (arg.equals("--ipv6") || arg.equals("-6")) {
                 this.blackbgpIpv6 = true;
+                this.blackbgpIpv6Explicit = true;
+            } else if (arg.equals("--no-ipv6") || arg.equals("-no6")) {
+                this.blackbgpIpv6 = false;
+                this.blackbgpIpv6Explicit = true;
             } else if (arg.equals("--recursive-asset")) {
                 this.recursiveAsset = 1;
             } else if (arg.startsWith("--recursive-asset=")) {
@@ -236,7 +241,8 @@ public class Config {
         System.out.println("                            (default: ssh blackbgp \"sudo ip r l t blackbgp\")");
         System.out.println("  --get-blackhole6=<cmd>    Command to read IPv6 blackbgp routes");
         System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
-        System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output");
+        System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output (default: enabled)");
+        System.out.println("  -no6, --no-ipv6           Disable IPv6 routes in blackbgp output");
         System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
         System.out.println("  -b, --batch               Run AfterCommand script after processing");
         System.out.println("  --after-command=<path>    Script to run in batch mode");
