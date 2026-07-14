@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import net.ukrcom.asblockwar.ui.ASBlockWarApp;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
+import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 import net.ukrcom.asblockwar.actions.BatchRunner;
 import net.ukrcom.asblockwar.actions.DiscoverAggressor;
 import net.ukrcom.asblockwar.actions.DiscoveryResult;
@@ -65,8 +66,10 @@ public class ASBlockWar {
     // Скомпільований патерн для використання з find() — ініціалізується у main() з config.getAggressorPattern()
     public static Pattern AGGRESSOR_COMPILED;
 
-    // Створюємо мапу для вилучених елементів
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
+
+    // AS, що збігаються з AggressorPattern але не входять до BlockCountry
+    public static Map<String, SuspiciousAS> suspiciousAsnResources = new ConcurrentHashMap<>();
 
     /**
      * Точка входу програми.
@@ -129,6 +132,7 @@ public class ASBlockWar {
         listFile = config.getListFile();
         listMntbyFile = config.getListMntbyFile();
         resourcesForVerification = new ConcurrentHashMap<>();
+        suspiciousAsnResources = new ConcurrentHashMap<>();
 
         LOGGER.info("listFile: " + listFile);
         LOGGER.info("listMntbyFile: " + listMntbyFile);

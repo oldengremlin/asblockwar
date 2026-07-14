@@ -87,7 +87,8 @@ net.ukrcom.asblockwar/
 │
 ├── serviceStructures/
 │   ├── Action.java                   # enum: add / remove / modify
-│   └── ASN.java                      # record: (Action, asn, data)
+│   ├── ASN.java                      # record: (Action, asn, data)
+│   └── SuspiciousAS.java             # record: (asn, country, matchedLine) — підозрілі AS
 │
 └── ui/
     ├── ASBlockWarApp.java            # JavaFX Application (GUI entry point)
@@ -128,7 +129,7 @@ net.ukrcom.asblockwar/
 | 12c | `StoreActions.storeMaintainersList()` | Записує STORE/maintainers.list |
 | 12d | `StoreActions.storeNetworkFiles()` | Записує STORE/networks.list та STORE/NET/ |
 | 13 | `BatchRunner.runBatchCommand()` | Запускає AfterCommand-скрипт (якщо `-b`) |
-| 14 | `Reporter.report()` | Виводить фінальну таблицю змін |
+| 14 | `Reporter.report()` | Виводить фінальну таблицю змін + таблицю підозрілих AS |
 
 ---
 
@@ -178,26 +179,32 @@ SQLite підтримує паралельні читання (`WAL` / `PRAGMA j
 
 Fallback на `REPLACE_EXISTING` якщо FS не підтримує атомарне переміщення.
 
-### 4. `resourcesForVerification` — журнал змін
+### 4. `resourcesForVerification` і `suspiciousAsnResources` — журнали
 
-`ASBlockWar.resourcesForVerification` (`ConcurrentHashMap<String, ASN>`) — це
-спільний журнал, який наповнюється протягом всього пайплайну та читається лише
-один раз `Reporter.report()` в кінці. Запис завжди через `put()` (no-conflict —
-один ASN обробляється лише одним кроком одночасно).
+`ASBlockWar.resourcesForVerification` (`ConcurrentHashMap<String, ASN>`) — журнал
+змін ASN (add/remove/modify), наповнюється протягом всього пайплайну, читається
+один раз у `Reporter.report()`. Запис через `put()`.
 
-### 5. Двофазна перевірка агресора
+`ASBlockWar.suspiciousAsnResources` (`ConcurrentHashMap<String, SuspiciousAS>`) —
+AS, що збігаються з `AggressorPattern`, але не входять до `BlockCountry`. Наповнюється
+у `FilterAggressor.filterAggressorAsnResources()`. Читається у `Reporter.report()`
+для виводу окремої таблиці підозрілих AS.
+Обидві колекції скидаються на початку кожного `runProcessing()`.
+
+### 5. Критерій блокування AS
 
 ```java
 // FilterAggressor.isAggressor()
-return AGGRESSOR_COMPILED.matcher(rpsl).find()   // 1. широка перевірка (pattern)
-        && isCountryBlocked(rpsl, blocked);        // 2. вузька (country-фільтр)
+return isCountryBlocked(rpsl, blocked);   // country: з RPSL-блоку ∈ BlockCountry
 ```
 
-**Порядок важливий**: патерн відсіює широко (org-name, phone, address, abuse-mailbox),
-country уточнює. `ForceASBlock` — обхід обох умов.
+`BlockCountry` — єдиний критерій блокування. `AggressorPattern` (`AGGRESSOR_COMPILED`)
+більше не впливає на рішення про блокування: він використовується лише для виявлення
+підозрілих AS поза `BlockCountry` (звіт у кінці пайплайну).
 
 `AGGRESSOR_COMPILED` — нефінальне статичне поле (компілюється після завантаження
 конфігу, і може бути перекомпільоване через діалог Properties з валідацією).
+`ForceASBlock` обходить `isAggressor()` повністю.
 
 ### 6. GUI ↔ обробка: `UIProgressCallback`
 

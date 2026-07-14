@@ -22,6 +22,7 @@ import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
+import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 
 /**
  * Формує та виводить фінальний звіт про зміни поточного запуску ASBlockWar.
@@ -80,6 +81,38 @@ public class Reporter {
                 String a = i < added.size() ? added.get(i).asn() : "";
                 String m = i < modified.size() ? modified.get(i).asn() : "";
                 log.info(String.format(FMT, r, a, m));
+            }
+        }
+
+        List<SuspiciousAS> suspicious = ASBlockWar.suspiciousAsnResources.values().stream()
+                .sorted(Comparator.comparingLong(s -> Long.parseLong(s.asn().substring(2))))
+                .toList();
+
+        if (!suspicious.isEmpty()) {
+            final String H_ASN     = "ASN";
+            final String H_COUNTRY = "Країна";
+            final String H_MATCH   = "Збіг з AggressorPattern";
+
+            int colAsn     = Math.max(H_ASN.length(),
+                    suspicious.stream().mapToInt(s -> s.asn().length()).max().orElse(0));
+            int colCountry = Math.max(H_COUNTRY.length(),
+                    suspicious.stream().mapToInt(s -> s.country().length()).max().orElse(0));
+            int colMatch   = Math.max(H_MATCH.length(),
+                    suspicious.stream().mapToInt(s -> s.matchedLine().length()).max().orElse(0));
+
+            String fmt = "%-" + colAsn + "s │ %-" + colCountry + "s │ %-" + colMatch + "s";
+            String sep = "━".repeat(colAsn + 1)
+                    + "┿"
+                    + "━".repeat(colCountry + 2)
+                    + "┿"
+                    + "━".repeat(colMatch + 1);
+
+            log.info("");
+            log.info("Підозрілі AS поза BlockCountry — збіг з AggressorPattern ({}):", suspicious.size());
+            log.info(String.format(fmt, H_ASN, H_COUNTRY, H_MATCH));
+            log.info(sep);
+            for (SuspiciousAS s : suspicious) {
+                log.info(String.format(fmt, s.asn(), s.country(), s.matchedLine()));
             }
         }
     }
