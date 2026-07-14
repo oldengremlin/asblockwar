@@ -44,7 +44,8 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
 @Slf4j
 public class MakeAggressor {
 
-    private MakeAggressor() {}
+    private MakeAggressor() {
+    }
 
     public static final String[] blockedAsSet = {
         "AS-MAILRU",

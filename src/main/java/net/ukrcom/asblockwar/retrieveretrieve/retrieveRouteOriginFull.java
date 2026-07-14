@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -43,7 +44,8 @@ public class retrieveRouteOriginFull {
      * @param origin позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveRouteOriginFull(String origin) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.origin = origin;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
+        this.origin = origin;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             loadRoutes(conn);

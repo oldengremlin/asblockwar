@@ -27,7 +27,6 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
  * Утиліти для читання та запису файлів конфігурації та сховища.
@@ -37,7 +36,8 @@ import net.ukrcom.asblockwar.ASBlockWar;
  */
 public class FileUtils {
 
-    private FileUtils() {}
+    private FileUtils() {
+    }
 
     /**
      * Читає непорожні рядки файлу, пропускаючи коментарі ({@code #}, {@code ;}).

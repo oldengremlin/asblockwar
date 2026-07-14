@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -54,7 +55,8 @@ public class retrieveAsSetMembers {
      *                       ({@code 0} — тільки прямі члени, без рекурсії)
      */
     public retrieveAsSetMembers(String asSet, int recursionDepth) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.asSet = asSet;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
+        this.asSet = asSet;
         this.recursionDepth = recursionDepth;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {

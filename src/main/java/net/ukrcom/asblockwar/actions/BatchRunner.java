@@ -32,7 +32,8 @@ import net.ukrcom.asblockwar.UIProgressCallback;
 @Slf4j
 public class BatchRunner {
 
-    private BatchRunner() {}
+    private BatchRunner() {
+    }
 
     /**
      * Запускає AfterCommand-скрипт після завершення обробки, якщо увімкнено пакетний режим ({@code -b}).

@@ -31,10 +31,11 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
 @Slf4j
 public class FilterAggressor {
 
-    private static final Pattern COUNTRY_PATTERN =
-            Pattern.compile("(?im)^country:\\s*([A-Z]{2,3})\\b");
+    private static final Pattern COUNTRY_PATTERN
+            = Pattern.compile("(?im)^country:\\s*([A-Z]{2,3})\\b");
 
-    private FilterAggressor() {}
+    private FilterAggressor() {
+    }
 
     private static boolean isCountryBlocked(String rpsl, Set<String> blocked) {
         Matcher m = COUNTRY_PATTERN.matcher(rpsl);

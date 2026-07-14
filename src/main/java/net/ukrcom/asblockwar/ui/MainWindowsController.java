@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -60,27 +61,43 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteFull;
 @Slf4j
 public class MainWindowsController implements Initializable {
 
-    @FXML private Button runButton;
-    @FXML private Button propertiesButton;
-    @FXML private Accordion accordion;
-    @FXML private TitledPane paneListMntBy;
-    @FXML private TitledPane paneListAsSet;
-    @FXML private TitledPane paneListAs;
-    @FXML private TitledPane paneListPrefixes;
-    @FXML private ListView<String> listMntBy;
-    @FXML private ListView<String> listAsSet;
-    @FXML private ListView<String> listAs;
-    @FXML private ListView<String> listPrefixes;
-    @FXML private TextArea textWarJuniper;
-    @FXML private TextArea textWarBlackbgp;
-    @FXML private CheckBox wrapJuniper;
-    @FXML private Label statusLabel;
-    @FXML private TextField filterField;
+    @FXML
+    private Button runButton;
+    @FXML
+    private Button propertiesButton;
+    @FXML
+    private Accordion accordion;
+    @FXML
+    private TitledPane paneListMntBy;
+    @FXML
+    private TitledPane paneListAsSet;
+    @FXML
+    private TitledPane paneListAs;
+    @FXML
+    private TitledPane paneListPrefixes;
+    @FXML
+    private ListView<String> listMntBy;
+    @FXML
+    private ListView<String> listAsSet;
+    @FXML
+    private ListView<String> listAs;
+    @FXML
+    private ListView<String> listPrefixes;
+    @FXML
+    private TextArea textWarJuniper;
+    @FXML
+    private TextArea textWarBlackbgp;
+    @FXML
+    private CheckBox wrapJuniper;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private TextField filterField;
 
     // Full (unfiltered) backing lists; replaced atomically on each load
-    private List<String> allItemsMntBy    = List.of();
-    private List<String> allItemsAsSet    = List.of();
-    private List<String> allItemsAs       = List.of();
+    private List<String> allItemsMntBy = List.of();
+    private List<String> allItemsAsSet = List.of();
+    private List<String> allItemsAs = List.of();
     private List<String> allItemsPrefixes = List.of();
 
     // Saved filter text per tab: [0]=MntBy, [1]=AsSet, [2]=As, [3]=Prefixes
@@ -92,54 +109,75 @@ public class MainWindowsController implements Initializable {
         accordion.setExpandedPane(paneListAs);
         Platform.runLater(paneListAs::requestFocus);
 
-        accordion.expandedPaneProperty().addListener((obs, oldPane, newPane) ->
-                onTabSwitch(oldPane, newPane));
-        filterField.textProperty().addListener((obs, old, text) ->
-                onFilterChanged(text));
+        accordion.expandedPaneProperty().addListener((obs, oldPane, newPane)
+                -> onTabSwitch(oldPane, newPane));
+        filterField.textProperty().addListener((obs, old, text)
+                -> onFilterChanged(text));
 
         refreshUi();
         setupDoubleClick();
     }
 
     // ── tab / filter helpers ─────────────────────────────────────────────────
-
     private int tabIndex(TitledPane pane) {
-        if (pane == paneListMntBy)    return 0;
-        if (pane == paneListAsSet)    return 1;
-        if (pane == paneListAs)       return 2;
-        if (pane == paneListPrefixes) return 3;
+        if (pane == paneListMntBy) {
+            return 0;
+        }
+        if (pane == paneListAsSet) {
+            return 1;
+        }
+        if (pane == paneListAs) {
+            return 2;
+        }
+        if (pane == paneListPrefixes) {
+            return 3;
+        }
         return -1;
     }
 
     private List<String> backingFor(int idx) {
         return switch (idx) {
-            case 0 -> allItemsMntBy;
-            case 1 -> allItemsAsSet;
-            case 2 -> allItemsAs;
-            case 3 -> allItemsPrefixes;
-            default -> List.of();
+            case 0 ->
+                allItemsMntBy;
+            case 1 ->
+                allItemsAsSet;
+            case 2 ->
+                allItemsAs;
+            case 3 ->
+                allItemsPrefixes;
+            default ->
+                List.of();
         };
     }
 
     private ListView<String> listFor(int idx) {
         return switch (idx) {
-            case 0 -> listMntBy;
-            case 1 -> listAsSet;
-            case 2 -> listAs;
-            case 3 -> listPrefixes;
-            default -> null;
+            case 0 ->
+                listMntBy;
+            case 1 ->
+                listAsSet;
+            case 2 ->
+                listAs;
+            case 3 ->
+                listPrefixes;
+            default ->
+                null;
         };
     }
 
     private List<String> filtered(List<String> all, String text) {
-        if (text == null || text.isBlank()) return all;
+        if (text == null || text.isBlank()) {
+            return all;
+        }
         String lower = text.toLowerCase();
         return all.stream().filter(s -> s.toLowerCase().contains(lower)).collect(Collectors.toList());
     }
 
     private void applyFilterToList(int idx, String text) {
         ListView<String> lv = listFor(idx);
-        if (lv == null) return;
+        if (lv == null) {
+            return;
+        }
         List<String> items = filtered(backingFor(idx), text);
         Platform.runLater(() -> lv.setItems(FXCollections.observableList(items)));
     }
@@ -147,7 +185,9 @@ public class MainWindowsController implements Initializable {
     private void onFilterChanged(String text) {
         TitledPane active = accordion.getExpandedPane();
         int idx = tabIndex(active);
-        if (idx < 0) return;
+        if (idx < 0) {
+            return;
+        }
         tabFilters[idx] = text != null ? text : "";
         applyFilterToList(idx, tabFilters[idx]);
     }
@@ -155,7 +195,9 @@ public class MainWindowsController implements Initializable {
     private void onTabSwitch(TitledPane oldPane, TitledPane newPane) {
         if (oldPane != null) {
             int idx = tabIndex(oldPane);
-            if (idx >= 0) tabFilters[idx] = filterField.getText();
+            if (idx >= 0) {
+                tabFilters[idx] = filterField.getText();
+            }
         }
         if (newPane != null) {
             int idx = tabIndex(newPane);
@@ -164,18 +206,21 @@ public class MainWindowsController implements Initializable {
     }
 
     // ── double-click ─────────────────────────────────────────────────────────
-
     private void setupDoubleClick() {
         listMntBy.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
                 String sel = listMntBy.getSelectionModel().getSelectedItem();
-                if (sel != null) showWhoisInfo("MNT-BY: " + sel, () -> new retrieveMntnerFull(sel).get());
+                if (sel != null) {
+                    showWhoisInfo("MNT-BY: " + sel, () -> new retrieveMntnerFull(sel).get());
+                }
             }
         });
         listAsSet.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
                 String sel = listAsSet.getSelectionModel().getSelectedItem();
-                if (sel != null) showWhoisInfo("AS-SET: " + sel, () -> new retrieveAsSet(sel).get());
+                if (sel != null) {
+                    showWhoisInfo("AS-SET: " + sel, () -> new retrieveAsSet(sel).get());
+                }
             }
         });
         listAs.setOnMouseClicked(e -> {
@@ -190,7 +235,9 @@ public class MainWindowsController implements Initializable {
         listPrefixes.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
                 String sel = listPrefixes.getSelectionModel().getSelectedItem();
-                if (sel != null) showWhoisInfo("route: " + sel, () -> new retrieveRouteFull(sel).get());
+                if (sel != null) {
+                    showWhoisInfo("route: " + sel, () -> new retrieveRouteFull(sel).get());
+                }
             }
         });
     }
@@ -206,7 +253,6 @@ public class MainWindowsController implements Initializable {
     }
 
     // ── FXML actions ─────────────────────────────────────────────────────────
-
     @FXML
     private void clearFilter() {
         filterField.clear();
@@ -273,7 +319,6 @@ public class MainWindowsController implements Initializable {
     }
 
     // ── highlight (called from RunProgressController) ─────────────────────────
-
     /**
      * Розгортає панель ASN і виділяє в списку вказаний ASN.
      * Виклик безпечний з будь-якого потоку.
@@ -330,9 +375,10 @@ public class MainWindowsController implements Initializable {
     }
 
     // ── data loading ─────────────────────────────────────────────────────────
-
     private void refreshUi() {
-        if (ASBlockWar.config == null) return;
+        if (ASBlockWar.config == null) {
+            return;
+        }
         loadListFile(listMntBy, Path.of(ASBlockWar.config.getListMntbyFile()),
                 items -> allItemsMntBy = items, 0);
         loadListFile(listAsSet, Path.of(ASBlockWar.config.getListAssetFile()),
@@ -362,7 +408,9 @@ public class MainWindowsController implements Initializable {
     }
 
     private void loadPrefixes() {
-        if (ASBlockWar.config == null) return;
+        if (ASBlockWar.config == null) {
+            return;
+        }
         Path networksFile = Path.of(ASBlockWar.config.getStoreDir()).resolve("networks.list");
         try {
             if (Files.exists(networksFile)) {

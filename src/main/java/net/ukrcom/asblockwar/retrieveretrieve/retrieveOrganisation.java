@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -54,7 +55,8 @@ public class retrieveOrganisation {
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveOrganisation(String autNum) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.autNum = autNum;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
+        this.autNum = autNum;
 
         if (cache.containsKey(autNum)) {
             log.debug("retrieveOrganisation({}) — cache hit", autNum);

@@ -36,7 +36,8 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
 @Slf4j
 public class ForceBlockActions {
 
-    private ForceBlockActions() {}
+    private ForceBlockActions() {
+    }
 
     /**
      * Додає всі ASN зі списку {@code ForceASBlock} до карти ворожих ресурсів,

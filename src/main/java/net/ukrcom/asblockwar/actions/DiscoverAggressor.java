@@ -15,7 +15,6 @@
  */
 package net.ukrcom.asblockwar.actions;
 
-import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +44,8 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
 @Slf4j
 public class DiscoverAggressor {
 
-    private DiscoverAggressor() {}
+    private DiscoverAggressor() {
+    }
 
     // Службові мантейнери RIPE, які присутні в будь-якому записі — не є ознакою належності до агресора
     public static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);

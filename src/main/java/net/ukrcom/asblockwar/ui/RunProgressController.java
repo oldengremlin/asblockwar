@@ -45,9 +45,12 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class RunProgressController implements Initializable {
 
-    @FXML private ProgressBar progressBar;
-    @FXML private WebView     logView;
-    @FXML private Button      closeButton;
+    @FXML
+    private ProgressBar progressBar;
+    @FXML
+    private WebView logView;
+    @FXML
+    private Button closeButton;
 
     private Stage stage;
     private GuiLogAppender appender;
@@ -60,6 +63,8 @@ public class RunProgressController implements Initializable {
     /**
      * Ініціалізує WebEngine: завантажує початковий HTML-документ і чекає на SUCCEEDED
      * перед виконанням накопичених JS-викликів.
+     * @param url
+     * @param rb
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -81,6 +86,8 @@ public class RunProgressController implements Initializable {
     /**
      * Attach a Logback appender and a rate-limited UIProgressCallback, start
      * processing on a daemon thread, and block the OS close button until done.
+     * @param dialogStage
+     * @param mainCtrl
      */
     public void startProcessing(Stage dialogStage, MainWindowsController mainCtrl) {
         this.stage = dialogStage;
@@ -95,16 +102,25 @@ public class RunProgressController implements Initializable {
         ASBlockWar.uiCallback = new UIProgressCallback() {
             @Override
             public void onAsnProcessing(String asn) {
-                if (throttle(lastHighlight)) mainCtrl.highlightAsn(asn);
+                if (throttle(lastHighlight)) {
+                    mainCtrl.highlightAsn(asn);
+                }
             }
+
             @Override
             public void onAsSetProcessing(String asSet) {
-                if (throttle(lastHighlight)) mainCtrl.highlightAsSet(asSet);
+                if (throttle(lastHighlight)) {
+                    mainCtrl.highlightAsSet(asSet);
+                }
             }
+
             @Override
             public void onMntByProcessing(String mntBy) {
-                if (throttle(lastHighlight)) mainCtrl.highlightMntBy(mntBy);
+                if (throttle(lastHighlight)) {
+                    mainCtrl.highlightMntBy(mntBy);
+                }
             }
+
             @Override
             public void onBatchOutputLine(String line, boolean stderr) {
                 appendBatchLine(line, stderr);
@@ -112,7 +128,9 @@ public class RunProgressController implements Initializable {
         };
 
         stage.setOnCloseRequest(e -> {
-            if (closeButton.isDisable()) e.consume();
+            if (closeButton.isDisable()) {
+                e.consume();
+            }
         });
 
         Task<Void> task = new Task<>() {
@@ -193,7 +211,9 @@ public class RunProgressController implements Initializable {
 
     @FXML
     private void doClose() {
-        if (stage != null) stage.hide();
+        if (stage != null) {
+            stage.hide();
+        }
     }
 
     private static String buildInitialHtml() {

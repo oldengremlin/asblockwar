@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -47,7 +48,8 @@ public class retrieveMntBy {
      * @param mntBy назва mnt-by (наприклад, {@code "MNTNER-UA"})
      */
     public retrieveMntBy(String mntBy) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.sb = new StringBuilder();
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
+        this.sb = new StringBuilder();
 
         this.mntBy = mntBy;
 

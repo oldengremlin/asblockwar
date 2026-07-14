@@ -55,7 +55,8 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginFull;
 @Slf4j
 public class StoreActions {
 
-    private StoreActions() {}
+    private StoreActions() {
+    }
 
     /**
      * Зберігає виявлені MNT-BY ідентифікатори у файл {@code list_mntby}.

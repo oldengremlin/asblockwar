@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -51,7 +52,8 @@ public class retrieveImportExportAsSets {
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveImportExportAsSets(String autNum) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.autNum = autNum;
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
+        this.autNum = autNum;
 
         try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI());
              PreparedStatement stmt = conn.prepareStatement(

@@ -23,4 +23,6 @@ public record BlackbgpChanges(
         Set<String> toDelete,
         Set<String> toReplace,
         Map<String, String> newEnemies,
-        Set<String> effectivePrefixes) {}
+        Set<String> effectivePrefixes) {
+
+}

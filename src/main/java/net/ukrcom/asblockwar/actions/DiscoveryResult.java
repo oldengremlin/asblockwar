@@ -18,4 +18,6 @@ package net.ukrcom.asblockwar.actions;
 import java.util.Set;
 
 /** Результат виявлення суміжних ворожих AS: знайдені MNT-BY та AS-SET ідентифікатори. */
-public record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {}
+public record DiscoveryResult(Set<String> mntBy, Set<String> asSets) {
+
+}

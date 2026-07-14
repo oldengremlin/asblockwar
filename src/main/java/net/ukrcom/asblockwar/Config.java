@@ -44,10 +44,10 @@ import picocli.CommandLine.Option;
  * @author olden
  */
 @Command(
-    name        = "ASBlockWar",
-    sortOptions = false,
-    usageHelpWidth = 100,
-    description = "Automated maintenance of hostile autonomous system block lists."
+        name = "ASBlockWar",
+        sortOptions = false,
+        usageHelpWidth = 100,
+        description = "Automated maintenance of hostile autonomous system block lists."
 )
 @Slf4j
 @Getter
@@ -56,13 +56,12 @@ public class Config {
 
     private final Properties properties;
 
-    public static final String DEFAULT_AGGRESSOR_PATTERN =
-            "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
+    public static final String DEFAULT_AGGRESSOR_PATTERN
+            = "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
 
     // -----------------------------------------------------------------------
     // CLI options — Picocli sets these in phase 1 (before properties are read)
     // -----------------------------------------------------------------------
-
     @Option(names = {"-h", "--help"}, usageHelp = true,
             description = "Show this help and exit")
     private boolean helpRequested;
@@ -101,12 +100,12 @@ public class Config {
 
     @Option(names = "--get-blackhole", paramLabel = "<cmd>",
             description = "Command to read IPv4 blackbgp routes%n"
-                        + "  (default: ssh blackbgp \"sudo ip r l t blackbgp\")")
+            + "  (default: ssh blackbgp \"sudo ip r l t blackbgp\")")
     private String getBlackholeOverride;
 
     @Option(names = "--get-blackhole6", paramLabel = "<cmd>",
             description = "Command to read IPv6 blackbgp routes%n"
-                        + "  (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")")
+            + "  (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")")
     private String getBlackholeIpv6Override;
 
     @Option(names = {"--ipv6", "-6"},
@@ -143,7 +142,7 @@ public class Config {
 
     @Option(names = "--after-command", paramLabel = "<path>",
             description = "Script to run in batch mode%n"
-                        + "  (default: after.sh on Unix, after.cmd on Windows)")
+            + "  (default: after.sh on Unix, after.cmd on Windows)")
     private String afterCommandOverride;
 
     @Option(names = {"-g", "--gui"},
@@ -153,7 +152,6 @@ public class Config {
     // -----------------------------------------------------------------------
     // Resolved configuration  (CLI > properties file > built-in defaults)
     // -----------------------------------------------------------------------
-
     private String listFile;
     private String listMntbyFile;
     private String listAssetFile;
@@ -234,17 +232,20 @@ public class Config {
                             ? afterCommandOverride
                             : properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
         this.blockCountry = parseList(blockCountryOverride != null
-                            ? blockCountryOverride
-                            : properties.getProperty("BlockCountry", "RU"));
+                                      ? blockCountryOverride
+                                      : properties.getProperty("BlockCountry", "RU"));
         this.forceAsBlock = parseList(forceAsBlockOverride != null
-                            ? forceAsBlockOverride
-                            : properties.getProperty("ForceASBlock", ""))
-                            .stream()
-                            .map(s -> { String u = s.toUpperCase(); return u.startsWith("AS") ? u : "AS" + u; })
-                            .collect(Collectors.toCollection(ArrayList::new));
+                                      ? forceAsBlockOverride
+                                      : properties.getProperty("ForceASBlock", ""))
+                .stream()
+                .map(s -> {
+                    String u = s.toUpperCase();
+                    return u.startsWith("AS") ? u : "AS" + u;
+                })
+                .collect(Collectors.toCollection(ArrayList::new));
         this.forceNetBlock = parseList(forceNetBlockOverride != null
-                             ? forceNetBlockOverride
-                             : properties.getProperty("ForceNETBlock", ""));
+                                       ? forceNetBlockOverride
+                                       : properties.getProperty("ForceNETBlock", ""));
         this.aggressorPattern = aggressorPatternOverride != null
                                 ? aggressorPatternOverride
                                 : properties.getProperty("AggressorPattern", DEFAULT_AGGRESSOR_PATTERN).trim();

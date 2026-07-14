@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -48,24 +49,41 @@ import net.ukrcom.asblockwar.ASBlockWar;
 @Slf4j
 public class PropertiesController implements Initializable {
 
-    @FXML private TextField fieldListFile;
-    @FXML private TextField fieldListMntby;
-    @FXML private TextField fieldListAsset;
-    @FXML private TextField fieldWhoisUri;
-    @FXML private TextField fieldStoreDir;
-    @FXML private TextField fieldWarFile;
-    @FXML private TextField fieldBlackbgpFile;
-    @FXML private TextField fieldGetBlackhole;
-    @FXML private TextField fieldGetBlackholeIpv6;
-    @FXML private CheckBox  fieldIpv6;
-    @FXML private TextField fieldRecursiveAsset;
-    @FXML private CheckBox  fieldBatch;
-    @FXML private TextField fieldAfterCommand;
+    @FXML
+    private TextField fieldListFile;
+    @FXML
+    private TextField fieldListMntby;
+    @FXML
+    private TextField fieldListAsset;
+    @FXML
+    private TextField fieldWhoisUri;
+    @FXML
+    private TextField fieldStoreDir;
+    @FXML
+    private TextField fieldWarFile;
+    @FXML
+    private TextField fieldBlackbgpFile;
+    @FXML
+    private TextField fieldGetBlackhole;
+    @FXML
+    private TextField fieldGetBlackholeIpv6;
+    @FXML
+    private CheckBox fieldIpv6;
+    @FXML
+    private TextField fieldRecursiveAsset;
+    @FXML
+    private CheckBox fieldBatch;
+    @FXML
+    private TextField fieldAfterCommand;
 
-    @FXML private ListView<String> listBlockCountry;
-    @FXML private ListView<String> listForceAsBlock;
-    @FXML private ListView<String> listForceNetBlock;
-    @FXML private TextArea         fieldAggressorPattern;
+    @FXML
+    private ListView<String> listBlockCountry;
+    @FXML
+    private ListView<String> listForceAsBlock;
+    @FXML
+    private ListView<String> listForceNetBlock;
+    @FXML
+    private TextArea fieldAggressorPattern;
 
     private Stage stage;
 
@@ -111,13 +129,40 @@ public class PropertiesController implements Initializable {
     }
 
     // --- Browse actions ---
-    @FXML private void browseListFile()     { pick(false, fieldListFile,     "Select List file"); }
-    @FXML private void browseListMntby()    { pick(false, fieldListMntby,    "Select MNT-BY file"); }
-    @FXML private void browseListAsset()    { pick(false, fieldListAsset,    "Select AS-SET file"); }
-    @FXML private void browseStoreDir()     { pick(true,  fieldStoreDir,     "Select Store directory"); }
-    @FXML private void browseWarFile()      { pick(false, fieldWarFile,      "Select WAR file"); }
-    @FXML private void browseBlackbgpFile() { pick(false, fieldBlackbgpFile, "Select Blackbgp file"); }
-    @FXML private void browseAfterCommand() { pick(false, fieldAfterCommand, "Select After command script"); }
+    @FXML
+    private void browseListFile() {
+        pick(false, fieldListFile, "Select List file");
+    }
+
+    @FXML
+    private void browseListMntby() {
+        pick(false, fieldListMntby, "Select MNT-BY file");
+    }
+
+    @FXML
+    private void browseListAsset() {
+        pick(false, fieldListAsset, "Select AS-SET file");
+    }
+
+    @FXML
+    private void browseStoreDir() {
+        pick(true, fieldStoreDir, "Select Store directory");
+    }
+
+    @FXML
+    private void browseWarFile() {
+        pick(false, fieldWarFile, "Select WAR file");
+    }
+
+    @FXML
+    private void browseBlackbgpFile() {
+        pick(false, fieldBlackbgpFile, "Select Blackbgp file");
+    }
+
+    @FXML
+    private void browseAfterCommand() {
+        pick(false, fieldAfterCommand, "Select After command script");
+    }
 
     private void pick(boolean dirOnly, TextField field, String title) {
         FilePickerController.showFilePicker(stage, title, field.getText().trim(), dirOnly)
@@ -125,12 +170,35 @@ public class PropertiesController implements Initializable {
     }
 
     // --- List add/remove actions ---
-    @FXML private void addBlockCountry()     { promptAdd(listBlockCountry, "Country code", "e.g. RU", String::toUpperCase); }
-    @FXML private void removeBlockCountry()  { removeSelected(listBlockCountry); }
-    @FXML private void addForceAsBlock()     { promptAdd(listForceAsBlock, "ASN", "e.g. AS209671", s -> s.toUpperCase().startsWith("AS") ? s.toUpperCase() : "AS" + s.toUpperCase()); }
-    @FXML private void removeForceAsBlock()  { removeSelected(listForceAsBlock); }
-    @FXML private void addForceNetBlock()    { promptAdd(listForceNetBlock, "Network prefix", "e.g. 52.29.77.149/32", s -> s); }
-    @FXML private void removeForceNetBlock() { removeSelected(listForceNetBlock); }
+    @FXML
+    private void addBlockCountry() {
+        promptAdd(listBlockCountry, "Country code", "e.g. RU", String::toUpperCase);
+    }
+
+    @FXML
+    private void removeBlockCountry() {
+        removeSelected(listBlockCountry);
+    }
+
+    @FXML
+    private void addForceAsBlock() {
+        promptAdd(listForceAsBlock, "ASN", "e.g. AS209671", s -> s.toUpperCase().startsWith("AS") ? s.toUpperCase() : "AS" + s.toUpperCase());
+    }
+
+    @FXML
+    private void removeForceAsBlock() {
+        removeSelected(listForceAsBlock);
+    }
+
+    @FXML
+    private void addForceNetBlock() {
+        promptAdd(listForceNetBlock, "Network prefix", "e.g. 52.29.77.149/32", s -> s);
+    }
+
+    @FXML
+    private void removeForceNetBlock() {
+        removeSelected(listForceNetBlock);
+    }
 
     private void promptAdd(ListView<String> lv, String label, String hint, java.util.function.UnaryOperator<String> normalize) {
         TextInputDialog dlg = new TextInputDialog();
@@ -142,9 +210,9 @@ public class PropertiesController implements Initializable {
         }
         Optional<String> result = dlg.showAndWait();
         result.map(String::trim)
-              .filter(s -> !s.isEmpty())
-              .map(normalize)
-              .ifPresent(lv.getItems()::add);
+                .filter(s -> !s.isEmpty())
+                .map(normalize)
+                .ifPresent(lv.getItems()::add);
     }
 
     private static void removeSelected(ListView<String> lv) {

@@ -22,7 +22,8 @@ package net.ukrcom.asblockwar.actions;
  */
 public class RpslUtils {
 
-    private RpslUtils() {}
+    private RpslUtils() {
+    }
 
     /**
      * Витягує перше значення вказаного поля RPSL з текстового блоку.

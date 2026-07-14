@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.ui;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -28,7 +29,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextArea;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
  * FXML-контролер діалогу WhoisInfoDialog.fxml — відображає сирий RPSL-блок,

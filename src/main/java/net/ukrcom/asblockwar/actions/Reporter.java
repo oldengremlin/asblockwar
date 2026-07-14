@@ -29,7 +29,8 @@ import net.ukrcom.asblockwar.serviceStructures.ASN;
 @Slf4j
 public class Reporter {
 
-    private Reporter() {}
+    private Reporter() {
+    }
 
     /**
      * Виводить фінальний звіт про зміни поточного запуску.

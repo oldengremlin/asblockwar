@@ -40,5 +40,6 @@ public interface UIProgressCallback {
      * @param line   рядок виводу скрипту
      * @param stderr {@code true}, якщо рядок надійшов зі stderr (відображається червоним у GUI)
      */
-    default void onBatchOutputLine(String line, boolean stderr) {}
+    default void onBatchOutputLine(String line, boolean stderr) {
+    }
 }

@@ -24,7 +24,8 @@ import java.util.Comparator;
  */
 public class NetworkUtils {
 
-    private NetworkUtils() {}
+    private NetworkUtils() {
+    }
 
     /**
      * Формує рядок команди для управління маршрутом у таблиці blackbgp.

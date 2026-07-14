@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -45,7 +46,8 @@ public class retrieveAsSet {
      * @param asSet назва AS-SET (наприклад, {@code "AS-EXAMPLE"})
      */
     public retrieveAsSet(String asSet) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;        this.sb = new StringBuilder();
+        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
+        this.sb = new StringBuilder();
 
         this.asSet = asSet;
 
