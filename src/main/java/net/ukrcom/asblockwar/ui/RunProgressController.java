@@ -17,18 +17,19 @@ package net.ukrcom.asblockwar.ui;
 
 import ch.qos.logback.classic.LoggerContext;
 import java.net.URL;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicLong;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.concurrent.Worker;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextFlow;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
@@ -44,27 +45,35 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class RunProgressController implements Initializable {
 
-    @FXML
-    private ProgressBar progressBar;
-    @FXML
-    private ScrollPane logScroll;
-    @FXML
-    private TextFlow logFlow;
-    @FXML
-    private Button closeButton;
+    @FXML private ProgressBar progressBar;
+    @FXML private WebView     logView;
+    @FXML private Button      closeButton;
 
     private Stage stage;
     private GuiLogAppender appender;
+    private WebEngine engine;
+
+    // Scripts queued before WebEngine finishes loading the initial document
+    private boolean webReady = false;
+    private final Queue<String> pendingScripts = new ArrayDeque<>();
 
     /**
-     * Встановлює авто-прокрутку: ScrollPane слідкує за нижньою межею TextFlow при зміні висоти.
-     *
-     * @param url URL FXML-ресурсу (не використовується)
-     * @param rb  ResourceBundle локалізації (не використовується)
+     * Ініціалізує WebEngine: завантажує початковий HTML-документ і чекає на SUCCEEDED
+     * перед виконанням накопичених JS-викликів.
      */
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        logFlow.heightProperty().addListener((obs, old, nw) -> logScroll.setVvalue(1.0));
+        engine = logView.getEngine();
+        engine.getLoadWorker().stateProperty().addListener((obs, old, nw) -> {
+            if (nw == Worker.State.SUCCEEDED) {
+                webReady = true;
+                String js;
+                while ((js = pendingScripts.poll()) != null) {
+                    engine.executeScript(js);
+                }
+            }
+        });
+        engine.loadContent(buildInitialHtml());
     }
 
     private static final long HIGHLIGHT_INTERVAL_MS = 100;
@@ -72,8 +81,6 @@ public class RunProgressController implements Initializable {
     /**
      * Attach a Logback appender and a rate-limited UIProgressCallback, start
      * processing on a daemon thread, and block the OS close button until done.
-     * @param dialogStage
-     * @param mainCtrl
      */
     public void startProcessing(Stage dialogStage, MainWindowsController mainCtrl) {
         this.stage = dialogStage;
@@ -88,25 +95,16 @@ public class RunProgressController implements Initializable {
         ASBlockWar.uiCallback = new UIProgressCallback() {
             @Override
             public void onAsnProcessing(String asn) {
-                if (throttle(lastHighlight)) {
-                    mainCtrl.highlightAsn(asn);
-                }
+                if (throttle(lastHighlight)) mainCtrl.highlightAsn(asn);
             }
-
             @Override
             public void onAsSetProcessing(String asSet) {
-                if (throttle(lastHighlight)) {
-                    mainCtrl.highlightAsSet(asSet);
-                }
+                if (throttle(lastHighlight)) mainCtrl.highlightAsSet(asSet);
             }
-
             @Override
             public void onMntByProcessing(String mntBy) {
-                if (throttle(lastHighlight)) {
-                    mainCtrl.highlightMntBy(mntBy);
-                }
+                if (throttle(lastHighlight)) mainCtrl.highlightMntBy(mntBy);
             }
-
             @Override
             public void onBatchOutputLine(String line, boolean stderr) {
                 appendBatchLine(line, stderr);
@@ -114,9 +112,7 @@ public class RunProgressController implements Initializable {
         };
 
         stage.setOnCloseRequest(e -> {
-            if (closeButton.isDisable()) {
-                e.consume();
-            }
+            if (closeButton.isDisable()) e.consume();
         });
 
         Task<Void> task = new Task<>() {
@@ -161,16 +157,28 @@ public class RunProgressController implements Initializable {
     }
 
     private void appendLine(String line) {
-        Platform.runLater(() -> logFlow.getChildren().add(new Text(line + "\n")));
+        runScript("appendLine(\"" + jsEscape(line) + "\",false)");
     }
 
     private void appendBatchLine(String line, boolean stderr) {
+        runScript("appendLine(\"" + jsEscape(line) + "\"," + stderr + ")");
+    }
+
+    private static String jsEscape(String s) {
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "")
+                .replace("\n", "\\n");
+    }
+
+    // Must be called from any thread; executes or queues the JS on the FX thread.
+    private void runScript(String js) {
         Platform.runLater(() -> {
-            Text t = new Text(line + "\n");
-            if (stderr) {
-                t.setFill(Color.rgb(204, 0, 0));
+            if (webReady) {
+                engine.executeScript(js);
+            } else {
+                pendingScripts.add(js);
             }
-            logFlow.getChildren().add(t);
         });
     }
 
@@ -185,8 +193,45 @@ public class RunProgressController implements Initializable {
 
     @FXML
     private void doClose() {
-        if (stage != null) {
-            stage.hide();
-        }
+        if (stage != null) stage.hide();
+    }
+
+    private static String buildInitialHtml() {
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                <meta charset="UTF-8">
+                <style>
+                  body {
+                    font-family: monospace;
+                    font-size: 12px;
+                    margin: 4px;
+                    padding: 0;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                  }
+                  @media (prefers-color-scheme: dark) {
+                    body { background: #1e1e1e; color: #d4d4d4; }
+                    .err { color: #ff6b6b; }
+                  }
+                  @media (prefers-color-scheme: light) {
+                    body { background: #ffffff; color: #1e1e1e; }
+                    .err { color: #cc0000; }
+                  }
+                </style>
+                <script>
+                  function appendLine(text, isErr) {
+                    var div = document.createElement('div');
+                    div.textContent = text;
+                    if (isErr) div.className = 'err';
+                    document.body.appendChild(div);
+                    window.scrollTo(0, document.body.scrollHeight);
+                  }
+                </script>
+                </head>
+                <body></body>
+                </html>
+                """;
     }
 }
