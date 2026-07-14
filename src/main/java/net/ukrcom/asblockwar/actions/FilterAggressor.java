@@ -38,16 +38,6 @@ public class FilterAggressor {
     private FilterAggressor() {
     }
 
-    private static boolean isCountryBlocked(String rpsl, Set<String> blocked) {
-        Matcher m = COUNTRY_PATTERN.matcher(rpsl);
-        while (m.find()) {
-            if (blocked.contains(m.group(1).toUpperCase())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /**
      * Будує множину кодів країн з поточної конфігурації {@code BlockCountry}.
      *
@@ -70,7 +60,13 @@ public class FilterAggressor {
      * @return {@code true} якщо AS слід заблокувати
      */
     public static boolean isAggressor(String rpsl, Set<String> blocked) {
-        return isCountryBlocked(rpsl, blocked);
+        Matcher m = COUNTRY_PATTERN.matcher(rpsl);
+        while (m.find()) {
+            if (blocked.contains(m.group(1).toUpperCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String extractCountry(String rpsl) {
@@ -103,7 +99,7 @@ public class FilterAggressor {
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
                     String rpsl = entry.getValue();
-                    if (isCountryBlocked(rpsl, blocked)) {
+                    if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
                     String matched = matchedAggressorLine(rpsl);
