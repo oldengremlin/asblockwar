@@ -5,6 +5,20 @@
 
 ---
 
+## [3.3.22] — 2026-07-14
+
+### Виправлено
+- **WARNING: Unsupported JavaFX configuration** — попередній підхід (встановлення рівня JUL-логера
+  `com.sun.javafx.application.PlatformImpl` у `SEVERE`) не спрацьовував, бо PlatformImpl
+  може використовувати логер з іншим іменем.
+  Замінено на перехоплення `System.err` на рівні байтів: `System.setErr()` встановлює
+  обгортку `PrintStream`, яка відфільтровує запис, що містить рядок
+  `"Unsupported JavaFX configuration"`. В Java 9+ `ConsoleHandler` динамічно делегує
+  до поточного `System.err`, тому обгортка перехоплює вивід незалежно від того,
+  коли ініціалізовано `ConsoleHandler`.
+
+---
+
 ## [3.3.21] — 2026-07-14
 
 ### Виправлено
