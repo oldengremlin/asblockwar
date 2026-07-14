@@ -24,6 +24,7 @@ import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
+import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 
 /**
  * Фільтрація карти ворожих ASN за країною та RPSL-патерном агресора.
@@ -35,16 +36,6 @@ public class FilterAggressor {
             = Pattern.compile("(?im)^country:\\s*([A-Z]{2,3})\\b");
 
     private FilterAggressor() {
-    }
-
-    private static boolean isCountryBlocked(String rpsl, Set<String> blocked) {
-        Matcher m = COUNTRY_PATTERN.matcher(rpsl);
-        while (m.find()) {
-            if (blocked.contains(m.group(1).toUpperCase())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -59,27 +50,45 @@ public class FilterAggressor {
     }
 
     /**
-     * Повертає {@code true}, якщо RPSL-блок одночасно:
-     * <ol>
-     *   <li>відповідає {@link ASBlockWar#AGGRESSOR_COMPILED} — ширша перевірка (org-name, phone, address, abuse-mailbox, country)</li>
-     *   <li>містить {@code country:} з кодом зі списку {@code blocked} — вужча фільтрація хибних спрацювань</li>
-     * </ol>
-     * Використовується як єдина точка прийняття рішення «ворог чи ні».
+     * Повертає {@code true}, якщо RPSL-блок містить {@code country:} з кодом зі списку {@code blocked}.
+     * Належність до BlockCountry є єдиним критерієм блокування AS.
+     * AS, що збігаються з {@link ASBlockWar#AGGRESSOR_COMPILED} але не входять до BlockCountry,
+     * фіксуються окремо як підозрілі ({@link ASBlockWar#suspiciousAsnResources}).
      *
      * @param rpsl    повний RPSL-блок AS
      * @param blocked множина кодів країн для блокування (результат {@link #blockedCountries()})
      * @return {@code true} якщо AS слід заблокувати
      */
     public static boolean isAggressor(String rpsl, Set<String> blocked) {
-        return ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl).find()
-                && isCountryBlocked(rpsl, blocked);
+        Matcher m = COUNTRY_PATTERN.matcher(rpsl);
+        while (m.find()) {
+            if (blocked.contains(m.group(1).toUpperCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String extractCountry(String rpsl) {
+        Matcher m = COUNTRY_PATTERN.matcher(rpsl);
+        return m.find() ? m.group(1).toUpperCase() : "?";
+    }
+
+    private static String matchedAggressorLine(String rpsl) {
+        Matcher m = ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl);
+        return m.find() ? m.group(1).trim() : null;
     }
 
     /**
-     * Фільтрує карту ASN: спочатку обов'язкова перевірка країни (BlockCountry),
-     * потім перевірка {@link ASBlockWar#AGGRESSOR_COMPILED} (патерн з {@code AggressorPattern}).
+     * Фільтрує карту ASN за критерієм BlockCountry (country з RPSL-блоку).
      * <p>
-     * Відфільтровані ASN реєструються у {@link ASBlockWar#resourcesForVerification} з дією {@link Action#remove}.
+     * AS, яких country відсутня або не входить до {@code blocked}:
+     * <ul>
+     *   <li>якщо збігаються з {@link ASBlockWar#AGGRESSOR_COMPILED} — додаються до
+     *       {@link ASBlockWar#suspiciousAsnResources} для фінального звіту;</li>
+     *   <li>в обох випадках реєструються у {@link ASBlockWar#resourcesForVerification}
+     *       з дією {@link Action#remove}.</li>
+     * </ul>
      *
      * @param aggressorAsnResources вхідна карта {@code ASN → RPSL-блок}
      * @return нова карта, що містить тільки підтверджені ворожі ASN
@@ -89,17 +98,23 @@ public class FilterAggressor {
 
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
-                    if (isAggressor(entry.getValue(), blocked)) {
+                    String rpsl = entry.getValue();
+                    if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
-                    if (!ASBlockWar.AGGRESSOR_COMPILED.matcher(entry.getValue()).find()) {
-                        log.warn("Вилучено елемент (pattern не збігається): {}", entry.getKey());
+                    String matched = matchedAggressorLine(rpsl);
+                    if (matched != null) {
+                        log.warn("Не в BlockCountry, але AggressorPattern збігається: {}", entry.getKey());
+                        ASBlockWar.suspiciousAsnResources.put(
+                                entry.getKey(),
+                                new SuspiciousAS(entry.getKey(), extractCountry(rpsl), matched)
+                        );
                     } else {
-                        log.warn("Вилучено (country не в блокованих {}): {}", blocked, entry.getKey());
+                        log.warn("Вилучено (country не в блокованих, pattern не збігається): {}", entry.getKey());
                     }
                     ASBlockWar.resourcesForVerification.put(
                             entry.getKey(),
-                            new ASN(Action.remove, entry.getKey(), entry.getValue())
+                            new ASN(Action.remove, entry.getKey(), rpsl)
                     );
                     return false;
                 })
