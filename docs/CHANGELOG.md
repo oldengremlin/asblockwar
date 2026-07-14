@@ -5,6 +5,19 @@
 
 ---
 
+## [3.3.18] — 2026-07-14
+
+### Змінено
+- **Picocli `IDefaultProvider`**: properties-файл тепер є другим рівнем пріоритету
+  в ланцюгу CLI → properties → `@Option(defaultValue=...)`. Фазу 3 конструктора
+  (13 тернарних виразів) замінено на `OPT_TO_PROP` мапу і метод `propertyDefault()`.
+- 11 пар `fieldOverride`/`field` (String) об'єднано в одне поле: Picocli-анотоване
+  поле стало фінальним resolved-значенням (наприклад `listFileOverride` + `listFile` → `listFile`).
+- `batchMode` тепер також проходить через IDefaultProvider (`BatchMode` з properties).
+- `recursiveAsset` резолвиться з `recursiveAssetFlag` одним рядком замість блоку перевірок.
+
+---
+
 ## [3.3.17] — 2026-07-14
 
 ### Змінено

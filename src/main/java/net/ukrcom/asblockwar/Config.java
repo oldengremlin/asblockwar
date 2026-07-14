@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -36,10 +37,9 @@ import picocli.CommandLine.Option;
 /**
  * Зберігає та надає доступ до конфігурації програми ASBlockWar.
  *
- * <p>Параметри завантажуються з файлу {@code asblockwar.properties}
- * (спочатку з поточного каталогу, потім з classpath) або з файлу,
- * вказаного аргументом {@code --config=<шлях>}. Значення CLI-аргументів
- * мають вищий пріоритет і перекривають файлові налаштування.
+ * <p>Ланцюг пріоритетів для кожного параметру (від вищого до нижчого):
+ * CLI-аргумент → {@code asblockwar.properties} (файл або classpath) → {@code @Option(defaultValue)}.
+ * Ланцюг реалізований через Picocli {@code IDefaultProvider} ({@link #propertyDefault}).
  *
  * @author olden
  */
@@ -59,9 +59,34 @@ public class Config {
     public static final String DEFAULT_AGGRESSOR_PATTERN
             = "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
 
+    /**
+     * Відповідність між іменем CLI-опції та ключем у {@code asblockwar.properties}.
+     * Використовується в {@link #propertyDefault} для реалізації {@code IDefaultProvider}.
+     */
+    private static final Map<String, String> OPT_TO_PROP = Map.ofEntries(
+            Map.entry("--list-file",         "ListFile"),
+            Map.entry("--list-mnt",          "ListMntbyFile"),
+            Map.entry("--list-asset",        "ListAssetFile"),
+            Map.entry("--whois-uri",         "WhoisLiteLocalURI"),
+            Map.entry("--store-dir",         "StoreDir"),
+            Map.entry("--war-file",          "WarFile"),
+            Map.entry("--blackbgp-file",     "BlackbgpFile"),
+            Map.entry("--get-blackhole",     "GetBlackhole"),
+            Map.entry("--get-blackhole6",    "GetBlackholeIpv6"),
+            Map.entry("--after-command",     "AfterCommand"),
+            Map.entry("--block-country",     "BlockCountry"),
+            Map.entry("--force-as",          "ForceASBlock"),
+            Map.entry("--force-net",         "ForceNETBlock"),
+            Map.entry("--aggressor-pattern", "AggressorPattern"),
+            Map.entry("--recursive-asset",   "RecursiveAsset"),
+            Map.entry("--batch",             "BatchMode")
+    );
+
     // -----------------------------------------------------------------------
-    // CLI options — Picocli sets these in phase 1 (before properties are read)
+    // CLI options  (Picocli заповнює: CLI → propertyDefault → @Option defaultValue)
+    // String/boolean/Integer поля — вже є фінальними resolved-значеннями після парсингу
     // -----------------------------------------------------------------------
+
     @Option(names = {"-h", "--help"}, usageHelp = true,
             description = "Show this help and exit")
     private boolean helpRequested;
@@ -71,42 +96,51 @@ public class Config {
     private String configPath;
 
     @Option(names = "--list-file", paramLabel = "<path>",
+            defaultValue = "list.txt",
             description = "ASN list file  (default: list.txt)")
-    private String listFileOverride;
+    private String listFile;
 
     @Option(names = "--list-mnt", paramLabel = "<path>",
+            defaultValue = "list.mnt-by.txt",
             description = "mnt-by handles file  (default: list.mnt-by.txt)")
-    private String listMntbyFileOverride;
+    private String listMntbyFile;
 
     @Option(names = "--list-asset", paramLabel = "<path>",
+            defaultValue = "list.as-set.txt",
             description = "AS-SET list file  (default: list.as-set.txt)")
-    private String listAssetFileOverride;
+    private String listAssetFile;
 
     @Option(names = "--whois-uri", paramLabel = "<uri>",
+            defaultValue = "jdbc:sqlite:whoislitelocal.db",
             description = "whois-lite-local JDBC URI  (default: jdbc:sqlite:whoislitelocal.db)")
-    private String whoisLiteLocalURIOverride;
+    private String whoisLiteLocalURI;
 
     @Option(names = "--store-dir", paramLabel = "<path>",
+            defaultValue = "./STORE",
             description = "Output store directory  (default: ./STORE)")
-    private String storeDirOverride;
+    private String storeDir;
 
     @Option(names = "--war-file", paramLabel = "<path>",
+            defaultValue = "war.juniper.txt",
             description = "Juniper WAR output file  (default: war.juniper.txt)")
-    private String warFileOverride;
+    private String warFile;
 
     @Option(names = "--blackbgp-file", paramLabel = "<path>",
+            defaultValue = "war.blackbgp.txt",
             description = "Blackbgp commands output file  (default: war.blackbgp.txt)")
-    private String blackbgpFileOverride;
+    private String blackbgpFile;
 
     @Option(names = "--get-blackhole", paramLabel = "<cmd>",
+            defaultValue = "ssh blackbgp \"sudo ip r l t blackbgp\"",
             description = "Command to read IPv4 blackbgp routes%n"
             + "  (default: ssh blackbgp \"sudo ip r l t blackbgp\")")
-    private String getBlackholeOverride;
+    private String getBlackhole;
 
     @Option(names = "--get-blackhole6", paramLabel = "<cmd>",
+            defaultValue = "ssh blackbgp \"sudo ip -6 r l t blackbgp\"",
             description = "Command to read IPv6 blackbgp routes%n"
             + "  (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")")
-    private String getBlackholeIpv6Override;
+    private String getBlackholeIpv6;
 
     @Option(names = {"--ipv6", "-6"},
             description = "Include IPv6 routes in blackbgp output  (default: enabled)")
@@ -116,25 +150,31 @@ public class Config {
             description = "Disable IPv6 routes in blackbgp output")
     private Boolean noIpv6Flag;
 
+    // Comma-separated raw strings; resolved to List<String> fields below
     @Option(names = "--block-country", paramLabel = "<CC,...>",
+            defaultValue = "RU",
             description = "Country codes to block, comma-separated  (default: RU)")
     private String blockCountryOverride;
 
     @Option(names = "--force-as", paramLabel = "<AS,...>",
+            defaultValue = "",
             description = "ASNs to force-block regardless of country/pattern filters")
     private String forceAsBlockOverride;
 
     @Option(names = "--force-net", paramLabel = "<pfx,...>",
+            defaultValue = "",
             description = "Prefixes to force into the blackbgp target  (blackhole only)")
     private String forceNetBlockOverride;
 
     @Option(names = "--aggressor-pattern", paramLabel = "<rx>",
+            defaultValue = DEFAULT_AGGRESSOR_PATTERN,
             description = "Regex to match aggressor RPSL blocks  (overrides config file)")
-    private String aggressorPatternOverride;
+    private String aggressorPattern;
 
-    @Option(names = "--recursive-asset", arity = "0..1", fallbackValue = "1", paramLabel = "<depth>",
+    @Option(names = "--recursive-asset", arity = "0..1", fallbackValue = "1",
+            paramLabel = "<depth>",
             description = "Recurse into nested AS-SETs  (default depth when flag is bare: 1)")
-    private Integer recursiveAssetOverride;
+    private Integer recursiveAssetFlag;
 
     @Option(names = {"-b", "--batch"},
             description = "Run AfterCommand script after processing")
@@ -143,29 +183,19 @@ public class Config {
     @Option(names = "--after-command", paramLabel = "<path>",
             description = "Script to run in batch mode%n"
             + "  (default: after.sh on Unix, after.cmd on Windows)")
-    private String afterCommandOverride;
+    private String afterCommand;
 
     @Option(names = {"-g", "--gui"},
             description = "Launch graphical user interface")
     private boolean gui;
 
     // -----------------------------------------------------------------------
-    // Resolved configuration  (CLI > properties file > built-in defaults)
+    // Resolved list fields and special-case values — set in the constructor
     // -----------------------------------------------------------------------
-    private String listFile;
-    private String listMntbyFile;
-    private String listAssetFile;
-    private String whoisLiteLocalURI;
-    private String storeDir;
-    private String warFile;
-    private String blackbgpFile;
-    private String getBlackhole;
-    private String getBlackholeIpv6;
-    private String afterCommand;
+
     private List<String> blockCountry;
     private List<String> forceAsBlock;
     private List<String> forceNetBlock;
-    private String aggressorPattern;
     private boolean blackbgpIpv6 = true;
     private boolean blackbgpIpv6Explicit = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
@@ -181,8 +211,20 @@ public class Config {
     public Config(String[] args) throws IOException {
         this.properties = new Properties();
 
-        // Phase 1: parse CLI args (sets configPath and all *Override fields)
-        CommandLine cmd = new CommandLine(this);
+        // Bootstrap: extract --config= so loadProperties() knows the path before full parse
+        if (args != null) {
+            for (String arg : args) {
+                if (arg.startsWith("--config=")) {
+                    this.configPath = arg.substring("--config=".length()).trim();
+                    break;
+                }
+            }
+        }
+        loadProperties();
+
+        // Full parse: CLI → propertyDefault() → @Option(defaultValue=...)
+        CommandLine cmd = new CommandLine(this)
+                .setDefaultValueProvider(this::propertyDefault);
         try {
             cmd.parseArgs(args != null ? args : new String[0]);
         } catch (CommandLine.ParameterException ex) {
@@ -195,61 +237,17 @@ public class Config {
             System.exit(0);
         }
 
-        // Phase 2: load properties file (configPath already set by phase 1)
-        this.loadProperties();
-
-        // Phase 3: resolve each field (CLI override wins, then properties, then default)
-        this.listFile = listFileOverride != null
-                        ? listFileOverride
-                        : properties.getProperty("ListFile", "list.txt").trim();
-        this.listMntbyFile = listMntbyFileOverride != null
-                             ? listMntbyFileOverride
-                             : properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
-        this.listAssetFile = listAssetFileOverride != null
-                             ? listAssetFileOverride
-                             : properties.getProperty("ListAssetFile", "list.as-set.txt").trim();
-        this.whoisLiteLocalURI = whoisLiteLocalURIOverride != null
-                                 ? whoisLiteLocalURIOverride
-                                 : properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
-        this.storeDir = storeDirOverride != null
-                        ? storeDirOverride
-                        : properties.getProperty("StoreDir", "./STORE").trim();
-        this.warFile = warFileOverride != null
-                       ? warFileOverride
-                       : properties.getProperty("WarFile", "war.juniper.txt").trim();
-        this.blackbgpFile = blackbgpFileOverride != null
-                            ? blackbgpFileOverride
-                            : properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
-        this.getBlackhole = getBlackholeOverride != null
-                            ? getBlackholeOverride
-                            : properties.getProperty("GetBlackhole",
-                        "ssh blackbgp \"sudo ip r l t blackbgp\"").trim();
-        this.getBlackholeIpv6 = getBlackholeIpv6Override != null
-                                ? getBlackholeIpv6Override
-                                : properties.getProperty("GetBlackholeIpv6",
-                        "ssh blackbgp \"sudo ip -6 r l t blackbgp\"").trim();
-        this.afterCommand = afterCommandOverride != null
-                            ? afterCommandOverride
-                            : properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
-        this.blockCountry = parseList(blockCountryOverride != null
-                                      ? blockCountryOverride
-                                      : properties.getProperty("BlockCountry", "RU"));
-        this.forceAsBlock = parseList(forceAsBlockOverride != null
-                                      ? forceAsBlockOverride
-                                      : properties.getProperty("ForceASBlock", ""))
-                .stream()
+        // Resolve list fields from comma-separated strings (already filled by Picocli)
+        this.blockCountry = parseList(blockCountryOverride);
+        this.forceAsBlock = parseList(forceAsBlockOverride).stream()
                 .map(s -> {
                     String u = s.toUpperCase();
                     return u.startsWith("AS") ? u : "AS" + u;
                 })
                 .collect(Collectors.toCollection(ArrayList::new));
-        this.forceNetBlock = parseList(forceNetBlockOverride != null
-                                       ? forceNetBlockOverride
-                                       : properties.getProperty("ForceNETBlock", ""));
-        this.aggressorPattern = aggressorPatternOverride != null
-                                ? aggressorPatternOverride
-                                : properties.getProperty("AggressorPattern", DEFAULT_AGGRESSOR_PATTERN).trim();
+        this.forceNetBlock = parseList(forceNetBlockOverride);
 
+        // Resolve ipv6: CLI flags override the BlackbgpIpv6 property
         if (Boolean.TRUE.equals(ipv6Flag)) {
             this.blackbgpIpv6 = true;
             this.blackbgpIpv6Explicit = true;
@@ -262,22 +260,32 @@ public class Config {
                     properties.getProperty("BlackbgpIpv6", "true").trim());
         }
 
-        if (!this.batchMode) {
-            this.batchMode = Boolean.parseBoolean(
-                    properties.getProperty("BatchMode", "false").trim());
-        }
+        // Resolve recursiveAsset: null flag = absent
+        this.recursiveAsset = recursiveAssetFlag != null ? recursiveAssetFlag : -1;
+    }
 
-        if (recursiveAssetOverride != null) {
-            this.recursiveAsset = recursiveAssetOverride;
-        } else {
-            String ra = properties.getProperty("RecursiveAsset");
-            if (ra != null) {
-                try {
-                    this.recursiveAsset = Integer.parseInt(ra.trim());
-                } catch (NumberFormatException ignored) {
-                }
-            }
+    /**
+     * Реалізація Picocli {@code IDefaultProvider}: повертає значення з
+     * {@code asblockwar.properties} як дефолт для опцій, що відсутні в CLI.
+     * Для {@code --after-command} повертає платформозалежний дефолт, якщо
+     * властивість відсутня в файлі.
+     *
+     * @param argSpec специфікація опції, для якої запитується дефолт
+     * @return значення з properties-файлу, або платформозалежний дефолт, або {@code null}
+     */
+    private String propertyDefault(CommandLine.Model.ArgSpec argSpec) {
+        if (!(argSpec instanceof CommandLine.Model.OptionSpec opt)) {
+            return null;
         }
+        String propKey = OPT_TO_PROP.get(opt.longestName());
+        if (propKey == null) {
+            return null;
+        }
+        String val = properties.getProperty(propKey);
+        if (val == null && "--after-command".equals(opt.longestName())) {
+            return defaultAfterCommand();
+        }
+        return val;
     }
 
     /**

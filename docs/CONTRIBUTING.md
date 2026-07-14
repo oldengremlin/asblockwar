@@ -273,11 +273,16 @@ CLI-аргументи (--option=value)
 
 ### Додавання нової CLI-опції
 
-1. Додати `@Option(names = "--new-opt", ...) private String newOptOverride;`
-2. Додати resolved-поле `private String newOpt;`
-3. Додати ternary у фазі 3 конструктора
-4. Додати `p.setProperty(...)` у `save()`
-5. Якщо є UI — додати поле у `PropertiesDialog.fxml` та `PropertiesController`
+Для простих рядкових/булевих параметрів (4 кроки замість колишніх 4+):
+
+1. Додати запис у `OPT_TO_PROP`: `Map.entry("--new-opt", "NewPropKey")`
+2. Додати `@Option(names = "--new-opt", defaultValue = "...", ...) private String newOpt;`
+   — це одночасно CLI-поле і resolved-значення (окремого `*Override` поля не потрібно)
+3. Додати `p.setProperty("NewPropKey", this.newOpt)` у `save()`
+4. Якщо є UI — додати поле у `PropertiesDialog.fxml` та `PropertiesController`
+
+Для параметрів-списків (`List<String>`): додати `String newOptOverride` (кроки 1–3)
+та resolved `List<String> newOpt`, яке заповнюється через `parseList(newOptOverride)` у конструкторі.
 
 Help генерується автоматично з анотацій — `printHelp()` більше не існує.
 
