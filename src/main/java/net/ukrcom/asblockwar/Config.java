@@ -64,29 +64,28 @@ public class Config {
      * Використовується в {@link #propertyDefault} для реалізації {@code IDefaultProvider}.
      */
     private static final Map<String, String> OPT_TO_PROP = Map.ofEntries(
-            Map.entry("--list-file",         "ListFile"),
-            Map.entry("--list-mnt",          "ListMntbyFile"),
-            Map.entry("--list-asset",        "ListAssetFile"),
-            Map.entry("--whois-uri",         "WhoisLiteLocalURI"),
-            Map.entry("--store-dir",         "StoreDir"),
-            Map.entry("--war-file",          "WarFile"),
-            Map.entry("--blackbgp-file",     "BlackbgpFile"),
-            Map.entry("--get-blackhole",     "GetBlackhole"),
-            Map.entry("--get-blackhole6",    "GetBlackholeIpv6"),
-            Map.entry("--after-command",     "AfterCommand"),
-            Map.entry("--block-country",     "BlockCountry"),
-            Map.entry("--force-as",          "ForceASBlock"),
-            Map.entry("--force-net",         "ForceNETBlock"),
+            Map.entry("--list-file", "ListFile"),
+            Map.entry("--list-mnt", "ListMntbyFile"),
+            Map.entry("--list-asset", "ListAssetFile"),
+            Map.entry("--whois-uri", "WhoisLiteLocalURI"),
+            Map.entry("--store-dir", "StoreDir"),
+            Map.entry("--war-file", "WarFile"),
+            Map.entry("--blackbgp-file", "BlackbgpFile"),
+            Map.entry("--get-blackhole", "GetBlackhole"),
+            Map.entry("--get-blackhole6", "GetBlackholeIpv6"),
+            Map.entry("--after-command", "AfterCommand"),
+            Map.entry("--block-country", "BlockCountry"),
+            Map.entry("--force-as", "ForceASBlock"),
+            Map.entry("--force-net", "ForceNETBlock"),
             Map.entry("--aggressor-pattern", "AggressorPattern"),
-            Map.entry("--recursive-asset",   "RecursiveAsset"),
-            Map.entry("--batch",             "BatchMode")
+            Map.entry("--recursive-asset", "RecursiveAsset"),
+            Map.entry("--batch", "BatchMode")
     );
 
     // -----------------------------------------------------------------------
     // CLI options  (Picocli заповнює: CLI → propertyDefault → @Option defaultValue)
     // String/boolean/Integer поля — вже є фінальними resolved-значеннями після парсингу
     // -----------------------------------------------------------------------
-
     @Option(names = {"-h", "--help"}, usageHelp = true,
             description = "Show this help and exit")
     private boolean helpRequested;
@@ -192,7 +191,6 @@ public class Config {
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
     // -----------------------------------------------------------------------
-
     private List<String> blockCountry;
     private List<String> forceAsBlock;
     private List<String> forceNetBlock;
