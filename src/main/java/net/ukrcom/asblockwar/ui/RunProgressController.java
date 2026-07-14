@@ -230,14 +230,13 @@ public class RunProgressController implements Initializable {
                     padding: 0;
                     white-space: pre-wrap;
                     word-wrap: break-word;
+                    background: #ffffff;
+                    color: #1e1e1e;
                   }
+                  .err { color: #cc0000; }
                   @media (prefers-color-scheme: dark) {
                     body { background: #1e1e1e; color: #d4d4d4; }
                     .err { color: #ff6b6b; }
-                  }
-                  @media (prefers-color-scheme: light) {
-                    body { background: #ffffff; color: #1e1e1e; }
-                    .err { color: #cc0000; }
                   }
                 </style>
                 <script>
