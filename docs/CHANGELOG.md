@@ -5,6 +5,19 @@
 
 ---
 
+## [3.3.21] — 2026-07-14
+
+### Виправлено
+- **JVM WARNING: A restricted method / java.lang.System::load / Use --enable-native-access**:
+  додано `Enable-Native-Access: ALL-UNNAMED` до маніфесту fat jar (для запуску через `java -jar`)
+  та `--enable-native-access=ALL-UNNAMED` до `<javaOptions>` jpackage-конфігурації
+  (для APP_IMAGE-запуску). Попередження про `NativeLibLoader` більше не з'являються.
+- **JUL WARNING: Unsupported JavaFX configuration: classes were loaded from 'unnamed module'**:
+  `com.sun.javafx.application.PlatformImpl` JUL-логер пригнічено до рівня `SEVERE`
+  на початку `main()`. Попередження зникає не залежно від режиму запуску.
+
+---
+
 ## [3.3.20] — 2026-07-14
 
 ### Виправлено

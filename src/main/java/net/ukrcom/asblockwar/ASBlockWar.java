@@ -77,6 +77,8 @@ public class ASBlockWar {
      * @throws InterruptedException якщо основний потік перервано
      */
     public static void main(String[] args) throws InterruptedException {
+        java.util.logging.Logger.getLogger("com.sun.javafx.application.PlatformImpl")
+                .setLevel(java.util.logging.Level.SEVERE);
         try {
             config = new Config(args);
             AGGRESSOR_COMPILED = Pattern.compile(config.getAggressorPattern());
