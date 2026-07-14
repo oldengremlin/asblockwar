@@ -29,6 +29,9 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * Зберігає та надає доступ до конфігурації програми ASBlockWar.
@@ -40,32 +43,116 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @author olden
  */
+@Command(
+    name        = "ASBlockWar",
+    sortOptions = false,
+    usageHelpWidth = 100,
+    description = "Automated maintenance of hostile autonomous system block lists."
+)
 @Slf4j
 @Getter
 @Setter
 public class Config {
 
-    private final String[] args;
     private final Properties properties;
 
     public static final String DEFAULT_AGGRESSOR_PATTERN =
             "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
 
+    // -----------------------------------------------------------------------
+    // CLI options — Picocli sets these in phase 1 (before properties are read)
+    // -----------------------------------------------------------------------
+
+    @Option(names = {"-h", "--help"}, usageHelp = true,
+            description = "Show this help and exit")
+    private boolean helpRequested;
+
+    @Option(names = "--config", paramLabel = "<path>",
+            description = "Configuration file path")
     private String configPath;
+
+    @Option(names = "--list-file", paramLabel = "<path>",
+            description = "ASN list file  (default: list.txt)")
     private String listFileOverride;
+
+    @Option(names = "--list-mnt", paramLabel = "<path>",
+            description = "mnt-by handles file  (default: list.mnt-by.txt)")
     private String listMntbyFileOverride;
+
+    @Option(names = "--list-asset", paramLabel = "<path>",
+            description = "AS-SET list file  (default: list.as-set.txt)")
     private String listAssetFileOverride;
+
+    @Option(names = "--whois-uri", paramLabel = "<uri>",
+            description = "whois-lite-local JDBC URI  (default: jdbc:sqlite:whoislitelocal.db)")
     private String whoisLiteLocalURIOverride;
+
+    @Option(names = "--store-dir", paramLabel = "<path>",
+            description = "Output store directory  (default: ./STORE)")
     private String storeDirOverride;
+
+    @Option(names = "--war-file", paramLabel = "<path>",
+            description = "Juniper WAR output file  (default: war.juniper.txt)")
     private String warFileOverride;
+
+    @Option(names = "--blackbgp-file", paramLabel = "<path>",
+            description = "Blackbgp commands output file  (default: war.blackbgp.txt)")
     private String blackbgpFileOverride;
+
+    @Option(names = "--get-blackhole", paramLabel = "<cmd>",
+            description = "Command to read IPv4 blackbgp routes%n"
+                        + "  (default: ssh blackbgp \"sudo ip r l t blackbgp\")")
     private String getBlackholeOverride;
+
+    @Option(names = "--get-blackhole6", paramLabel = "<cmd>",
+            description = "Command to read IPv6 blackbgp routes%n"
+                        + "  (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")")
     private String getBlackholeIpv6Override;
-    private String afterCommandOverride;
+
+    @Option(names = {"--ipv6", "-6"},
+            description = "Include IPv6 routes in blackbgp output  (default: enabled)")
+    private Boolean ipv6Flag;
+
+    @Option(names = {"--no-ipv6", "-no6"},
+            description = "Disable IPv6 routes in blackbgp output")
+    private Boolean noIpv6Flag;
+
+    @Option(names = "--block-country", paramLabel = "<CC,...>",
+            description = "Country codes to block, comma-separated  (default: RU)")
     private String blockCountryOverride;
+
+    @Option(names = "--force-as", paramLabel = "<AS,...>",
+            description = "ASNs to force-block regardless of country/pattern filters")
     private String forceAsBlockOverride;
+
+    @Option(names = "--force-net", paramLabel = "<pfx,...>",
+            description = "Prefixes to force into the blackbgp target  (blackhole only)")
     private String forceNetBlockOverride;
+
+    @Option(names = "--aggressor-pattern", paramLabel = "<rx>",
+            description = "Regex to match aggressor RPSL blocks  (overrides config file)")
     private String aggressorPatternOverride;
+
+    @Option(names = "--recursive-asset", arity = "0..1", fallbackValue = "1", paramLabel = "<depth>",
+            description = "Recurse into nested AS-SETs  (default depth when flag is bare: 1)")
+    private Integer recursiveAssetOverride;
+
+    @Option(names = {"-b", "--batch"},
+            description = "Run AfterCommand script after processing")
+    private boolean batchMode;
+
+    @Option(names = "--after-command", paramLabel = "<path>",
+            description = "Script to run in batch mode%n"
+                        + "  (default: after.sh on Unix, after.cmd on Windows)")
+    private String afterCommandOverride;
+
+    @Option(names = {"-g", "--gui"},
+            description = "Launch graphical user interface")
+    private boolean gui;
+
+    // -----------------------------------------------------------------------
+    // Resolved configuration  (CLI > properties file > built-in defaults)
+    // -----------------------------------------------------------------------
 
     private String listFile;
     private String listMntbyFile;
@@ -83,8 +170,6 @@ public class Config {
     private String aggressorPattern;
     private boolean blackbgpIpv6 = true;
     private boolean blackbgpIpv6Explicit = false;
-    private boolean batchMode = false;
-    private boolean gui = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
 
@@ -97,69 +182,94 @@ public class Config {
      */
     public Config(String[] args) throws IOException {
         this.properties = new Properties();
-        this.args = args;
-        this.parseArgs();
+
+        // Phase 1: parse CLI args (sets configPath and all *Override fields)
+        CommandLine cmd = new CommandLine(this);
+        try {
+            cmd.parseArgs(args != null ? args : new String[0]);
+        } catch (CommandLine.ParameterException ex) {
+            System.err.println(ex.getMessage());
+            System.err.println("Run with --help for usage.");
+            System.exit(1);
+        }
+        if (cmd.isUsageHelpRequested()) {
+            cmd.usage(System.out);
+            System.exit(0);
+        }
+
+        // Phase 2: load properties file (configPath already set by phase 1)
         this.loadProperties();
 
-        this.listFile = this.listFileOverride != null
-                        ? this.listFileOverride
-                        : this.properties.getProperty("ListFile", "list.txt").trim();
-        this.listMntbyFile = this.listMntbyFileOverride != null
-                             ? this.listMntbyFileOverride
-                             : this.properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
-        this.listAssetFile = this.listAssetFileOverride != null
-                             ? this.listAssetFileOverride
-                             : this.properties.getProperty("ListAssetFile", "list.as-set.txt").trim();
-        this.whoisLiteLocalURI = this.whoisLiteLocalURIOverride != null
-                                 ? this.whoisLiteLocalURIOverride
-                                 : this.properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
-        this.storeDir = this.storeDirOverride != null
-                        ? this.storeDirOverride
-                        : this.properties.getProperty("StoreDir", "./STORE").trim();
-        this.warFile = this.warFileOverride != null
-                       ? this.warFileOverride
-                       : this.properties.getProperty("WarFile", "war.juniper.txt").trim();
-        this.blackbgpFile = this.blackbgpFileOverride != null
-                            ? this.blackbgpFileOverride
-                            : this.properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
-        this.getBlackhole = this.getBlackholeOverride != null
-                            ? this.getBlackholeOverride
-                            : this.properties.getProperty("GetBlackhole",
+        // Phase 3: resolve each field (CLI override wins, then properties, then default)
+        this.listFile = listFileOverride != null
+                        ? listFileOverride
+                        : properties.getProperty("ListFile", "list.txt").trim();
+        this.listMntbyFile = listMntbyFileOverride != null
+                             ? listMntbyFileOverride
+                             : properties.getProperty("ListMntbyFile", "list.mnt-by.txt").trim();
+        this.listAssetFile = listAssetFileOverride != null
+                             ? listAssetFileOverride
+                             : properties.getProperty("ListAssetFile", "list.as-set.txt").trim();
+        this.whoisLiteLocalURI = whoisLiteLocalURIOverride != null
+                                 ? whoisLiteLocalURIOverride
+                                 : properties.getProperty("WhoisLiteLocalURI", "jdbc:sqlite:whoislitelocal.db").trim();
+        this.storeDir = storeDirOverride != null
+                        ? storeDirOverride
+                        : properties.getProperty("StoreDir", "./STORE").trim();
+        this.warFile = warFileOverride != null
+                       ? warFileOverride
+                       : properties.getProperty("WarFile", "war.juniper.txt").trim();
+        this.blackbgpFile = blackbgpFileOverride != null
+                            ? blackbgpFileOverride
+                            : properties.getProperty("BlackbgpFile", "war.blackbgp.txt").trim();
+        this.getBlackhole = getBlackholeOverride != null
+                            ? getBlackholeOverride
+                            : properties.getProperty("GetBlackhole",
                         "ssh blackbgp \"sudo ip r l t blackbgp\"").trim();
-        this.getBlackholeIpv6 = this.getBlackholeIpv6Override != null
-                                ? this.getBlackholeIpv6Override
-                                : this.properties.getProperty("GetBlackholeIpv6",
+        this.getBlackholeIpv6 = getBlackholeIpv6Override != null
+                                ? getBlackholeIpv6Override
+                                : properties.getProperty("GetBlackholeIpv6",
                         "ssh blackbgp \"sudo ip -6 r l t blackbgp\"").trim();
-        this.afterCommand = this.afterCommandOverride != null
-                            ? this.afterCommandOverride
-                            : this.properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
-        this.blockCountry = parseList(this.blockCountryOverride != null
-                            ? this.blockCountryOverride
-                            : this.properties.getProperty("BlockCountry", "RU"));
-        this.forceAsBlock = parseList(this.forceAsBlockOverride != null
-                            ? this.forceAsBlockOverride
-                            : this.properties.getProperty("ForceASBlock", ""))
+        this.afterCommand = afterCommandOverride != null
+                            ? afterCommandOverride
+                            : properties.getProperty("AfterCommand", defaultAfterCommand()).trim();
+        this.blockCountry = parseList(blockCountryOverride != null
+                            ? blockCountryOverride
+                            : properties.getProperty("BlockCountry", "RU"));
+        this.forceAsBlock = parseList(forceAsBlockOverride != null
+                            ? forceAsBlockOverride
+                            : properties.getProperty("ForceASBlock", ""))
                             .stream()
                             .map(s -> { String u = s.toUpperCase(); return u.startsWith("AS") ? u : "AS" + u; })
                             .collect(Collectors.toCollection(ArrayList::new));
-        this.forceNetBlock = parseList(this.forceNetBlockOverride != null
-                             ? this.forceNetBlockOverride
-                             : this.properties.getProperty("ForceNETBlock", ""));
-        this.aggressorPattern = this.aggressorPatternOverride != null
-                                ? this.aggressorPatternOverride
-                                : this.properties.getProperty("AggressorPattern", DEFAULT_AGGRESSOR_PATTERN).trim();
+        this.forceNetBlock = parseList(forceNetBlockOverride != null
+                             ? forceNetBlockOverride
+                             : properties.getProperty("ForceNETBlock", ""));
+        this.aggressorPattern = aggressorPatternOverride != null
+                                ? aggressorPatternOverride
+                                : properties.getProperty("AggressorPattern", DEFAULT_AGGRESSOR_PATTERN).trim();
 
-        // CLI flags win; fall back to properties file values
+        if (Boolean.TRUE.equals(ipv6Flag)) {
+            this.blackbgpIpv6 = true;
+            this.blackbgpIpv6Explicit = true;
+        } else if (Boolean.TRUE.equals(noIpv6Flag)) {
+            this.blackbgpIpv6 = false;
+            this.blackbgpIpv6Explicit = true;
+        }
         if (!this.blackbgpIpv6Explicit) {
             this.blackbgpIpv6 = Boolean.parseBoolean(
-                    this.properties.getProperty("BlackbgpIpv6", "true").trim());
+                    properties.getProperty("BlackbgpIpv6", "true").trim());
         }
+
         if (!this.batchMode) {
             this.batchMode = Boolean.parseBoolean(
-                    this.properties.getProperty("BatchMode", "false").trim());
+                    properties.getProperty("BatchMode", "false").trim());
         }
-        if (this.recursiveAsset < 0) {
-            String ra = this.properties.getProperty("RecursiveAsset");
+
+        if (recursiveAssetOverride != null) {
+            this.recursiveAsset = recursiveAssetOverride;
+        } else {
+            String ra = properties.getProperty("RecursiveAsset");
             if (ra != null) {
                 try {
                     this.recursiveAsset = Integer.parseInt(ra.trim());
@@ -205,97 +315,6 @@ public class Config {
         }
         this.configPath = savePath;
         log.info("Конфігурацію збережено до {}", savePath);
-    }
-
-    private void parseArgs() {
-        if (this.args == null) {
-            return;
-        }
-        for (String arg : this.args) {
-            if (arg.equals("--help") || arg.equals("-h")) {
-                printHelp();
-                System.exit(0);
-            } else if (arg.startsWith("--config=")) {
-                this.configPath = arg.substring("--config=".length()).trim();
-            } else if (arg.startsWith("--list-file=")) {
-                this.listFileOverride = arg.substring("--list-file=".length()).trim();
-            } else if (arg.startsWith("--list-mnt=")) {
-                this.listMntbyFileOverride = arg.substring("--list-mnt=".length()).trim();
-            } else if (arg.startsWith("--list-asset=")) {
-                this.listAssetFileOverride = arg.substring("--list-asset=".length()).trim();
-            } else if (arg.startsWith("--whois-uri=")) {
-                this.whoisLiteLocalURIOverride = arg.substring("--whois-uri=".length()).trim();
-            } else if (arg.startsWith("--store-dir=")) {
-                this.storeDirOverride = arg.substring("--store-dir=".length()).trim();
-            } else if (arg.startsWith("--war-file=")) {
-                this.warFileOverride = arg.substring("--war-file=".length()).trim();
-            } else if (arg.startsWith("--blackbgp-file=")) {
-                this.blackbgpFileOverride = arg.substring("--blackbgp-file=".length()).trim();
-            } else if (arg.startsWith("--get-blackhole=")) {
-                this.getBlackholeOverride = arg.substring("--get-blackhole=".length()).trim();
-            } else if (arg.startsWith("--get-blackhole6=")) {
-                this.getBlackholeIpv6Override = arg.substring("--get-blackhole6=".length()).trim();
-            } else if (arg.equals("--gui") || arg.equals("-g")) {
-                this.gui = true;
-            } else if (arg.equals("--batch") || arg.equals("-b")) {
-                this.batchMode = true;
-            } else if (arg.startsWith("--after-command=")) {
-                this.afterCommandOverride = arg.substring("--after-command=".length()).trim();
-            } else if (arg.startsWith("--block-country=")) {
-                this.blockCountryOverride = arg.substring("--block-country=".length()).trim();
-            } else if (arg.startsWith("--force-as=")) {
-                this.forceAsBlockOverride = arg.substring("--force-as=".length()).trim();
-            } else if (arg.startsWith("--force-net=")) {
-                this.forceNetBlockOverride = arg.substring("--force-net=".length()).trim();
-            } else if (arg.startsWith("--aggressor-pattern=")) {
-                this.aggressorPatternOverride = arg.substring("--aggressor-pattern=".length()).trim();
-            } else if (arg.equals("--ipv6") || arg.equals("-6")) {
-                this.blackbgpIpv6 = true;
-                this.blackbgpIpv6Explicit = true;
-            } else if (arg.equals("--no-ipv6") || arg.equals("-no6")) {
-                this.blackbgpIpv6 = false;
-                this.blackbgpIpv6Explicit = true;
-            } else if (arg.equals("--recursive-asset")) {
-                this.recursiveAsset = 1;
-            } else if (arg.startsWith("--recursive-asset=")) {
-                String val = arg.substring("--recursive-asset=".length()).trim();
-                try {
-                    this.recursiveAsset = Integer.parseInt(val);
-                } catch (NumberFormatException e) {
-                    this.recursiveAsset = 1;
-                }
-            }
-        }
-    }
-
-    private static void printHelp() {
-        System.out.println("Usage: ASBlockWar [options]");
-        System.out.println();
-        System.out.println("Options:");
-        System.out.println("  --config=<path>           Configuration file (overrides built-in asblockwar.properties)");
-        System.out.println("  --list-file=<path>        ASN list file                  (default: list.txt)");
-        System.out.println("  --list-mnt=<path>         mnt-by handles file            (default: list.mnt-by.txt)");
-        System.out.println("  --list-asset=<path>       AS-SET list file               (default: list.as-set.txt)");
-        System.out.println("  --whois-uri=<uri>         whois-lite-local JDBC URI      (default: jdbc:sqlite:whoislitelocal.db)");
-        System.out.println("  --store-dir=<path>        Output store directory         (default: ./STORE)");
-        System.out.println("  --war-file=<path>         Juniper WAR output file        (default: war.juniper.txt)");
-        System.out.println("  --blackbgp-file=<path>    Blackbgp commands output file  (default: war.blackbgp.txt)");
-        System.out.println("  --get-blackhole=<cmd>     Command to read IPv4 blackbgp routes");
-        System.out.println("                            (default: ssh blackbgp \"sudo ip r l t blackbgp\")");
-        System.out.println("  --get-blackhole6=<cmd>    Command to read IPv6 blackbgp routes");
-        System.out.println("                            (default: ssh blackbgp \"sudo ip -6 r l t blackbgp\")");
-        System.out.println("  -6, --ipv6                Include IPv6 routes in blackbgp output (default: enabled)");
-        System.out.println("  -no6, --no-ipv6           Disable IPv6 routes in blackbgp output");
-        System.out.println("  --block-country=<CC,...>  Country codes to block, comma-separated (default: RU)");
-        System.out.println("  --force-as=<AS,...>       ASNs to force-block regardless of country filter");
-        System.out.println("  --force-net=<pfx,...>     Prefixes to force into blackbgp target (blackhole only)");
-        System.out.println("  --aggressor-pattern=<rx>  Regex to match aggressor RPSL blocks (overrides config)");
-        System.out.println("  --recursive-asset[=N]     Recurse into nested AS-SETs    (default depth: 1)");
-        System.out.println("  -b, --batch               Run AfterCommand script after processing");
-        System.out.println("  --after-command=<path>    Script to run in batch mode");
-        System.out.println("                            (default: after.sh on Unix, after.cmd on Windows)");
-        System.out.println("  -g, --gui                 Launch graphical user interface");
-        System.out.println("  -h, --help                Show this help and exit");
     }
 
     private void loadProperties() throws IOException {

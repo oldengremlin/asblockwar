@@ -239,15 +239,47 @@ CLI-аргументи (--option=value)
             └─ жорсткі дефолти в коді
 ```
 
+### CLI-парсинг через Picocli
+
+Клас анотований `@Command`, кожна опція — `@Option`. Picocli замінює
+весь ручний `parseArgs()`: auto-генерує `--help`, перевіряє типи,
+підтримує `--option=value` і `arity = "0..1"` для опцій без обов'язкового
+значення.
+
+Трифазна ініціалізація у конструкторі:
+
+1. `new CommandLine(this).parseArgs(args)` — Picocli встановлює всі
+   `*Override`-поля і `configPath` (потрібен до завантаження файлу)
+2. `loadProperties()` — читає файл з щойно встановленого `configPath`
+3. Ternary-резолюція кожного поля: `override != null ? override : properties.getProperty(...)`
+
 Кожна властивість має пару полів:
 - `private String fieldName` — resolved значення (Lombok генерує getter/setter)
-- `private String fieldNameOverride` — встановлюється `parseArgs()`, якщо переданий
-  відповідний CLI-аргумент
+- `@Option(...) private String fieldNameOverride` — Picocli встановлює з CLI;
+  `null` коли флаг відсутній
+
+Спеціальні випадки:
+- `Boolean ipv6Flag` / `Boolean noIpv6Flag` (boxed) — `null` коли відсутні;
+  дозволяють виявити, чи задано `--ipv6`/`--no-ipv6` явно
+- `Integer recursiveAssetOverride` з `arity = "0..1", fallbackValue = "1"` —
+  `--recursive-asset` без значення дає 1, `--recursive-asset=3` дає 3, відсутність дає null
+- `boolean batchMode` / `boolean gui` — Picocli встановлює `true` при наявності флагу;
+  `if (!batchMode)` у фазі 3 безпечно звертається до properties-файлу
 
 `DEFAULT_AGGRESSOR_PATTERN` — публічна константа, щоб Properties-контролер міг
-показати дефолт у tooltip або reset.
+показати дефолт або скинути до нього.
 
 `save()` записує поточний стан у той самий файл, з якого завантажувалися.
+
+### Додавання нової CLI-опції
+
+1. Додати `@Option(names = "--new-opt", ...) private String newOptOverride;`
+2. Додати resolved-поле `private String newOpt;`
+3. Додати ternary у фазі 3 конструктора
+4. Додати `p.setProperty(...)` у `save()`
+5. Якщо є UI — додати поле у `PropertiesDialog.fxml` та `PropertiesController`
+
+Help генерується автоматично з анотацій — `printHelp()` більше не існує.
 
 ---
 
