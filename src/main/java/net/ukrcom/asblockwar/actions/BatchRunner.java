@@ -15,8 +15,13 @@
  */
 package net.ukrcom.asblockwar.actions;
 
-import net.ukrcom.asblockwar.ASBlockWar;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import lombok.extern.slf4j.Slf4j;
+import net.ukrcom.asblockwar.ASBlockWar;
 import net.ukrcom.asblockwar.UIProgressCallback;
 
 /**
@@ -42,7 +47,7 @@ public class BatchRunner {
             return;
         }
         String cmd = ASBlockWar.config.getAfterCommand();
-        java.io.File scriptFile = new java.io.File(cmd);
+        File scriptFile = new File(cmd);
         if (!scriptFile.exists()) {
             log.warn("AfterCommand: файл не знайдено: {}", cmd);
             return;
@@ -56,7 +61,7 @@ public class BatchRunner {
         ProcessBuilder pb = isWindows
                             ? new ProcessBuilder("cmd.exe", "/c", scriptFile.getAbsolutePath())
                             : new ProcessBuilder(scriptFile.getAbsolutePath());
-        pb.directory(new java.io.File(System.getProperty("user.dir")));
+        pb.directory(new File(System.getProperty("user.dir")));
         UIProgressCallback cb = ASBlockWar.uiCallback;
         try {
             if (cb == null) {
@@ -68,36 +73,30 @@ public class BatchRunner {
                 // GUI-режим: потоковий вивід рядок за рядком з розрізненням stdout/stderr
                 pb.redirectErrorStream(false);
                 Process proc = pb.start();
-                Thread stdoutThread = Thread.ofVirtual().start(() -> {
-                    try (java.io.BufferedReader r = new java.io.BufferedReader(
-                            new java.io.InputStreamReader(proc.getInputStream()))) {
-                        String line;
-                        while ((line = r.readLine()) != null) {
-                            cb.onBatchOutputLine(line, false);
-                        }
-                    } catch (java.io.IOException ignored) {
-                    }
-                });
-                Thread stderrThread = Thread.ofVirtual().start(() -> {
-                    try (java.io.BufferedReader r = new java.io.BufferedReader(
-                            new java.io.InputStreamReader(proc.getErrorStream()))) {
-                        String line;
-                        while ((line = r.readLine()) != null) {
-                            cb.onBatchOutputLine(line, true);
-                        }
-                    } catch (java.io.IOException ignored) {
-                    }
-                });
+                Thread stdoutThread = pipeStream(proc.getInputStream(), cb, false);
+                Thread stderrThread = pipeStream(proc.getErrorStream(), cb, true);
                 int code = proc.waitFor();
                 stdoutThread.join();
                 stderrThread.join();
                 log.info("AfterCommand: завершено з кодом {}", code);
             }
-        } catch (java.io.IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             log.error("AfterCommand: помилка виконання: {}", e.getMessage());
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private static Thread pipeStream(InputStream stream, UIProgressCallback cb, boolean isStderr) {
+        return Thread.ofVirtual().start(() -> {
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    cb.onBatchOutputLine(line, isStderr);
+                }
+            } catch (IOException ignored) {
+            }
+        });
     }
 }
