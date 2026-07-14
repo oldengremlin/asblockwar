@@ -8,10 +8,18 @@
 .text-field,
 .text-area,
 .list-view,
-.tree-view,
-#logScroll {
+.tree-view {
     -fx-background-radius: 5;
     -fx-border-radius: 5;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
+}
+
+/* WebView log panel in RunProgressDialog */
+#logView {
+    -fx-border-color: derive(-fx-base, -20%);
+    -fx-border-width: 1;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.20), 6, 0, 0, 2);
 }
 
