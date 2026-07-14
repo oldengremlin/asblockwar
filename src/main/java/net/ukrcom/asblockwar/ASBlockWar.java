@@ -77,8 +77,7 @@ public class ASBlockWar {
      * @throws InterruptedException якщо основний потік перервано
      */
     public static void main(String[] args) throws InterruptedException {
-        java.util.logging.Logger.getLogger("com.sun.javafx.application.PlatformImpl")
-                .setLevel(java.util.logging.Level.SEVERE);
+        silenceJavafxStartupWarning();
         try {
             config = new Config(args);
             AGGRESSOR_COMPILED = Pattern.compile(config.getAggressorPattern());
@@ -95,6 +94,18 @@ public class ASBlockWar {
         } catch (RuntimeException ex) {
             LOGGER.error("Непередбачена помилка: ", ex);
         }
+    }
+
+    private static void silenceJavafxStartupWarning() {
+        java.io.PrintStream orig = System.err;
+        System.setErr(new java.io.PrintStream(orig, true) {
+            @Override
+            public void write(byte[] b, int off, int len) {
+                if (!new String(b, off, len).contains("Unsupported JavaFX configuration")) {
+                    super.write(b, off, len);
+                }
+            }
+        });
     }
 
     /**
