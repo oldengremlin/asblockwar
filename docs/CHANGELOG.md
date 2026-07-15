@@ -5,6 +5,21 @@
 
 ---
 
+## [3.4.2] — 2026-07-15
+
+### Виправлено
+- **WARNING: sun.misc.Unsafe::objectFieldOffset (Lombok/Permit)**: додано `.mvn/jvm.config`
+  з прапором `--sun-misc-unsafe-memory-access=allow` (JEP 498, Java 23+).
+  Maven читає цей файл автоматично і передає аргумент своїй JVM, яка хостить
+  annotation processor Lombok під час компіляції. Попередження більше не з'являється.
+
+### Оновлено залежності
+- **Lombok** `1.18.42` → `1.18.46` (покращена підтримка Java 25; оновлено
+  як у `<dependencies>`, так і в `<annotationProcessorPaths>`)
+- **picocli-codegen** `4.7.6` → `4.7.7` (приведено у відповідність до версії `picocli`)
+
+---
+
 ## [3.4.1] — 2026-07-14
 
 ### Рефакторинг
