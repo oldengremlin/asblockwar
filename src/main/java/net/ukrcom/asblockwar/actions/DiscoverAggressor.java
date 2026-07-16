@@ -70,15 +70,21 @@ public class DiscoverAggressor {
      *       і перевіряє кожен через {@link FilterAggressor#isAggressor}.</li>
      * </ol>
      * Нові ворожі ASN додаються до {@code aggressorAsnResources} та {@link ASBlockWar#resourcesForVerification}.
+     * <p>
+     * Кожен кандидат перевіряється не більше одного разу: {@code seenAsns} (thread-safe Set)
+     * передзаповнюється вже відомими ворожими ASN і атомарно поповнюється перед кожним
+     * зверненням до БД — повторні запити по тих самих ASN виключені.
      *
      * @param aggressorAsnResources карта {@code ASN → RPSL-блок}; модифікується на місці
      * @return результат з виявленими MNT-BY та AS-SET для подальшого збереження
      */
     public static DiscoveryResult discoverCooperatingAsnResources(Map<String, String> aggressorAsnResources) {
         int depth = Math.max(ASBlockWar.config.getRecursiveAsset(), 0);
-        Set<String> discoveredMntBy = ConcurrentHashMap.newKeySet();
+        Set<String> discoveredMntBy  = ConcurrentHashMap.newKeySet();
         Set<String> discoveredAsSets = ConcurrentHashMap.newKeySet();
-        Set<String> blocked = FilterAggressor.blockedCountries();
+        Set<String> blocked          = FilterAggressor.blockedCountries();
+        Set<String> seenAsns         = ConcurrentHashMap.newKeySet();
+        seenAsns.addAll(aggressorAsnResources.keySet());
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
@@ -109,7 +115,7 @@ public class DiscoverAggressor {
                         }
 
                         for (String memberAsn : memberAsns) {
-                            if (aggressorAsnResources.containsKey(memberAsn)) {
+                            if (!seenAsns.add(memberAsn)) {
                                 continue;
                             }
                             dbLimit.acquire();
@@ -129,7 +135,7 @@ public class DiscoverAggressor {
 
                     // Прямий ASN-потік: from/to/accept/announce з import/export рядків
                     for (String directAsn : directAsns) {
-                        if (directAsn.equalsIgnoreCase(asn) || aggressorAsnResources.containsKey(directAsn)) {
+                        if (!seenAsns.add(directAsn)) {
                             continue;
                         }
                         dbLimit.acquire();
