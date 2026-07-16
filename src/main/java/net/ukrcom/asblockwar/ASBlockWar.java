@@ -128,7 +128,17 @@ public class ASBlockWar {
      * @throws IOException якщо виникла помилка читання або запису файлів
      * @throws InterruptedException якщо потік перервано під час очікування
      */
+    private static String formatDuration(long nanos) {
+        long ms   = nanos / 1_000_000L;
+        long secs = ms / 1000;
+        long min  = secs / 60;
+        return min > 0
+                ? String.format("%d хв %02d.%03d с", min, secs % 60, ms % 1000)
+                : String.format("%d.%03d с", secs, ms % 1000);
+    }
+
     public static void runProcessing() throws IOException, InterruptedException {
+        long t0 = System.nanoTime();
         listFile = config.getListFile();
         listMntbyFile = config.getListMntbyFile();
         resourcesForVerification = new ConcurrentHashMap<>();
@@ -200,8 +210,11 @@ public class ASBlockWar {
         }
 
         Reporter.report(aggressorAsnResources);
-        LOGGER.info("Готово!");
+        LOGGER.info("Готово за {}.", formatDuration(System.nanoTime() - t0));
         BatchRunner.runBatchCommand();
+        if (config.isBatchMode()) {
+            LOGGER.info("Загальний час: {}.", formatDuration(System.nanoTime() - t0));
+        }
     }
 
 }
