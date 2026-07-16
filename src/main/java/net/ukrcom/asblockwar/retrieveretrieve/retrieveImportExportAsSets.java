@@ -29,8 +29,14 @@ import java.util.regex.Pattern;
 import net.ukrcom.asblockwar.Config;
 
 /**
- * Витягує AS-SET-и з полів import/export/mp-import/mp-export RPSL-блоку aut-num.
- * Шукає конструкції виду "accept AS-..." (ознака AS-SET, а не AS-номеру).
+ * Витягує AS-SET-и та прямі ASN з полів import/export/mp-import/mp-export RPSL-блоку aut-num.
+ * <p>
+ * Два незалежних результати з одного проходу по блоку:
+ * <ul>
+ *   <li>{@link #get()} — AS-SET-и з {@code accept}-конструкцій (починаються з {@code AS-})</li>
+ *   <li>{@link #getAsns()} — усі прямі ASN ({@code AS\d+}) з будь-якої частини рядка:
+ *       {@code from}, {@code to}, {@code accept}, {@code announce} тощо</li>
+ * </ul>
  *
  * @author olden
  */
@@ -41,13 +47,19 @@ public class retrieveImportExportAsSets {
     private static final Pattern ACCEPT_AS_SET = Pattern.compile(
             "\\baccept\\s+(AS-[^\\s,{};]+)", Pattern.CASE_INSENSITIVE);
 
+    // Усі прямі ASN — from AS1234, to AS5678, accept AS9999, announce AS1111 тощо
+    private static final Pattern PLAIN_ASN = Pattern.compile(
+            "\\b(AS\\d+)\\b", Pattern.CASE_INSENSITIVE);
+
     private final Config config;
     private final String autNum;
     private final Set<String> asSets = new HashSet<>();
+    private final Set<String> asns  = new HashSet<>();
 
     /**
      * Відкриває з'єднання з БД, завантажує RPSL-блок aut-num і парсить
-     * конструкції {@code accept AS-...} у полях import/export/mp-import/mp-export.
+     * конструкції {@code accept AS-...} та прямі ASN ({@code AS\d+})
+     * у полях import/export/mp-import/mp-export.
      *
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
@@ -84,17 +96,33 @@ public class retrieveImportExportAsSets {
                 while (m.find()) {
                     asSets.add(m.group(1).toUpperCase());
                 }
+                Matcher ma = PLAIN_ASN.matcher(line);
+                while (ma.find()) {
+                    asns.add(ma.group(1).toUpperCase());
+                }
             }
         }
     }
 
     /**
-     * Повертає незмінну множину AS-SET, знайдених у import/export полях aut-num.
+     * Повертає незмінну множину AS-SET, знайдених у {@code accept}-конструкціях
+     * import/export полів aut-num.
      *
      * @return множина назв AS-SET у верхньому регістрі (наприклад, {@code "AS-EXAMPLE"})
      */
     public Set<String> get() {
         log.debug("retrieveImportExportAsSets({}).get(): {}", autNum, asSets);
         return Set.copyOf(asSets);
+    }
+
+    /**
+     * Повертає незмінну множину прямих ASN ({@code AS\d+}), знайдених у будь-якій частині
+     * import/export рядків: {@code from}, {@code to}, {@code accept}, {@code announce} тощо.
+     *
+     * @return множина ASN у верхньому регістрі (наприклад, {@code "AS12345"})
+     */
+    public Set<String> getAsns() {
+        log.debug("retrieveImportExportAsSets({}).getAsns(): {}", autNum, asns);
+        return Set.copyOf(asns);
     }
 }
