@@ -65,11 +65,12 @@ public class BatchRunner {
         pb.directory(new File(System.getProperty("user.dir")));
         UIProgressCallback cb = ASBlockWar.uiCallback;
         try {
+            long t0 = System.nanoTime();
             if (cb == null) {
                 // CLI-режим: вивід успадковується консоллю
                 pb.inheritIO();
                 int code = pb.start().waitFor();
-                log.info("AfterCommand: завершено з кодом {}", code);
+                log.info("AfterCommand: завершено з кодом {} за {}.", code, formatDuration(System.nanoTime() - t0));
             } else {
                 // GUI-режим: потоковий вивід рядок за рядком з розрізненням stdout/stderr
                 pb.redirectErrorStream(false);
@@ -79,7 +80,7 @@ public class BatchRunner {
                 int code = proc.waitFor();
                 stdoutThread.join();
                 stderrThread.join();
-                log.info("AfterCommand: завершено з кодом {}", code);
+                log.info("AfterCommand: завершено з кодом {} за {}.", code, formatDuration(System.nanoTime() - t0));
             }
         } catch (IOException | InterruptedException e) {
             log.error("AfterCommand: помилка виконання: {}", e.getMessage());
@@ -87,6 +88,15 @@ public class BatchRunner {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private static String formatDuration(long nanos) {
+        long ms   = nanos / 1_000_000L;
+        long secs = ms / 1000;
+        long min  = secs / 60;
+        return min > 0
+                ? String.format("%d хв %02d.%03d с", min, secs % 60, ms % 1000)
+                : String.format("%d.%03d с", secs, ms % 1000);
     }
 
     private static Thread pipeStream(InputStream stream, UIProgressCallback cb, boolean isStderr) {
