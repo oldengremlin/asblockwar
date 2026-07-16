@@ -47,15 +47,28 @@ public class DiscoverAggressor {
     private DiscoverAggressor() {
     }
 
-    // Службові мантейнери RIPE, які присутні в будь-якому записі — не є ознакою належності до агресора
     public static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
 
+    private static void addMntBy(String block, Set<String> target) {
+        block.lines()
+                .filter(l -> l.matches("(?i)^mnt-by:.*"))
+                .map(l -> l.replaceFirst("(?i)^mnt-by:\\s*", "").trim())
+                .filter(v -> !v.isEmpty())
+                .forEach(v -> target.add(v.toUpperCase()));
+    }
+
     /**
-     * Виявляє ворожі ASN через мережі import/export AS-SET вже відомих агресорів.
+     * Виявляє ворожі ASN через мережі import/export вже відомих агресорів.
      * <p>
-     * Для кожного вже відомого ворожого ASN знаходить AS-SET, що імпортуються/експортуються,
-     * витягує їхніх членів (з глибиною рекурсії {@code config.recursiveAsset}),
-     * і перевіряє кожного члена на відповідність {@link ASBlockWar#AGGRESSOR_COMPILED}.
+     * Для кожного вже відомого ворожого ASN виконується два паралельних потоки пошуку:
+     * <ol>
+     *   <li><b>AS-SET-потік</b>: знаходить AS-SET з {@code accept}-конструкцій, рекурсивно
+     *       розгортає їхніх членів (глибина {@code config.recursiveAsset}) і перевіряє кожного
+     *       члена через {@link FilterAggressor#isAggressor}.</li>
+     *   <li><b>Прямий ASN-потік</b>: витягує всі прямі ASN ({@code AS\d+}) з будь-якої частини
+     *       import/export рядків ({@code from}, {@code to}, {@code accept}, {@code announce})
+     *       і перевіряє кожен через {@link FilterAggressor#isAggressor}.</li>
+     * </ol>
      * Нові ворожі ASN додаються до {@code aggressorAsnResources} та {@link ASBlockWar#resourcesForVerification}.
      *
      * @param aggressorAsnResources карта {@code ASN → RPSL-блок}; модифікується на місці
@@ -73,14 +86,17 @@ public class DiscoverAggressor {
             aggressorAsnResources.keySet().parallelStream()
                     .forEach(asn -> executor.submit(() -> {
                 try {
-                    Set<String> asSets;
+                    retrieveImportExportAsSets retriever;
                     dbLimit.acquire();
                     try {
-                        asSets = new retrieveImportExportAsSets(asn).get();
+                        retriever = new retrieveImportExportAsSets(asn);
                     } finally {
                         dbLimit.release();
                     }
+                    Set<String> asSets    = retriever.get();
+                    Set<String> directAsns = retriever.getAsns();
 
+                    // AS-SET-потік: рекурсивне розгортання членів
                     for (String asSet : asSets) {
                         discoveredAsSets.add(asSet);
 
@@ -100,18 +116,33 @@ public class DiscoverAggressor {
                             try {
                                 String block = new retrieveOrganisation(memberAsn).get();
                                 if (FilterAggressor.isAggressor(block, blocked)) {
-                                    log.debug("discoverCooperating: {} -> {} -> {}", asn, asSet, memberAsn);
+                                    log.debug("discoverCooperating(as-set): {} -> {} -> {}", asn, asSet, memberAsn);
                                     ASBlockWar.resourcesForVerification.put(memberAsn, new ASN(Action.add, memberAsn, block));
                                     aggressorAsnResources.put(memberAsn, block);
-                                    block.lines()
-                                            .filter(l -> l.matches("(?i)^mnt-by:.*"))
-                                            .map(l -> l.replaceFirst("(?i)^mnt-by:\\s*", "").trim())
-                                            .filter(v -> !v.isEmpty())
-                                            .forEach(v -> discoveredMntBy.add(v.toUpperCase()));
+                                    addMntBy(block, discoveredMntBy);
                                 }
                             } finally {
                                 dbLimit.release();
                             }
+                        }
+                    }
+
+                    // Прямий ASN-потік: from/to/accept/announce з import/export рядків
+                    for (String directAsn : directAsns) {
+                        if (directAsn.equalsIgnoreCase(asn) || aggressorAsnResources.containsKey(directAsn)) {
+                            continue;
+                        }
+                        dbLimit.acquire();
+                        try {
+                            String block = new retrieveOrganisation(directAsn).get();
+                            if (FilterAggressor.isAggressor(block, blocked)) {
+                                log.debug("discoverCooperating(direct): {} -> {}", asn, directAsn);
+                                ASBlockWar.resourcesForVerification.put(directAsn, new ASN(Action.add, directAsn, block));
+                                aggressorAsnResources.put(directAsn, block);
+                                addMntBy(block, discoveredMntBy);
+                            }
+                        } finally {
+                            dbLimit.release();
                         }
                     }
                 } catch (InterruptedException e) {
