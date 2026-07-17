@@ -94,6 +94,13 @@
                            <TextField fx:id="fieldAfterCommand" HBox.hgrow="ALWAYS" />
                            <Button text="…" prefWidth="28.0" onAction="#browseAfterCommand" />
                         </HBox>
+
+                        <!-- Dependency graph -->
+                        <Label text="Dependency graph:" GridPane.rowIndex="13" GridPane.columnIndex="0" />
+                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="13" GridPane.columnIndex="1">
+                           <TextField fx:id="fieldDependencyGraph" promptText="(empty = disabled)" HBox.hgrow="ALWAYS" />
+                           <Button text="…" prefWidth="28.0" onAction="#browseDependencyGraph" />
+                        </HBox>
                      </children>
                   </GridPane>
 
