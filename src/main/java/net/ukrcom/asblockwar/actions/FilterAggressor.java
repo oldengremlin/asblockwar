@@ -66,21 +66,30 @@ public class FilterAggressor {
     public static boolean isAggressor(String rpsl, Set<String> blocked) {
         Matcher m = COUNTRY_PATTERN.matcher(rpsl);
         while (m.find()) {
-            if (blocked.contains(m.group(1).toUpperCase())) {
+            String country = m.group(1).toUpperCase();
+            if (blocked.contains(country)) {
+                log.debug("isAggressor: country={} — у BlockCountry → заблоковано", country);
                 return true;
             }
+            log.debug("isAggressor: country={} — не в BlockCountry", country);
         }
+        log.debug("isAggressor: country не знайдено або не в BlockCountry → пропущено");
         return false;
     }
 
     private static String extractCountry(String rpsl) {
         Matcher m = COUNTRY_PATTERN.matcher(rpsl);
-        return m.find() ? m.group(1).toUpperCase() : "?";
+        String country = m.find() ? m.group(1).toUpperCase() : "?";
+        log.debug("extractCountry: {}", country);
+        return country;
     }
 
     private static String matchedAggressorLine(String rpsl) {
+        log.debug("matchedAggressorLine аналізує:\n{}", rpsl);
         Matcher m = ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl);
-        return m.find() ? m.group(1).trim() : null;
+        String match = m.find() ? m.group(1).trim() : null;
+        log.debug("matchedAggressorLine результат: {}", match != null ? match : "збігів немає");
+        return match;
     }
 
     /**
@@ -129,7 +138,6 @@ public class FilterAggressor {
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
                     String rpsl = entry.getValue();
-                    log.debug("Аналізуємо {}", rpsl);
                     if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
