@@ -8,32 +8,32 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hidden}
 
-/* ── Header ── */
 #header{position:fixed;top:0;left:0;right:0;height:48px;background:#263238;color:#fff;
-        display:flex;align-items:center;gap:10px;padding:0 14px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+        display:flex;align-items:center;gap:10px;padding:0 14px;z-index:20;
+        box-shadow:0 2px 6px rgba(0,0,0,.4)}
 #title{font-size:13px;font-weight:700;white-space:nowrap;letter-spacing:.4px}
 #stats{font-size:10px;opacity:.65;white-space:nowrap;flex:1}
 #layout-badge{font-size:10px;color:#80CBC4;white-space:nowrap;opacity:.9;flex-shrink:0}
-#search{padding:4px 10px;border-radius:16px;border:none;font-size:12px;width:220px;outline:none;background:#37474F;color:#fff}
+#search{padding:4px 10px;border-radius:16px;border:none;font-size:12px;width:220px;
+        outline:none;background:#37474F;color:#fff}
 #search::placeholder{color:#90A4AE}
 #search-count{font-size:10px;color:#80CBC4;white-space:nowrap;min-width:50px}
 #btn-reset{background:none;border:1px solid #546E7A;color:#90A4AE;border-radius:12px;
            padding:2px 8px;font-size:11px;cursor:pointer;flex-shrink:0}
 #btn-reset:hover{background:#37474F;color:#fff}
 
-/* ── Graph canvas ── */
-#graph{position:fixed;top:48px;left:0;display:block;cursor:default}
+#graph{position:fixed;top:48px;left:0;width:100%;height:calc(100vh - 48px)}
+.node{cursor:pointer}
+.node-label{pointer-events:none;text-anchor:middle;dominant-baseline:hanging;fill:#37474F;font-size:9px}
 
-/* ── Tooltip ── */
-#tooltip{position:fixed;background:rgba(30,40,45,.92);color:#ECEFF1;
-         padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.5;
-         pointer-events:none;display:none;z-index:100;max-width:320px;
-         box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#tooltip{position:fixed;background:rgba(30,40,45,.92);color:#ECEFF1;padding:8px 12px;
+         border-radius:6px;font-size:11px;line-height:1.5;pointer-events:none;
+         display:none;z-index:100;max-width:320px;box-shadow:0 3px 10px rgba(0,0,0,.5)}
 
-/* ── Info panel ── */
 #info-panel{position:fixed;top:56px;right:10px;width:240px;background:#fff;
-            border:1px solid #CFD8DC;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,.15);
-            font-size:11px;display:none;overflow:hidden;z-index:15}
+            border:1px solid #CFD8DC;border-radius:8px;
+            box-shadow:0 3px 10px rgba(0,0,0,.15);font-size:11px;display:none;
+            overflow:hidden;z-index:15}
 #info-header{background:#37474F;color:#fff;padding:7px 10px;display:flex;
              justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
 #info-close{background:none;border:none;color:#90A4AE;cursor:pointer;font-size:16px;line-height:1}
@@ -49,7 +49,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
 .status-CLEAR{color:#2E7D32;font-weight:600}
 .status-UNKNOWN{color:#01579B}
 
-/* ── Legend ── */
 #legend{position:fixed;bottom:10px;left:10px;background:rgba(255,255,255,.95);
         border:1px solid #CFD8DC;border-radius:8px;padding:8px 12px;font-size:10px;
         color:#455A64;line-height:1.8;z-index:15;box-shadow:0 2px 6px rgba(0,0,0,.1)}
@@ -58,7 +57,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
 .leg-shape{display:inline-block;width:14px;text-align:center;font-size:11px}
 .leg-color{display:inline-block;width:12px;height:12px;border-radius:2px;border:1.5px solid;flex-shrink:0}
 
-/* ── Filters ── */
 #filters{position:fixed;top:56px;left:10px;background:rgba(255,255,255,.95);
          border:1px solid #CFD8DC;border-radius:8px;padding:7px 10px;font-size:10px;
          color:#455A64;z-index:15;box-shadow:0 2px 6px rgba(0,0,0,.1)}
@@ -68,7 +66,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
 </style>
 </head>
 <body>
-
 <div id="header">
   <span id="title">ASBlockWar · Dependency Graph</span>
   <span id="stats"></span>
@@ -86,7 +83,24 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
   <label class="filter-row"><input type="checkbox" class="status-filter" data-status="UNKNOWN" checked> <span style="color:#01579B">● Unknown</span></label>
 </div>
 
-<canvas id="graph"></canvas>
+<svg id="graph">
+  <defs>
+    <marker id="arr-MNT_BY"    markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#78909C" stroke-width="1"/></marker>
+    <marker id="arr-MNT_REF"   markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#BA68C8" stroke-width="1"/></marker>
+    <marker id="arr-ORG"       markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#4DB6AC" stroke-width="1"/></marker>
+    <marker id="arr-MEMBER_OF" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#81C784" stroke-width="1"/></marker>
+    <marker id="arr-PEER"      markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#FFD54F" stroke-width="1"/></marker>
+  </defs>
+  <g id="zoom-layer">
+    <g id="links"></g>
+    <!-- Порядок шарів: UNKNOWN → CLEAR → SUSPICIOUS → BLOCKED.
+         Blocked і Suspicious завжди поверх — не ховаються за менш важливі вузли. -->
+    <g id="nodes-UNKNOWN"></g>
+    <g id="nodes-CLEAR"></g>
+    <g id="nodes-SUSPICIOUS"></g>
+    <g id="nodes-BLOCKED"></g>
+  </g>
+</svg>
 
 <div id="tooltip"></div>
 
@@ -119,450 +133,393 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
-// ── Data injected by GraphExporter ──────────────────────────────────────────
+// ── Дані, впроваджені GraphExporter ──────────────────────────────────────
 const DATA = [[GRAPH_DATA]];
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ── Палітра ───────────────────────────────────────────────────────────────
 const FILL   = {BLOCKED:'#FFCDD2',SUSPICIOUS:'#FFE0B2',CLEAR:'#DCEDC8',UNKNOWN:'#E1F5FE'};
 const STROKE = {BLOCKED:'#C62828',SUSPICIOUS:'#E65100',CLEAR:'#558B2F',UNKNOWN:'#01579B'};
-const EDGE_COLOR={MNT_BY:'#78909C',MNT_REF:'#BA68C8',ORG:'#4DB6AC',MEMBER_OF:'#81C784',PEER:'#FFD54F'};
-const EDGE_DASH ={MNT_BY:[],      MNT_REF:[5,2],     ORG:[],       MEMBER_OF:[3,3],   PEER:[8,3]};
-const EDGE_W    ={MNT_BY:2,       MNT_REF:1.5,       ORG:2,        MEMBER_OF:1.5,     PEER:1.5};
+const EDGE_COLOR = {MNT_BY:'#78909C',MNT_REF:'#BA68C8',ORG:'#4DB6AC',MEMBER_OF:'#81C784',PEER:'#FFD54F'};
+const EDGE_DASH  = {MNT_BY:'',MNT_REF:'5,2',ORG:'',MEMBER_OF:'3,3',PEER:'8,3'};
+const EDGE_W     = {MNT_BY:1.5,MNT_REF:1,ORG:1.5,MEMBER_OF:1,PEER:1};
+const R = 8; // базовий радіус вузла (SVG-одиниці)
 
-// ── Canvas setup ──────────────────────────────────────────────────────────────
+// ── Розміри ───────────────────────────────────────────────────────────────
 const W = window.innerWidth, H = window.innerHeight - 48;
-const canvas = document.getElementById('graph');
-canvas.width = W; canvas.height = H;
-const ctx = canvas.getContext('2d');
+const svg = d3.select('#graph').attr('width', W).attr('height', H);
+const zoomLayer = d3.select('#zoom-layer');
 
-// ── Node lookup ───────────────────────────────────────────────────────────────
 const nodeMap = new Map(DATA.nodes.map(n => [n.id, n]));
-function nodeById(id){ return nodeMap.get(id); }
 
-// ── Interaction state ─────────────────────────────────────────────────────────
-let transform   = d3.zoomIdentity;
+// ── Стан взаємодії ────────────────────────────────────────────────────────
 let hiddenStats = new Set();
 let focusedId   = null;
 let focusNeigh  = new Set();
 let matchedIds  = new Set();
 let visibleIds  = new Set();
-let hoveredNode = null;
-let dragNode    = null;
-let dragMoved   = false;
-// Адаптивний радіус вузла: оновлюється на початку кожного draw().
-// При масштабі k, вузол займає _R*k px на екрані → завжди не менше 3 px.
-let _R = 10;
+let curK        = 1;
 
-// ── Pre-computed layout ───────────────────────────────────────────────────────
+// ── Pre-computed layout (sfdp) ────────────────────────────────────────────
+// sfdp дає координати у просторі 72×дюйми → для великих графів (~20K×14K одиниць).
+// Нормалізуємо до TARGET×TARGET, зберігаючи пропорції,
+// щоб fitAll() давав зрозумілий початковий масштаб.
 const preLayout = DATA.stats.preLayout === true
     && DATA.nodes.length > 0
     && DATA.nodes[0].px != null;
 
+const TARGET = 5000; // цільовий простір координат (умовні пікселі)
+
 if (preLayout) {
-    DATA.nodes.forEach(n => { n.x = n.px; n.y = n.py; });
+    const xs = DATA.nodes.map(n => n.px), ys = DATA.nodes.map(n => n.py);
+    const x0 = d3.min(xs), x1 = d3.max(xs);
+    const y0 = d3.min(ys), y1 = d3.max(ys);
+    const span = Math.max((x1 - x0) || 1, (y1 - y0) || 1);
+    DATA.nodes.forEach(n => {
+        n.x = (n.px - x0) / span * TARGET;
+        n.y = (n.py - y0) / span * TARGET;
+    });
     document.getElementById('layout-badge').textContent = '⚡ sfdp';
 }
 
-// ── Zoom ──────────────────────────────────────────────────────────────────────
-const zoom = d3.zoom().scaleExtent([0.04, 12])
-    .filter(e => e.type === 'wheel' || !findNodeAt(e.offsetX, e.offsetY))
-    .on('zoom', e => { transform = e.transform; draw(); });
-d3.select(canvas).call(zoom);
+// ── Links ─────────────────────────────────────────────────────────────────
+const linkSel = d3.select('#links')
+    .selectAll('line')
+    .data(DATA.links)
+    .join('line')
+    .attr('stroke',           d => EDGE_COLOR[d.relation] || '#aaa')
+    .attr('stroke-width',     d => EDGE_W[d.relation] || 1)
+    .attr('stroke-dasharray', d => EDGE_DASH[d.relation] || '')
+    .attr('stroke-opacity', 0.5)
+    .attr('marker-end', d => 'url(#arr-' + d.relation + ')');
 
-// ── Simulation (skipped when sfdp layout is present) ─────────────────────────
-let tickCount = 0, fitDone = false;
+// ── Вузли по шарах статусу ────────────────────────────────────────────────
+// Кожен статус — окремий <g>. Порядок DOM визначає порядок малювання:
+// UNKNOWN (знизу) → CLEAR → SUSPICIOUS → BLOCKED (зверху).
+const STATUS_ORDER = ['UNKNOWN','CLEAR','SUSPICIOUS','BLOCKED'];
+
+function buildNode(sel) {
+    sel.each(function(n) {
+        const g = d3.select(this);
+        // Форма залежить від типу об'єкта
+        if (n.type === 'ASN') {
+            g.append('circle').attr('r', R);
+        } else if (n.type === 'AS_SET') {
+            const d = R * 1.3;
+            g.append('polygon').attr('points', '0,' + (-d) + ' ' + d + ',0 0,' + d + ' ' + (-d) + ',0');
+        } else if (n.type === 'MNTNER') {
+            g.append('rect')
+             .attr('x', -R).attr('y', -R)
+             .attr('width', 2 * R).attr('height', 2 * R)
+             .attr('rx', R * 0.3);
+        } else { // ORGANISATION
+            g.append('ellipse').attr('rx', R * 1.4).attr('ry', R * 0.9);
+        }
+        // Заливка та обводка за статусом
+        g.select(':first-child')
+         .attr('fill',         FILL[n.status]   || '#eee')
+         .attr('stroke',       STROKE[n.status] || '#999')
+         .attr('stroke-width', 1.5);
+        // Підпис
+        g.append('text')
+         .attr('class', 'node-label')
+         .attr('y', n.type === 'AS_SET' ? R * 1.5 : R * 1.2)
+         .text(n.id.length > 18 ? n.id.slice(0, 16) + '…' : n.id);
+    });
+}
+
+const nodeGroups = {};
+STATUS_ORDER.forEach(st => {
+    nodeGroups[st] = d3.select('#nodes-' + st)
+        .selectAll('g.node')
+        .data(DATA.nodes.filter(n => n.status === st))
+        .join('g')
+        .attr('class', 'node')
+        .call(buildNode)
+        .on('mouseover', onOver)
+        .on('mouseout',  onOut)
+        .on('click',     onClick);
+});
+
+// Кешована вибірка всіх підписів — оновлюється під час зуму (один раз за кадр)
+const labelsSel = d3.selectAll('.node-label');
+
+// ── Зум / пан ─────────────────────────────────────────────────────────────
+// scaleExtent навмисно широкий ([0.005, 20]) — жодного кліпінгу навіть для
+// графів з 18K вузлів у просторі 5000×5000 одиниць (fitAll дасть ~0.17).
+const zoom = d3.zoom()
+    .scaleExtent([0.005, 20])
+    .filter(e => e.type !== 'mousedown' || !e.target.closest('.node'))
+    .on('zoom', e => {
+        curK = e.transform.k;
+        zoomLayer.attr('transform', e.transform);
+        // Підписи: підтримуємо ~9 px на екрані; ховаємо при k < 0.15
+        if (curK < 0.15) {
+            labelsSel.attr('display', 'none');
+        } else {
+            const fs = Math.round(9 / curK);
+            labelsSel.attr('display', null).attr('font-size', fs);
+        }
+    });
+svg.call(zoom);
+
+// ── Симуляція (тільки без sfdp) ───────────────────────────────────────────
+let fitDone = false;
 
 const sim = d3.forceSimulation(preLayout ? [] : DATA.nodes)
-    .force('link',   d3.forceLink(preLayout ? [] : DATA.links).id(d => d.id).distance(90).strength(.5))
-    .force('charge', d3.forceManyBody().strength(-220))
-    .force('center', d3.forceCenter(W/2, H/2))
-    .force('collide', d3.forceCollide(24));
+    .force('link',    d3.forceLink(preLayout ? [] : DATA.links)
+                        .id(d => d.id).distance(80).strength(0.5))
+    .force('charge',  d3.forceManyBody().strength(-200))
+    .force('center',  d3.forceCenter(W / 2, H / 2))
+    .force('collide', d3.forceCollide(20));
 
 if (preLayout) {
     sim.stop();
-    buildQt();
-    fitAll(); // fitAll застосовує transform одразу → zoom-подія → draw()
+    updatePos();
+    fitAll();
 } else {
-    sim.on('tick', () => {
-        if (++tickCount % 40 === 0) buildQt();
-        if (tickCount === 300) fitAll();
-        draw();
-    }).on('end', () => { buildQt(); fitAll(); });
+    let tick = 0;
+    sim.on('tick', () => { updatePos(); if (++tick === 300) fitAll(); })
+       .on('end',  () => { fitAll(); });
 }
 
-// ── Quadtree ──────────────────────────────────────────────────────────────────
-let qt = null;
-function buildQt() {
-    qt = d3.quadtree().x(d => d.x).y(d => d.y)
-        .addAll(DATA.nodes.filter(n => n.x != null && !hiddenStats.has(n.status)));
-}
+// ── Оновлення позицій ─────────────────────────────────────────────────────
+function nodeR(n) { return (!n || n.type === 'ORGANISATION') ? R * 1.4 : R; }
 
-function findNodeAt(mx, my) {
-    if (!qt) return null;
-    const r = 20 / transform.k;
-    return qt.find(transform.invertX(mx), transform.invertY(my), r) || null;
-}
-
-// ── Draw ──────────────────────────────────────────────────────────────────────
-function draw() {
-    ctx.clearRect(0, 0, W, H);
-    ctx.save();
-    ctx.translate(transform.x, transform.y);
-    ctx.scale(transform.k, transform.k);
-
-    // Адаптивний радіус: при зумі 0.09 (17K-вузловий граф) фіксований
-    // радіус 10 дає 0.9 px на екрані — субпіксель, граф виглядає порожнім.
-    // _R гарантує мінімум 3 px на екрані при будь-якому рівні зуму.
-    _R = Math.max(10, 3 / transform.k);
-
-    const inFocus   = focusedId !== null;
-    const inSearch  = matchedIds.size > 0;
-    const showArrow = transform.k > 0.45;
-    const showLabel = transform.k > 0.1;
-
-    // ── Links ────────────────────────────────────────────────────────────────
-    // Group by relation to minimize state changes
-    const linkGroups = {};
-    DATA.links.forEach(l => {
-        const s = l.source.id || l.source, t = l.target.id || l.target;
-        const sn = nodeById(s), tn = nodeById(t);
-        if (!sn || !tn || sn.x == null || tn.x == null) return;
-        if (hiddenStats.has(sn.status) || hiddenStats.has(tn.status)) return;
-        const rel = l.relation || 'MNT_BY';
-        if (!linkGroups[rel]) linkGroups[rel] = [];
-        linkGroups[rel].push({l, sn, tn});
-    });
-
-    Object.entries(linkGroups).forEach(([rel, items]) => {
-        ctx.strokeStyle = EDGE_COLOR[rel] || '#aaa';
-        // Мінімум 0.5 px на екрані при будь-якому зумі
-        ctx.lineWidth   = Math.max(EDGE_W[rel] || 1.5, 0.5 / transform.k);
-
-        // normal links pass
-        ctx.setLineDash(EDGE_DASH[rel] || []);
-        ctx.globalAlpha = 0.6;
-        ctx.beginPath();
-        items.forEach(({l, sn, tn}) => {
-            const s = l.source.id||l.source, t = l.target.id||l.target;
-            if ((inFocus  && s !== focusedId && t !== focusedId) ||
-                (inSearch && !visibleIds.has(s) && !visibleIds.has(t))) return;
-            ctx.moveTo(sn.x, sn.y); ctx.lineTo(tn.x, tn.y);
+function updatePos() {
+    STATUS_ORDER.forEach(st =>
+        nodeGroups[st].attr('transform', d => 'translate(' + (d.x || 0) + ',' + (d.y || 0) + ')')
+    );
+    // Кінці ребер зміщені до краю вузла (щоб стрілка не заходила всередину)
+    linkSel
+        .attr('x1', d => nodeMap.get(d.source.id || d.source)?.x || 0)
+        .attr('y1', d => nodeMap.get(d.source.id || d.source)?.y || 0)
+        .attr('x2', d => {
+            const s = nodeMap.get(d.source.id || d.source);
+            const t = nodeMap.get(d.target.id || d.target);
+            if (!s || !t) return 0;
+            const ang = Math.atan2(t.y - s.y, t.x - s.x);
+            return t.x - nodeR(t) * Math.cos(ang);
+        })
+        .attr('y2', d => {
+            const s = nodeMap.get(d.source.id || d.source);
+            const t = nodeMap.get(d.target.id || d.target);
+            if (!s || !t) return 0;
+            const ang = Math.atan2(t.y - s.y, t.x - s.x);
+            return t.y - nodeR(t) * Math.sin(ang);
         });
-        ctx.stroke();
-
-        // dimmed links pass
-        ctx.globalAlpha = 0.04;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        items.forEach(({l, sn, tn}) => {
-            const s = l.source.id||l.source, t = l.target.id||l.target;
-            if (!((inFocus  && s !== focusedId && t !== focusedId) ||
-                  (inSearch && !visibleIds.has(s) && !visibleIds.has(t)))) return;
-            ctx.moveTo(sn.x, sn.y); ctx.lineTo(tn.x, tn.y);
-        });
-        ctx.stroke();
-
-        // arrowheads (only visible, only when zoomed in enough)
-        if (showArrow) {
-            ctx.globalAlpha = 0.6;
-            ctx.setLineDash([]);
-            ctx.lineWidth = (EDGE_W[rel] || 1.5) * 0.8;
-            ctx.beginPath();
-            items.forEach(({l, sn, tn}) => {
-                const s = l.source.id||l.source, t = l.target.id||l.target;
-                if ((inFocus  && s !== focusedId && t !== focusedId) ||
-                    (inSearch && !visibleIds.has(s) && !visibleIds.has(t))) return;
-                const ang = Math.atan2(tn.y - sn.y, tn.x - sn.x);
-                const r   = nodeApproxRadius(tn);
-                const ex  = tn.x - r * Math.cos(ang);
-                const ey  = tn.y - r * Math.sin(ang);
-                const as  = 7;
-                ctx.moveTo(ex, ey);
-                ctx.lineTo(ex - as*Math.cos(ang-Math.PI/6), ey - as*Math.sin(ang-Math.PI/6));
-                ctx.moveTo(ex, ey);
-                ctx.lineTo(ex - as*Math.cos(ang+Math.PI/6), ey - as*Math.sin(ang+Math.PI/6));
-            });
-            ctx.stroke();
-        }
-    });
-
-    ctx.setLineDash([]); ctx.globalAlpha = 1;
-
-    // ── Nodes ────────────────────────────────────────────────────────────────
-    // Batch by status to minimise canvas state changes:
-    // 4 statuses × (fill + stroke) = 8 canvas calls vs 18K×3 = 54K calls.
-    const hasDim = inFocus || inSearch;
-    function isDimmedNode(n){
-        return (inFocus  && !focusNeigh.has(n.id)) ||
-               (inSearch && !visibleIds.has(n.id));
-    }
-    function isSpecial(n){ return matchedIds.has(n.id) || n===hoveredNode; }
-
-    // Прохід 1 — звичайні вузли (не затемнені, не вибрані).
-    // Порядок: UNKNOWN → CLEAR → SUSPICIOUS → BLOCKED,
-    // щоб важливіші статуси завжди перекривали менш важливі.
-    const nodeLW = Math.max(2, 1.5 / transform.k); // мінімум 1.5 px на екрані
-    ctx.lineWidth = nodeLW;
-    ['UNKNOWN','CLEAR','SUSPICIOUS','BLOCKED'].forEach(st => {
-        if (hiddenStats.has(st)) return;
-        ctx.fillStyle = FILL[st]; ctx.strokeStyle = STROKE[st];
-        ctx.beginPath();
-        DATA.nodes.forEach(n => {
-            if (n.x==null||n.status!==st) return;
-            if (hasDim && isDimmedNode(n)) return;
-            if (isSpecial(n)) return;
-            nodeShape(n);
-        });
-        ctx.fill(); ctx.stroke();
-    });
-
-    // Прохід 2 — затемнені вузли (напівпрозорі, при фокусі або пошуку)
-    if (hasDim) {
-        ctx.globalAlpha = 0.1; ctx.lineWidth = nodeLW;
-        ['UNKNOWN','CLEAR','SUSPICIOUS','BLOCKED'].forEach(st => {
-            if (hiddenStats.has(st)) return;
-            ctx.fillStyle = FILL[st]; ctx.strokeStyle = STROKE[st];
-            ctx.beginPath();
-            DATA.nodes.forEach(n => {
-                if (n.x==null||n.status!==st||!isDimmedNode(n)||isSpecial(n)) return;
-                nodeShape(n);
-            });
-            ctx.fill(); ctx.stroke();
-        });
-        ctx.globalAlpha = 1;
-    }
-
-    // Прохід 3 — виділені вузли (пошук / ховер) — поверх усього
-    DATA.nodes.forEach(n => {
-        if (n.x==null||hiddenStats.has(n.status)||!isSpecial(n)) return;
-        const hi = matchedIds.has(n.id), hov = n===hoveredNode;
-        ctx.beginPath(); nodeShape(n);
-        ctx.fillStyle = FILL[n.status]||'#eee'; ctx.fill();
-        if (hi){ctx.shadowColor='#FF6F00';ctx.shadowBlur=8;}
-        ctx.strokeStyle = hi?'#FF6F00':(STROKE[n.status]||'#999');
-        ctx.lineWidth = (hi||hov) ? Math.max(3.5, 2.5/transform.k) : nodeLW;
-        ctx.stroke(); ctx.shadowBlur=0;
-    });
-
-    // Прохід 4 — підписи (адаптивний шрифт, завжди 8 px на екрані)
-    if (showLabel) {
-        const fs = Math.max(8, Math.round(8 / transform.k));
-        ctx.fillStyle='#37474F'; ctx.font=`${fs}px system-ui,sans-serif`;
-        ctx.textAlign='center'; ctx.textBaseline='top';
-        DATA.nodes.forEach(n => {
-            if (n.x==null||hiddenStats.has(n.status)) return;
-            if (hasDim && isDimmedNode(n)) return;
-            ctx.fillText(n.id.length>18?n.id.slice(0,16)+'…':n.id, n.x, n.y+labelDy(n));
-        });
-    }
-
-    ctx.restore();
 }
 
-// moveTo required before arc/ellipse при batch-малюванні: без нього canvas
-// неявно малює lineTo від попередньої точки, з'єднуючи всі вузли в один path.
-// _R — адаптивний радіус: гарантує мінімум 3 px на екрані при будь-якому зумі.
-function nodeShape(n) {
-    const r = _R;
-    if      (n.type==='ASN')    { ctx.moveTo(n.x+r,n.y); ctx.arc(n.x,n.y,r,0,Math.PI*2); }
-    else if (n.type==='AS_SET') { const d=r*1.3; ctx.moveTo(n.x,n.y-d); ctx.lineTo(n.x+d,n.y); ctx.lineTo(n.x,n.y+d); ctx.lineTo(n.x-d,n.y); ctx.closePath(); }
-    else if (n.type==='MNTNER') rrect(n.x-r,n.y-r,2*r,2*r,r*0.3);
-    else                        { ctx.moveTo(n.x+r*1.4,n.y); ctx.ellipse(n.x,n.y,r*1.4,r*0.9,0,0,Math.PI*2); }
-}
-function nodeApproxRadius(n){ return _R * ((!n || n.type==='ORGANISATION') ? 1.4 : 1); }
-function labelDy(n){ return _R * (n.type==='AS_SET' ? 1.5 : 1.2); }
-function rrect(x,y,w,h,r){
-    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
-}
-
-// ── Zoom-to-fit ───────────────────────────────────────────────────────────────
+// ── Fit to screen ─────────────────────────────────────────────────────────
 function fitAll() {
     if (fitDone) return;
     const ns = DATA.nodes.filter(n => n.x != null);
     if (!ns.length) return;
-    const x0=d3.min(ns,n=>n.x)-60, x1=d3.max(ns,n=>n.x)+60;
-    const y0=d3.min(ns,n=>n.y)-60, y1=d3.max(ns,n=>n.y)+60;
-    const sc=Math.min(2, .85/Math.max((x1-x0)/W, (y1-y0)/H));
-    const t = d3.zoomIdentity.translate(W/2-sc*(x0+x1)/2, H/2-sc*(y0+y1)/2).scale(sc);
+    const x0 = d3.min(ns, n => n.x) - 60, x1 = d3.max(ns, n => n.x) + 60;
+    const y0 = d3.min(ns, n => n.y) - 60, y1 = d3.max(ns, n => n.y) + 60;
+    const sc = Math.min(2, 0.85 / Math.max((x1 - x0) / W, (y1 - y0) / H));
+    const t = d3.zoomIdentity
+        .translate(W / 2 - sc * (x0 + x1) / 2, H / 2 - sc * (y0 + y1) / 2)
+        .scale(sc);
     if (preLayout) {
-        // При готовому layout застосовуємо одразу — без затримки 400 мс,
-        // протягом якої canvas виглядав порожнім (вузли ще поза екраном).
-        zoom.transform(d3.select(canvas), t);
+        svg.call(zoom.transform, t); // одразу, без анімації
     } else {
-        d3.select(canvas).transition().duration(800).call(zoom.transform, t);
+        svg.transition().duration(800).call(zoom.transform, t);
     }
     fitDone = true;
 }
 
 function zoomToFit(ids) {
-    const pts=DATA.nodes.filter(n=>ids.has(n.id)&&n.x!=null);
+    const pts = DATA.nodes.filter(n => ids.has(n.id) && n.x != null);
     if (!pts.length) return;
-    const x0=d3.min(pts,n=>n.x)-60, x1=d3.max(pts,n=>n.x)+60;
-    const y0=d3.min(pts,n=>n.y)-60, y1=d3.max(pts,n=>n.y)+60;
-    const sc=Math.min(3, .85/Math.max((x1-x0)/W, (y1-y0)/H));
-    d3.select(canvas).transition().duration(650)
-        .call(zoom.transform, d3.zoomIdentity
-            .translate(W/2-sc*(x0+x1)/2, H/2-sc*(y0+y1)/2).scale(sc));
+    const x0 = d3.min(pts, n => n.x) - 60, x1 = d3.max(pts, n => n.x) + 60;
+    const y0 = d3.min(pts, n => n.y) - 60, y1 = d3.max(pts, n => n.y) + 60;
+    const sc = Math.min(3, 0.85 / Math.max((x1 - x0) / W, (y1 - y0) / H));
+    svg.transition().duration(650).call(zoom.transform,
+        d3.zoomIdentity
+            .translate(W / 2 - sc * (x0 + x1) / 2, H / 2 - sc * (y0 + y1) / 2)
+            .scale(sc));
 }
 
-// ── Hover ─────────────────────────────────────────────────────────────────────
+// ── Hover ─────────────────────────────────────────────────────────────────
 const tip = d3.select('#tooltip');
 
-document.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    if (dragNode) {
-        dragMoved = true;
-        dragNode.x = dragNode.fx = transform.invertX(mx);
-        dragNode.y = dragNode.fy = transform.invertY(my);
-        if (preLayout) buildQt();
-        draw();
-        return;
-    }
-
-    const inCanvas = mx >= 0 && mx <= W && my >= 0 && my <= H;
-    if (!inCanvas) {
-        if (hoveredNode) { hoveredNode=null; tip.style('display','none'); canvas.style.cursor='default'; draw(); }
-        return;
-    }
-
-    const n = findNodeAt(mx, my);
-    if (n !== hoveredNode) { hoveredNode=n; draw(); }
-    if (n) {
-        canvas.style.cursor = 'pointer';
-        tip.style('display','block')
-           .html('<b>'+esc(n.id)+'</b> <span style="color:#80CBC4">'+n.type+'</span>'
-               +'<br><span class="status-'+n.status+'">'+n.status+'</span>'
-               +(n.label&&n.label!==n.id?'<br>'+esc(n.label):'')
-               +(n.details?'<hr style="border-color:#455A64;margin:4px 0"><pre style="white-space:pre-wrap;font-size:10px">'+esc(n.details)+'</pre>':''))
-           .style('left',(e.clientX+14)+'px').style('top',(e.clientY-10)+'px');
-    } else {
-        canvas.style.cursor = 'default';
-        tip.style('display','none');
-    }
-});
-
-canvas.addEventListener('mouseleave', () => {
-    if (!dragNode) { hoveredNode=null; tip.style('display','none'); draw(); }
-});
-
-// ── Click ─────────────────────────────────────────────────────────────────────
-canvas.addEventListener('click', e => {
-    if (dragMoved) return;
-    const n = findNodeAt(e.offsetX, e.offsetY);
-    if (n) {
-        focusedId  = n.id;
-        focusNeigh = new Set([n.id]);
-        DATA.links.forEach(l => {
-            const s=l.source.id||l.source, t=l.target.id||l.target;
-            if (s===n.id) focusNeigh.add(t);
-            if (t===n.id) focusNeigh.add(s);
-        });
-        showInfo(n, focusNeigh.size - 1);
-        draw();
-    } else {
-        resetFocus();
-        d3.select('#info-panel').style('display','none');
-    }
-});
-
-// ── Drag ──────────────────────────────────────────────────────────────────────
-// Capture phase so we intercept before d3.zoom's bubble-phase listener
-canvas.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    const n = findNodeAt(e.offsetX, e.offsetY);
-    if (!n) return;
-    dragNode=n; dragMoved=false;
-    n.fx=n.x; n.fy=n.y;
-    if (!preLayout) sim.alphaTarget(0.3).restart();
-    e.stopPropagation(); // prevent zoom from starting a pan
-}, {capture: true});
-
-document.addEventListener('mouseup', () => {
-    if (!dragNode) return;
-    if (!preLayout) { dragNode.fx=null; dragNode.fy=null; sim.alphaTarget(0); }
-    if (preLayout) buildQt();
-    dragNode=null;
-});
-
-// ── Info panel ────────────────────────────────────────────────────────────────
-function showInfo(n, connCount) {
-    d3.select('#info-title').text(n.id.length>22?n.id.slice(0,20)+'…':n.id);
-    d3.select('#info-body').html(
-        '<div class="info-id">'+esc(n.id)+'</div>'
-       +'<div class="info-meta">'+n.type+' &middot; <span class="status-'+n.status+'">'+n.status+'</span></div>'
-       +(n.label&&n.label!==n.id?'<div class="info-label">'+esc(n.label)+'</div>':'')
-       +(n.details?'<pre class="info-details">'+esc(n.details)+'</pre>':'')
-       +'<div class="info-neighbors">Прямих зв\'язків: '+connCount+'</div>');
-    d3.select('#info-panel').style('display','block');
+function onOver(event, n) {
+    d3.select(this).select(':first-child').attr('stroke-width', 3);
+    tip.style('display', 'block')
+       .html('<b>' + esc(n.id) + '</b> <span style="color:#80CBC4">' + n.type + '</span>'
+           + '<br><span class="status-' + n.status + '">' + n.status + '</span>'
+           + (n.label && n.label !== n.id ? '<br>' + esc(n.label) : '')
+           + (n.details ? '<hr style="border-color:#455A64;margin:4px 0">'
+               + '<pre style="white-space:pre-wrap;font-size:10px">' + esc(n.details) + '</pre>' : ''))
+       .style('left', (event.clientX + 14) + 'px')
+       .style('top',  (event.clientY - 10) + 'px');
 }
+
+function onOut(event, n) {
+    d3.select(this).select(':first-child')
+      .attr('stroke-width', matchedIds.has(n.id) ? 3 : 1.5);
+    tip.style('display', 'none');
+}
+
+// ── Click / Focus ─────────────────────────────────────────────────────────
+function onClick(event, n) {
+    event.stopPropagation();
+    focusedId  = n.id;
+    focusNeigh = new Set([n.id]);
+    DATA.links.forEach(l => {
+        const s = l.source.id || l.source, t = l.target.id || l.target;
+        if (s === n.id) focusNeigh.add(t);
+        if (t === n.id) focusNeigh.add(s);
+    });
+    applyVisibility();
+    showInfo(n, focusNeigh.size - 1);
+}
+
+// Клік на порожньому місці — знімає фокус
+svg.on('click', e => {
+    if (!e.target.closest('.node')) {
+        resetFocus();
+        d3.select('#info-panel').style('display', 'none');
+    }
+});
+
+// ── Drag ──────────────────────────────────────────────────────────────────
+STATUS_ORDER.forEach(st => {
+    nodeGroups[st].call(d3.drag()
+        .on('start', (e, d) => {
+            e.sourceEvent.stopPropagation(); // не запускати пан зуму
+            if (!preLayout) sim.alphaTarget(0.3).restart();
+            d.fx = d.x; d.fy = d.y;
+        })
+        .on('drag', (e, d) => {
+            d.fx = e.x; d.fy = e.y;
+            if (preLayout) updatePos();
+        })
+        .on('end', (e, d) => {
+            if (!preLayout) { sim.alphaTarget(0); d.fx = null; d.fy = null; }
+        }));
+});
+
+// ── Видимість (фільтр / фокус / пошук) ───────────────────────────────────
+function applyVisibility() {
+    const inFocus  = focusedId !== null;
+    const inSearch = matchedIds.size > 0;
+
+    STATUS_ORDER.forEach(st => {
+        nodeGroups[st]
+            .attr('display', d => hiddenStats.has(d.status) ? 'none' : null)
+            .attr('opacity', d => {
+                if (hiddenStats.has(d.status)) return null;
+                if (inFocus  && !focusNeigh.has(d.id)) return 0.1;
+                if (inSearch && !visibleIds.has(d.id))  return 0.1;
+                return null;
+            });
+        // Виділення вузлів, знайдених пошуком
+        nodeGroups[st].select(':first-child')
+            .attr('stroke',       d => matchedIds.has(d.id) ? '#FF6F00' : (STROKE[d.status] || '#999'))
+            .attr('stroke-width', d => matchedIds.has(d.id) ? 3 : 1.5)
+            .style('filter',      d => matchedIds.has(d.id) ? 'drop-shadow(0 0 4px #FF6F00)' : null);
+    });
+
+    linkSel
+        .attr('display', d => {
+            const sn = nodeMap.get(d.source.id || d.source);
+            const tn = nodeMap.get(d.target.id || d.target);
+            if (!sn || !tn || hiddenStats.has(sn.status) || hiddenStats.has(tn.status)) return 'none';
+            return null;
+        })
+        .attr('stroke-opacity', d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            if (inFocus  && s !== focusedId && t !== focusedId) return 0.04;
+            if (inSearch && !visibleIds.has(s) && !visibleIds.has(t)) return 0.04;
+            return 0.5;
+        });
+}
+
+function resetFocus() {
+    focusedId = null; focusNeigh = new Set();
+    matchedIds = new Set(); visibleIds = new Set();
+    d3.select('#search').property('value', '');
+    d3.select('#search-count').text('');
+    applyVisibility();
+}
+
+// ── Info panel ────────────────────────────────────────────────────────────
+function showInfo(n, connCount) {
+    d3.select('#info-title').text(n.id.length > 22 ? n.id.slice(0, 20) + '…' : n.id);
+    d3.select('#info-body').html(
+        '<div class="info-id">'   + esc(n.id)   + '</div>'
+      + '<div class="info-meta">' + n.type + ' &middot; '
+          + '<span class="status-' + n.status + '">' + n.status + '</span></div>'
+      + (n.label && n.label !== n.id ? '<div class="info-label">' + esc(n.label) + '</div>' : '')
+      + (n.details ? '<pre class="info-details">' + esc(n.details) + '</pre>' : '')
+      + '<div class="info-neighbors">Прямих зв\'язків: ' + connCount + '</div>');
+    d3.select('#info-panel').style('display', 'block');
+}
+
 document.getElementById('info-close').onclick = () => {
-    d3.select('#info-panel').style('display','none'); resetFocus();
+    d3.select('#info-panel').style('display', 'none');
+    resetFocus();
 };
 
-// ── Search ────────────────────────────────────────────────────────────────────
+// ── Пошук ─────────────────────────────────────────────────────────────────
 d3.select('#search').on('input', function() {
     const term = this.value.trim().toLowerCase();
     if (!term) { resetFocus(); return; }
     matchedIds = new Set();
     DATA.nodes.forEach(n => {
-        if (n.id.toLowerCase().includes(term)||(n.label&&n.label.toLowerCase().includes(term)))
+        if (n.id.toLowerCase().includes(term) ||
+            (n.label && n.label.toLowerCase().includes(term)))
             matchedIds.add(n.id);
     });
     visibleIds = new Set(matchedIds);
     DATA.links.forEach(l => {
-        const s=l.source.id||l.source, t=l.target.id||l.target;
+        const s = l.source.id || l.source, t = l.target.id || l.target;
         if (matchedIds.has(s)) visibleIds.add(t);
         if (matchedIds.has(t)) visibleIds.add(s);
     });
-    focusedId=null; focusNeigh=new Set();
-    d3.select('#search-count').text(matchedIds.size+' found');
-    draw();
+    focusedId = null; focusNeigh = new Set();
+    d3.select('#search-count').text(matchedIds.size + ' знайдено');
+    applyVisibility();
     if (matchedIds.size > 0) zoomToFit(matchedIds);
 });
 
-function resetFocus() {
-    focusedId=null; focusNeigh=new Set();
-    matchedIds=new Set(); visibleIds=new Set();
-    d3.select('#search').property('value','');
-    d3.select('#search-count').text('');
-    draw();
-}
-
-// ── Status filters ────────────────────────────────────────────────────────────
-document.querySelectorAll('.status-filter').forEach(cb => {
+// ── Фільтр статусів ───────────────────────────────────────────────────────
+document.querySelectorAll('.status-filter').forEach(cb =>
     cb.addEventListener('change', () => {
-        hiddenStats=new Set();
+        hiddenStats = new Set();
         document.querySelectorAll('.status-filter').forEach(c => {
             if (!c.checked) hiddenStats.add(c.dataset.status);
         });
-        buildQt(); draw();
-    });
-});
+        applyVisibility();
+    })
+);
 
-// ── Reset button ──────────────────────────────────────────────────────────────
+// ── Кнопка Reset ─────────────────────────────────────────────────────────
 document.getElementById('btn-reset').onclick = () => {
     resetFocus();
-    d3.select('#info-panel').style('display','none');
-    document.querySelectorAll('.status-filter').forEach(c => c.checked=true);
-    hiddenStats=new Set(); buildQt();
-    fitDone=false; fitAll();
+    d3.select('#info-panel').style('display', 'none');
+    document.querySelectorAll('.status-filter').forEach(c => c.checked = true);
+    hiddenStats = new Set();
+    applyVisibility();
+    fitDone = false;
+    fitAll();
 };
 
-// ── Stats bar ─────────────────────────────────────────────────────────────────
-const st=DATA.stats;
-document.getElementById('stats').textContent=
-    'Blocked: '+st.blocked+' · Suspicious: '+st.suspicious+
-    ' · Clear: '+st.clear+' · Unknown: '+st.unknown+
-    ' · Nodes: '+st.total+' · Edges: '+st.edges;
+// ── Рядок статистики ──────────────────────────────────────────────────────
+const st = DATA.stats;
+document.getElementById('stats').textContent =
+    'Blocked: ' + st.blocked + ' · Suspicious: ' + st.suspicious +
+    ' · Clear: ' + st.clear + ' · Unknown: ' + st.unknown +
+    ' · Вузли: ' + st.total + ' · Ребра: ' + st.edges;
 
-// ── Utils ─────────────────────────────────────────────────────────────────────
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// ── Початкова видимість ───────────────────────────────────────────────────
+applyVisibility();
+
+// ── Утиліти ───────────────────────────────────────────────────────────────
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 </script>
 </body>
 </html>
