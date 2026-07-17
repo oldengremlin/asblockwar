@@ -288,9 +288,11 @@ function draw() {
     }
     function isSpecial(n){ return matchedIds.has(n.id) || n===hoveredNode; }
 
-    // Pass 1 — normal nodes (not dimmed, not special)
+    // Прохід 1 — звичайні вузли (не затемнені, не вибрані).
+    // Порядок: UNKNOWN → CLEAR → SUSPICIOUS → BLOCKED,
+    // щоб важливіші статуси завжди перекривали менш важливі.
     ctx.lineWidth = 2;
-    ['BLOCKED','SUSPICIOUS','CLEAR','UNKNOWN'].forEach(st => {
+    ['UNKNOWN','CLEAR','SUSPICIOUS','BLOCKED'].forEach(st => {
         if (hiddenStats.has(st)) return;
         ctx.fillStyle = FILL[st]; ctx.strokeStyle = STROKE[st];
         ctx.beginPath();
@@ -303,10 +305,10 @@ function draw() {
         ctx.fill(); ctx.stroke();
     });
 
-    // Pass 2 — dimmed nodes (semi-transparent)
+    // Прохід 2 — затемнені вузли (напівпрозорі, при фокусі або пошуку)
     if (hasDim) {
         ctx.globalAlpha = 0.1; ctx.lineWidth = 2;
-        ['BLOCKED','SUSPICIOUS','CLEAR','UNKNOWN'].forEach(st => {
+        ['UNKNOWN','CLEAR','SUSPICIOUS','BLOCKED'].forEach(st => {
             if (hiddenStats.has(st)) return;
             ctx.fillStyle = FILL[st]; ctx.strokeStyle = STROKE[st];
             ctx.beginPath();
@@ -319,7 +321,7 @@ function draw() {
         ctx.globalAlpha = 1;
     }
 
-    // Pass 3 — special nodes: highlighted (search) + hovered (drawn on top)
+    // Прохід 3 — виділені вузли (пошук / ховер) — поверх усього
     DATA.nodes.forEach(n => {
         if (n.x==null||hiddenStats.has(n.status)||!isSpecial(n)) return;
         const hi = matchedIds.has(n.id), hov = n===hoveredNode;
@@ -331,7 +333,7 @@ function draw() {
         ctx.stroke(); ctx.shadowBlur=0;
     });
 
-    // Pass 4 — labels (only when zoomed in)
+    // Прохід 4 — підписи (лише при достатньому зумі)
     if (showLabel) {
         ctx.fillStyle='#37474F'; ctx.font='8px system-ui,sans-serif';
         ctx.textAlign='center'; ctx.textBaseline='top';
@@ -346,10 +348,13 @@ function draw() {
 }
 
 function nodeShape(n) {
-    if      (n.type==='ASN')          ctx.arc(n.x, n.y, 10, 0, Math.PI*2);
-    else if (n.type==='AS_SET')       { ctx.moveTo(n.x,n.y-13); ctx.lineTo(n.x+13,n.y); ctx.lineTo(n.x,n.y+13); ctx.lineTo(n.x-13,n.y); ctx.closePath(); }
-    else if (n.type==='MNTNER')       rrect(n.x-10, n.y-10, 20, 20, 3);
-    else /* ORGANISATION */           ctx.ellipse(n.x, n.y, 14, 9, 0, 0, Math.PI*2);
+    // moveTo is required before arc/ellipse when batching: without it, canvas
+    // implicitly draws lineTo from the previous subpath endpoint, connecting all
+    // nodes of the same status into one giant filled region.
+    if      (n.type==='ASN')    { ctx.moveTo(n.x+10,n.y); ctx.arc(n.x,n.y,10,0,Math.PI*2); }
+    else if (n.type==='AS_SET') { ctx.moveTo(n.x,n.y-13); ctx.lineTo(n.x+13,n.y); ctx.lineTo(n.x,n.y+13); ctx.lineTo(n.x-13,n.y); ctx.closePath(); }
+    else if (n.type==='MNTNER') rrect(n.x-10,n.y-10,20,20,3);
+    else                        { ctx.moveTo(n.x+14,n.y); ctx.ellipse(n.x,n.y,14,9,0,0,Math.PI*2); }
 }
 function nodeApproxRadius(n){ return !n ? 12 : n.type==='ORGANISATION' ? 14 : 12; }
 function labelDy(n){ return n.type==='AS_SET' ? 15 : 12; }
