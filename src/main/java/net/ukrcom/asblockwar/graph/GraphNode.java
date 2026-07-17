@@ -30,4 +30,6 @@ public record GraphNode(
         NodeStatus status,
         String label,
         String details
-) {}
+        ) {
+
+}

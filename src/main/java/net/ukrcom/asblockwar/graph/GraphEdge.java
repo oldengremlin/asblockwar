@@ -27,4 +27,6 @@ public record GraphEdge(
         String source,
         String target,
         EdgeRelation relation
-) {}
+        ) {
+
+}

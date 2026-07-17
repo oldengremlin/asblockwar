@@ -36,20 +36,21 @@ import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 @Slf4j
 public class GraphBuilder {
 
-    private static final Pattern AS_NAME_PAT   = Pattern.compile("(?m)^as-name:\\s*(.+)$");
-    private static final Pattern ORG_ID_PAT    = Pattern.compile("(?m)^org:\\s*(\\S+)");
-    private static final Pattern ORG_NAME_PAT  = Pattern.compile("(?m)^org-name:\\s*(.+)$");
-    private static final Pattern MNT_BY_PAT    = Pattern.compile("(?m)^mnt-by:\\s*(\\S+)");
-    private static final Pattern MNT_REF_PAT   = Pattern.compile("(?m)^mnt-ref:\\s*(\\S+)");
-    private static final Pattern PEER_ASN_PAT  = Pattern.compile("(?i)\\b(?:from|to)\\s+(AS\\d+)");
-    private static final Pattern COUNTRY_PAT   = Pattern.compile("(?m)^country:\\s*([A-Z]{2,3})");
-    private static final Pattern DESCR_PAT     = Pattern.compile("(?m)^descr:\\s*(.+)$");
-    private static final Pattern SERVICE_MNT   = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern AS_NAME_PAT = Pattern.compile("(?m)^as-name:\\s*(.+)$");
+    private static final Pattern ORG_ID_PAT = Pattern.compile("(?m)^org:\\s*(\\S+)");
+    private static final Pattern ORG_NAME_PAT = Pattern.compile("(?m)^org-name:\\s*(.+)$");
+    private static final Pattern MNT_BY_PAT = Pattern.compile("(?m)^mnt-by:\\s*(\\S+)");
+    private static final Pattern MNT_REF_PAT = Pattern.compile("(?m)^mnt-ref:\\s*(\\S+)");
+    private static final Pattern PEER_ASN_PAT = Pattern.compile("(?i)\\b(?:from|to)\\s+(AS\\d+)");
+    private static final Pattern COUNTRY_PAT = Pattern.compile("(?m)^country:\\s*([A-Z]{2,3})");
+    private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:\\s*(.+)$");
+    private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
 
     private final Map<String, GraphNode> nodes = new ConcurrentHashMap<>();
-    private final Set<GraphEdge>         edges = ConcurrentHashMap.newKeySet();
+    private final Set<GraphEdge> edges = ConcurrentHashMap.newKeySet();
 
-    private GraphBuilder() {}
+    private GraphBuilder() {
+    }
 
     /**
      * Будує граф з фінальних карт обробки ASBlockWar.
@@ -62,11 +63,11 @@ public class GraphBuilder {
      * @return заповнений граф
      */
     public static GraphBuilder build(
-            Map<String, String>     blocked,
+            Map<String, String> blocked,
             Map<String, SuspiciousAS> suspicious,
-            Map<String, ASN>        cleared,
-            Set<String>             allMntBy,
-            Set<String>             allAsSets) {
+            Map<String, ASN> cleared,
+            Set<String> allMntBy,
+            Set<String> allAsSets) {
 
         GraphBuilder g = new GraphBuilder();
 
@@ -83,7 +84,9 @@ public class GraphBuilder {
             String rpsl = asnObj.data() != null ? asnObj.data() : "";
             g.addNode(asn, NodeType.ASN, NodeStatus.CLEAR,
                     extractAsnLabel(rpsl), extractAsnDetails(asn, rpsl));
-            if (!rpsl.isBlank()) g.parseRpslEdges(asn, rpsl);
+            if (!rpsl.isBlank()) {
+                g.parseRpslEdges(asn, rpsl);
+            }
         });
 
         allMntBy.forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
@@ -97,8 +100,13 @@ public class GraphBuilder {
         return g;
     }
 
-    public Map<String, GraphNode> getNodes() { return Collections.unmodifiableMap(nodes); }
-    public Set<GraphEdge>         getEdges() { return Collections.unmodifiableSet(edges); }
+    public Map<String, GraphNode> getNodes() {
+        return Collections.unmodifiableMap(nodes);
+    }
+
+    public Set<GraphEdge> getEdges() {
+        return Collections.unmodifiableSet(edges);
+    }
 
     public long count(NodeStatus status) {
         return nodes.values().stream().filter(n -> n.status() == status).count();
@@ -107,21 +115,24 @@ public class GraphBuilder {
     // -----------------------------------------------------------------------
     // Internal helpers
     // -----------------------------------------------------------------------
-
     private void addNode(String id, NodeType type, NodeStatus status, String label, String details) {
-        if (id == null || id.isBlank()) return;
+        if (id == null || id.isBlank()) {
+            return;
+        }
         nodes.merge(id.trim(), new GraphNode(id.trim(), type, status, label, details),
                 (existing, incoming) -> {
                     NodeStatus better = existing.status().priority() >= incoming.status().priority()
-                            ? existing.status() : incoming.status();
-                    String betterLabel   = existing.label().isBlank()   ? incoming.label()   : existing.label();
+                                        ? existing.status() : incoming.status();
+                    String betterLabel = existing.label().isBlank() ? incoming.label() : existing.label();
                     String betterDetails = existing.details().isBlank() ? incoming.details() : existing.details();
                     return new GraphNode(id.trim(), existing.type(), better, betterLabel, betterDetails);
                 });
     }
 
     private void addEdge(String source, String target, EdgeRelation relation) {
-        if (source == null || target == null || source.equals(target)) return;
+        if (source == null || target == null || source.equals(target)) {
+            return;
+        }
         edges.add(new GraphEdge(source.trim(), target.trim(), relation));
     }
 
@@ -157,7 +168,9 @@ public class GraphBuilder {
     private static java.util.List<String> allMatches(Pattern p, String text) {
         java.util.List<String> result = new java.util.ArrayList<>();
         Matcher m = p.matcher(text);
-        while (m.find()) result.add(m.group(1).trim());
+        while (m.find()) {
+            result.add(m.group(1).trim());
+        }
         return result;
     }
 
@@ -174,11 +187,17 @@ public class GraphBuilder {
     private static String extractAsnDetails(String asn, String rpsl) {
         StringBuilder sb = new StringBuilder(asn);
         Matcher c = COUNTRY_PAT.matcher(rpsl);
-        if (c.find()) sb.append("\ncountry: ").append(c.group(1));
+        if (c.find()) {
+            sb.append("\ncountry: ").append(c.group(1));
+        }
         Matcher o = ORG_NAME_PAT.matcher(rpsl);
-        if (o.find()) sb.append("\norg: ").append(o.group(1).trim());
+        if (o.find()) {
+            sb.append("\norg: ").append(o.group(1).trim());
+        }
         Matcher d = DESCR_PAT.matcher(rpsl);
-        if (d.find()) sb.append("\n").append(d.group(1).trim());
+        if (d.find()) {
+            sb.append("\n").append(d.group(1).trim());
+        }
         return sb.toString();
     }
 }

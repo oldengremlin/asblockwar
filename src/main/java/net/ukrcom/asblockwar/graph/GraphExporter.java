@@ -39,7 +39,8 @@ public class GraphExporter {
 
     private static final int SFDP_TIMEOUT_SEC = 300;
 
-    private GraphExporter() {}
+    private GraphExporter() {
+    }
 
     /**
      * Генерує HTML і записує у файл.
@@ -73,10 +74,13 @@ public class GraphExporter {
     }
 
     // ── sfdp layout ────────────────────────────────────────────────────────────
-
     private static Map<String, double[]> tryComputeLayout(GraphBuilder graph) {
-        if (!ASBlockWar.config.isUseSfdp()) return Map.of();
-        if (!isSfdpAvailable()) return Map.of();
+        if (!ASBlockWar.config.isUseSfdp()) {
+            return Map.of();
+        }
+        if (!isSfdpAvailable()) {
+            return Map.of();
+        }
 
         Path dotFile = null;
         try {
@@ -93,8 +97,10 @@ public class GraphExporter {
 
             byte[][] out = {null};
             Thread reader = Thread.ofVirtual().start(() -> {
-                try { out[0] = sfdp.getInputStream().readAllBytes(); }
-                catch (IOException ignored) {}
+                try {
+                    out[0] = sfdp.getInputStream().readAllBytes();
+                } catch (IOException ignored) {
+                }
             });
 
             boolean finished = sfdp.waitFor(SFDP_TIMEOUT_SEC, TimeUnit.SECONDS);
@@ -123,12 +129,15 @@ public class GraphExporter {
             log.info("sfdp: layout готовий, {} позицій", pos.size());
             return pos;
 
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             log.warn("sfdp: помилка — {}, переключаємось на D3 симуляцію", e.getMessage());
             return Map.of();
         } finally {
             if (dotFile != null) {
-                try { Files.deleteIfExists(dotFile); } catch (IOException ignored) {}
+                try {
+                    Files.deleteIfExists(dotFile);
+                } catch (IOException ignored) {
+                }
             }
         }
     }
@@ -139,7 +148,7 @@ public class GraphExporter {
             new ProcessBuilder("sfdp", "-V")
                     .redirectErrorStream(true).start().destroy();
             return true;
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.debug("sfdp не знайдено: {}", e.getMessage());
             return false;
         }
@@ -154,7 +163,7 @@ public class GraphExporter {
         }
         for (GraphEdge edge : graph.getEdges()) {
             sb.append("  ").append(dotId(edge.source()))
-              .append(" -> ").append(dotId(edge.target())).append(";\n");
+                    .append(" -> ").append(dotId(edge.target())).append(";\n");
         }
         sb.append("}\n");
         return sb.toString();
@@ -172,7 +181,9 @@ public class GraphExporter {
     private static Map<String, double[]> parsePlainPositions(String plain) {
         Map<String, double[]> pos = new HashMap<>();
         for (String line : plain.split("\n")) {
-            if (!line.startsWith("node ")) continue;
+            if (!line.startsWith("node ")) {
+                continue;
+            }
             String rest = line.substring(5).trim();
 
             String name;
@@ -181,49 +192,59 @@ public class GraphExporter {
                 // quoted name: find closing quote, skipping escaped ones
                 int end = 1;
                 while (end < rest.length()) {
-                    if (rest.charAt(end) == '"' && rest.charAt(end - 1) != '\\') break;
+                    if (rest.charAt(end) == '"' && rest.charAt(end - 1) != '\\') {
+                        break;
+                    }
                     end++;
                 }
-                if (end >= rest.length()) continue;
+                if (end >= rest.length()) {
+                    continue;
+                }
                 name = rest.substring(1, end).replace("\\\"", "\"").replace("\\\\", "\\");
                 remaining = rest.substring(end + 1).trim();
             } else {
                 int sp = rest.indexOf(' ');
-                if (sp < 0) continue;
+                if (sp < 0) {
+                    continue;
+                }
                 name = rest.substring(0, sp);
                 remaining = rest.substring(sp + 1).trim();
             }
 
             String[] parts = remaining.split("\\s+");
-            if (parts.length < 2) continue;
+            if (parts.length < 2) {
+                continue;
+            }
             try {
-                double x =  Double.parseDouble(parts[0]) * 72.0;
+                double x = Double.parseDouble(parts[0]) * 72.0;
                 double y = -Double.parseDouble(parts[1]) * 72.0; // invert Y
                 pos.put(name, new double[]{x, y});
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
         return pos;
     }
 
     // ── JSON serialization ────────────────────────────────────────────────────
-
     private static String buildJson(GraphBuilder graph, Map<String, double[]> positions) {
         StringBuilder sb = new StringBuilder(64 * 1024);
 
         sb.append("{\"nodes\":[");
         boolean first = true;
         for (GraphNode n : graph.getNodes().values()) {
-            if (!first) sb.append(',');
+            if (!first) {
+                sb.append(',');
+            }
             first = false;
             sb.append("{\"id\":").append(jsonStr(n.id()))
-              .append(",\"type\":").append(jsonStr(n.type().name()))
-              .append(",\"status\":").append(jsonStr(n.status().name()))
-              .append(",\"label\":").append(jsonStr(n.label()))
-              .append(",\"details\":").append(jsonStr(n.details()));
+                    .append(",\"type\":").append(jsonStr(n.type().name()))
+                    .append(",\"status\":").append(jsonStr(n.status().name()))
+                    .append(",\"label\":").append(jsonStr(n.label()))
+                    .append(",\"details\":").append(jsonStr(n.details()));
             double[] xy = positions.get(n.id());
             if (xy != null) {
                 sb.append(",\"px\":").append(formatCoord(xy[0]))
-                  .append(",\"py\":").append(formatCoord(xy[1]));
+                        .append(",\"py\":").append(formatCoord(xy[1]));
             }
             sb.append('}');
         }
@@ -231,28 +252,30 @@ public class GraphExporter {
         sb.append("],\"links\":[");
         first = true;
         for (GraphEdge e : graph.getEdges()) {
-            if (!first) sb.append(',');
+            if (!first) {
+                sb.append(',');
+            }
             first = false;
             sb.append("{\"source\":").append(jsonStr(e.source()))
-              .append(",\"target\":").append(jsonStr(e.target()))
-              .append(",\"relation\":").append(jsonStr(e.relation().name()))
-              .append('}');
+                    .append(",\"target\":").append(jsonStr(e.target()))
+                    .append(",\"relation\":").append(jsonStr(e.relation().name()))
+                    .append('}');
         }
 
-        long blocked    = graph.count(NodeStatus.BLOCKED);
+        long blocked = graph.count(NodeStatus.BLOCKED);
         long suspicious = graph.count(NodeStatus.SUSPICIOUS);
-        long clear      = graph.count(NodeStatus.CLEAR);
-        long unknown    = graph.count(NodeStatus.UNKNOWN);
+        long clear = graph.count(NodeStatus.CLEAR);
+        long unknown = graph.count(NodeStatus.UNKNOWN);
 
         sb.append("],\"stats\":{")
-          .append("\"blocked\":").append(blocked)
-          .append(",\"suspicious\":").append(suspicious)
-          .append(",\"clear\":").append(clear)
-          .append(",\"unknown\":").append(unknown)
-          .append(",\"total\":").append(graph.getNodes().size())
-          .append(",\"edges\":").append(graph.getEdges().size())
-          .append(",\"preLayout\":").append(!positions.isEmpty())
-          .append("}}");
+                .append("\"blocked\":").append(blocked)
+                .append(",\"suspicious\":").append(suspicious)
+                .append(",\"clear\":").append(clear)
+                .append(",\"unknown\":").append(unknown)
+                .append(",\"total\":").append(graph.getNodes().size())
+                .append(",\"edges\":").append(graph.getEdges().size())
+                .append(",\"preLayout\":").append(!positions.isEmpty())
+                .append("}}");
 
         return sb.toString();
     }
@@ -263,18 +286,25 @@ public class GraphExporter {
     }
 
     private static String jsonStr(String s) {
-        if (s == null) return "\"\"";
+        if (s == null) {
+            return "\"\"";
+        }
         StringBuilder sb = new StringBuilder(s.length() + 4);
         sb.append('"');
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             switch (c) {
-                case '"'  -> sb.append("\\\"");
-                case '\\' -> sb.append("\\\\");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                default   -> {
+                case '"' ->
+                    sb.append("\\\"");
+                case '\\' ->
+                    sb.append("\\\\");
+                case '\n' ->
+                    sb.append("\\n");
+                case '\r' ->
+                    sb.append("\\r");
+                case '\t' ->
+                    sb.append("\\t");
+                default -> {
                     if (c < 0x20) {
                         sb.append(String.format("\\u%04x", (int) c));
                     } else {
