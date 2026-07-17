@@ -5,6 +5,18 @@
 
 ---
 
+## [3.5.6] — 2026-07-17
+
+### Виправлено
+- **«Зовнішній браузер» більше не підвішує застосунок** на Cinnamon/Linux:
+  `Desktop.getDesktop().browse()` (AWT) та `ProcessBuilder.inheritIO()` блокували
+  JavaFX Application Thread, через що DE пропонував «закрити завислий додаток».
+  Тепер `xdg-open` запускається у віртуальному потоці з `Redirect.DISCARD` на
+  stdout/stderr — FX-потік не блокується жодної миті.
+- Прибрано зайвий `import java.awt.Desktop` — `Desktop` більше не використовується.
+
+---
+
 ## [3.5.5] — 2026-07-17
 
 ### Змінено
