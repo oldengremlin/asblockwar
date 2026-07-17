@@ -188,6 +188,13 @@ public class Config {
             description = "Launch graphical user interface")
     private boolean gui;
 
+    @Option(names = {"-dg", "--dependency-graph"}, arity = "0..1",
+            fallbackValue = "dependency-graph.html",
+            paramLabel = "<path>",
+            description = "Generate dependency graph HTML%n"
+            + "  (default output when flag is bare: dependency-graph.html)")
+    private String dependencyGraphPath;
+
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
     // -----------------------------------------------------------------------
@@ -364,6 +371,11 @@ public class Config {
 
     private static String joinList(List<String> list) {
         return list == null ? "" : String.join(",", list);
+    }
+
+    /** Повертає {@code true}, якщо опцію {@code --dependency-graph} / {@code -dg} передано. */
+    public boolean isDependencyGraph() {
+        return dependencyGraphPath != null;
     }
 
     private static String defaultAfterCommand() {

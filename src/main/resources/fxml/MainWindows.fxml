@@ -135,6 +135,7 @@
         <buttons>
             <Button fx:id="runButton" mnemonicParsing="false" onAction="#doRun" text="Run" />
           <Button fx:id="propertiesButton" mnemonicParsing="false" onAction="#doPropertiesDialog" text="Properties" />
+          <Button fx:id="dependencyButton" mnemonicParsing="false" onAction="#doDependencyGraph" text="Dependency" />
         </buttons>
       </ButtonBar>
    </header>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASBlockWar · Dependency Graph</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hidden}
+
+/* ── Header ── */
+#header{position:fixed;top:0;left:0;right:0;height:48px;background:#263238;color:#fff;
+        display:flex;align-items:center;gap:10px;padding:0 14px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+#title{font-size:13px;font-weight:700;white-space:nowrap;letter-spacing:.4px}
+#stats{font-size:10px;opacity:.65;white-space:nowrap;flex:1}
+#search{padding:4px 10px;border-radius:16px;border:none;font-size:12px;width:220px;outline:none;background:#37474F;color:#fff}
+#search::placeholder{color:#90A4AE}
+#search-count{font-size:10px;color:#80CBC4;white-space:nowrap;min-width:50px}
+#btn-reset{background:none;border:1px solid #546E7A;color:#90A4AE;border-radius:12px;
+           padding:2px 8px;font-size:11px;cursor:pointer}
+#btn-reset:hover{background:#37474F;color:#fff}
+
+/* ── Graph SVG ── */
+#graph{position:fixed;top:48px;left:0;right:0;bottom:0}
+
+/* ── Nodes & Links ── */
+.node{cursor:pointer}
+.node.dimmed{opacity:.15;pointer-events:none}
+.node.highlighted .node-shape{stroke:#FF6F00!important;stroke-width:3.5px;
+    filter:drop-shadow(0 0 5px #FF6F00)}
+.link{stroke-opacity:.65}
+.link.dimmed{opacity:.05}
+.node-label{font-size:8px;fill:#37474F;pointer-events:none;text-anchor:middle;
+            dominant-baseline:middle;user-select:none}
+
+/* ── Tooltip ── */
+#tooltip{position:fixed;background:rgba(30,40,45,.92);color:#ECEFF1;
+         padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.5;
+         pointer-events:none;display:none;z-index:100;max-width:320px;
+         box-shadow:0 3px 10px rgba(0,0,0,.5)}
+
+/* ── Info panel ── */
+#info-panel{position:fixed;top:56px;right:10px;width:240px;background:#fff;
+            border:1px solid #CFD8DC;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,.15);
+            font-size:11px;display:none;overflow:hidden;z-index:15}
+#info-header{background:#37474F;color:#fff;padding:7px 10px;display:flex;
+             justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
+#info-close{background:none;border:none;color:#90A4AE;cursor:pointer;font-size:16px;line-height:1}
+#info-body{padding:10px;overflow-y:auto;max-height:400px}
+.info-id{font-size:13px;font-weight:700;color:#1A237E;word-break:break-all}
+.info-meta{color:#607D8B;margin:2px 0 6px}
+.info-label{color:#37474F;margin-bottom:4px}
+.info-details{background:#ECEFF1;border-radius:4px;padding:6px 8px;font-size:10px;
+              color:#455A64;white-space:pre-wrap;word-break:break-all;margin:4px 0}
+.info-neighbors{color:#78909C;margin-top:6px;font-style:italic}
+.status-BLOCKED{color:#C62828;font-weight:600}
+.status-SUSPICIOUS{color:#E65100;font-weight:600}
+.status-CLEAR{color:#2E7D32;font-weight:600}
+.status-UNKNOWN{color:#01579B}
+
+/* ── Legend ── */
+#legend{position:fixed;bottom:10px;left:10px;background:rgba(255,255,255,.95);
+        border:1px solid #CFD8DC;border-radius:8px;padding:8px 12px;font-size:10px;
+        color:#455A64;line-height:1.8;z-index:15;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+#legend b{display:block;color:#263238;margin-bottom:2px;font-size:10px}
+.leg-row{display:flex;align-items:center;gap:5px}
+.leg-shape{display:inline-block;width:14px;text-align:center;font-size:11px}
+.leg-color{display:inline-block;width:12px;height:12px;border-radius:2px;
+           border:1.5px solid;flex-shrink:0}
+
+/* ── Filters ── */
+#filters{position:fixed;top:56px;left:10px;background:rgba(255,255,255,.95);
+         border:1px solid #CFD8DC;border-radius:8px;padding:7px 10px;font-size:10px;
+         color:#455A64;z-index:15;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+#filters b{display:block;color:#263238;margin-bottom:3px}
+.filter-row{display:flex;align-items:center;gap:4px;margin:1px 0;cursor:pointer}
+.filter-row input{cursor:pointer;accent-color:#546E7A}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <span id="title">ASBlockWar · Dependency Graph</span>
+  <span id="stats"></span>
+  <input id="search" type="text" placeholder="Пошук: AS12345, MNTNER-NAME…" autocomplete="off">
+  <span id="search-count"></span>
+  <button id="btn-reset">✕ Reset</button>
+</div>
+
+<div id="filters">
+  <b>Фільтр статусу</b>
+  <label class="filter-row"><input type="checkbox" class="status-filter" data-status="BLOCKED" checked> <span style="color:#C62828">● Blocked</span></label>
+  <label class="filter-row"><input type="checkbox" class="status-filter" data-status="SUSPICIOUS" checked> <span style="color:#E65100">● Suspicious</span></label>
+  <label class="filter-row"><input type="checkbox" class="status-filter" data-status="CLEAR" checked> <span style="color:#2E7D32">● Clear</span></label>
+  <label class="filter-row"><input type="checkbox" class="status-filter" data-status="UNKNOWN" checked> <span style="color:#01579B">● Unknown</span></label>
+</div>
+
+<svg id="graph"></svg>
+
+<div id="tooltip"></div>
+
+<div id="info-panel">
+  <div id="info-header">
+    <span id="info-title">Деталі</span>
+    <button id="info-close">×</button>
+  </div>
+  <div id="info-body"></div>
+</div>
+
+<div id="legend">
+  <b>Форма → Тип</b>
+  <div class="leg-row"><span class="leg-shape">●</span> ASN (aut-num)</div>
+  <div class="leg-row"><span class="leg-shape">◆</span> AS-SET</div>
+  <div class="leg-row"><span class="leg-shape">■</span> MNTNER</div>
+  <div class="leg-row"><span class="leg-shape">⬮</span> ORGANISATION</div>
+  <b style="margin-top:6px">Колір → Статус</b>
+  <div class="leg-row"><span class="leg-color" style="background:#FFCDD2;border-color:#C62828"></span> Blocked</div>
+  <div class="leg-row"><span class="leg-color" style="background:#FFE0B2;border-color:#E65100"></span> Suspicious</div>
+  <div class="leg-row"><span class="leg-color" style="background:#DCEDC8;border-color:#558B2F"></span> Clear</div>
+  <div class="leg-row"><span class="leg-color" style="background:#E1F5FE;border-color:#01579B"></span> Unknown</div>
+  <b style="margin-top:6px">Ребро → Зв'язок</b>
+  <div class="leg-row"><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#78909C" stroke-width="2"/></svg> mnt-by</div>
+  <div class="leg-row"><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#BA68C8" stroke-width="1.5" stroke-dasharray="5,2"/></svg> mnt-ref</div>
+  <div class="leg-row"><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#4DB6AC" stroke-width="2"/></svg> org</div>
+  <div class="leg-row"><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#81C784" stroke-width="1.5" stroke-dasharray="3,3"/></svg> member-of</div>
+  <div class="leg-row"><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#FFD54F" stroke-width="1.5" stroke-dasharray="8,3"/></svg> peer</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+// ── Data injected by GraphExporter ──────────────────────────────────────────
+const DATA = [[GRAPH_DATA]];
+
+// ── Palette ──────────────────────────────────────────────────────────────────
+const FILL   = {BLOCKED:'#FFCDD2',SUSPICIOUS:'#FFE0B2',CLEAR:'#DCEDC8',UNKNOWN:'#E1F5FE'};
+const STROKE = {BLOCKED:'#C62828',SUSPICIOUS:'#E65100',CLEAR:'#558B2F',UNKNOWN:'#01579B'};
+const EDGE_COLOR={MNT_BY:'#78909C',MNT_REF:'#BA68C8',ORG:'#4DB6AC',MEMBER_OF:'#81C784',PEER:'#FFD54F'};
+const EDGE_DASH ={MNT_BY:'none',   MNT_REF:'5,2',    ORG:'none',   MEMBER_OF:'3,3',   PEER:'8,3'};
+const EDGE_W    ={MNT_BY:2,        MNT_REF:1.5,      ORG:2,        MEMBER_OF:1.5,     PEER:1.5};
+
+// ── SVG setup ────────────────────────────────────────────────────────────────
+const W = window.innerWidth, H = window.innerHeight - 48;
+const svg = d3.select('#graph').attr('width',W).attr('height',H);
+
+const defs = svg.append('defs');
+// Single grey arrowhead marker
+defs.append('marker').attr('id','arrow').attr('viewBox','0 -4 8 8')
+    .attr('refX',8).attr('refY',0).attr('markerWidth',5).attr('markerHeight',5)
+    .attr('orient','auto')
+  .append('path').attr('d','M0,-4L8,0L0,4').attr('fill','#90A4AE').attr('opacity',.7);
+
+const g = svg.append('g');
+
+// ── Zoom ─────────────────────────────────────────────────────────────────────
+const zoom = d3.zoom().scaleExtent([0.04,12])
+    .on('zoom',({transform})=>g.attr('transform',transform));
+svg.call(zoom);
+
+// ── Simulation ───────────────────────────────────────────────────────────────
+const sim = d3.forceSimulation(DATA.nodes)
+    .force('link',  d3.forceLink(DATA.links).id(d=>d.id).distance(90).strength(.5))
+    .force('charge',d3.forceManyBody().strength(-220))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collide',d3.forceCollide(24));
+
+// ── Links ────────────────────────────────────────────────────────────────────
+const link = g.append('g').selectAll('line').data(DATA.links).join('line')
+    .attr('class','link')
+    .attr('stroke',          d=>EDGE_COLOR[d.relation]||'#aaa')
+    .attr('stroke-dasharray',d=>EDGE_DASH[d.relation]||'none')
+    .attr('stroke-width',    d=>EDGE_W[d.relation]||1.5)
+    .attr('marker-end','url(#arrow)');
+
+// ── Nodes ────────────────────────────────────────────────────────────────────
+const node = g.append('g').selectAll('g').data(DATA.nodes).join('g')
+    .attr('class','node')
+    .call(d3.drag()
+        .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y})
+        .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y})
+        .on('end',  (e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null}));
+
+node.each(function(d){
+    const el=d3.select(this);
+    let s;
+    if     (d.type==='ASN')          s=el.append('circle').attr('r',10);
+    else if(d.type==='AS_SET')       s=el.append('polygon').attr('points','0,-13 13,0 0,13 -13,0');
+    else if(d.type==='MNTNER')       s=el.append('rect').attr('x',-10).attr('y',-10).attr('width',20).attr('height',20).attr('rx',3);
+    else /* ORGANISATION */          s=el.append('ellipse').attr('rx',14).attr('ry',9);
+    s.attr('class','node-shape')
+     .attr('fill',  FILL[d.status]  ||'#eee')
+     .attr('stroke',STROKE[d.status]||'#999')
+     .attr('stroke-width',2);
+});
+
+// Labels — show short id below shape
+node.append('text').attr('class','node-label')
+    .attr('dy',d=>{
+        if(d.type==='ASN')return 20;
+        if(d.type==='AS_SET')return 22;
+        if(d.type==='MNTNER')return 20;
+        return 19; // ORGANISATION
+    })
+    .text(d=>d.id.length>18?d.id.slice(0,16)+'…':d.id);
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+const tip=d3.select('#tooltip');
+node
+    .on('mouseover',(e,d)=>{
+        tip.style('display','block')
+           .html('<b>'+esc(d.id)+'</b> <span style="color:#80CBC4">'+d.type+'</span>'
+               +'<br><span class="status-'+d.status+'">'+d.status+'</span>'
+               +(d.label&&d.label!==d.id?'<br>'+esc(d.label):'')
+               +(d.details?'<hr style="border-color:#455A64;margin:4px 0"><pre style="white-space:pre-wrap;font-size:10px">'+esc(d.details)+'</pre>':''));
+    })
+    .on('mousemove',e=>{
+        tip.style('left',(e.pageX+14)+'px').style('top',(e.pageY-10)+'px');
+    })
+    .on('mouseout',()=>tip.style('display','none'));
+
+// ── Info panel ───────────────────────────────────────────────────────────────
+function showInfo(d,connCount){
+    d3.select('#info-title').text(d.id.length>22?d.id.slice(0,20)+'…':d.id);
+    d3.select('#info-body').html(
+        '<div class="info-id">'+esc(d.id)+'</div>'
+       +'<div class="info-meta">'+d.type+' &middot; <span class="status-'+d.status+'">'+d.status+'</span></div>'
+       +(d.label&&d.label!==d.id?'<div class="info-label">'+esc(d.label)+'</div>':'')
+       +(d.details?'<pre class="info-details">'+esc(d.details)+'</pre>':'')
+       +'<div class="info-neighbors">Прямих зв\'язків: '+connCount+'</div>');
+    d3.select('#info-panel').style('display','block');
+}
+document.getElementById('info-close').onclick=()=>{
+    d3.select('#info-panel').style('display','none');
+    resetFocus();
+};
+
+// ── Click to focus ────────────────────────────────────────────────────────────
+node.on('click',(e,d)=>{
+    e.stopPropagation();
+    const conn=new Set([d.id]);
+    DATA.links.forEach(l=>{
+        const s=l.source.id||l.source, t=l.target.id||l.target;
+        if(s===d.id)conn.add(t);
+        if(t===d.id)conn.add(s);
+    });
+    node.classed('dimmed',n=>!conn.has(n.id));
+    link.classed('dimmed',l=>{
+        const s=l.source.id||l.source,t=l.target.id||l.target;
+        return !conn.has(s)||!conn.has(t);
+    });
+    showInfo(d, conn.size-1);
+});
+
+svg.on('click',()=>{resetFocus();d3.select('#info-panel').style('display','none');});
+
+function resetFocus(){
+    node.classed('dimmed',false).classed('highlighted',false);
+    link.classed('dimmed',false);
+    d3.select('#search').property('value','');
+    d3.select('#search-count').text('');
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+d3.select('#search').on('input',function(){
+    const term=this.value.trim().toLowerCase();
+    if(!term){resetFocus();return;}
+    const matched=new Set();
+    DATA.nodes.forEach(n=>{
+        if(n.id.toLowerCase().includes(term)||(n.label&&n.label.toLowerCase().includes(term)))
+            matched.add(n.id);
+    });
+    const visible=new Set(matched);
+    DATA.links.forEach(l=>{
+        const s=l.source.id||l.source,t=l.target.id||l.target;
+        if(matched.has(s))visible.add(t);
+        if(matched.has(t))visible.add(s);
+    });
+    node.classed('dimmed',n=>!visible.has(n.id))
+        .classed('highlighted',n=>matched.has(n.id));
+    link.classed('dimmed',l=>{
+        const s=l.source.id||l.source,t=l.target.id||l.target;
+        return !visible.has(s)||!visible.has(t);
+    });
+    d3.select('#search-count').text(matched.size+' found');
+    if(matched.size>0)zoomToFit(matched);
+});
+
+function zoomToFit(ids){
+    const pts=DATA.nodes.filter(n=>ids.has(n.id)&&n.x!=null);
+    if(!pts.length)return;
+    const xs=pts.map(n=>n.x),ys=pts.map(n=>n.y);
+    const x0=Math.min(...xs)-60,x1=Math.max(...xs)+60;
+    const y0=Math.min(...ys)-60,y1=Math.max(...ys)+60;
+    const sc=Math.min(3,.85/Math.max((x1-x0)/W,(y1-y0)/H));
+    svg.transition().duration(650)
+       .call(zoom.transform,d3.zoomIdentity.translate(W/2-sc*(x0+x1)/2,H/2-sc*(y0+y1)/2).scale(sc));
+}
+
+// ── Status filters ────────────────────────────────────────────────────────────
+document.querySelectorAll('.status-filter').forEach(cb=>{
+    cb.addEventListener('change',applyFilters);
+});
+function applyFilters(){
+    const hidden=new Set();
+    document.querySelectorAll('.status-filter').forEach(c=>{if(!c.checked)hidden.add(c.dataset.status);});
+    node.style('display',d=>hidden.has(d.status)?'none':null);
+    link.style('display',l=>{
+        const sn=nodeById(l.source.id||l.source),tn=nodeById(l.target.id||l.target);
+        return(hidden.has(sn?.status)||hidden.has(tn?.status))?'none':null;
+    });
+}
+const nodeMap=new Map(DATA.nodes.map(n=>[n.id,n]));
+function nodeById(id){return nodeMap.get(id);}
+
+// ── Reset button ──────────────────────────────────────────────────────────────
+document.getElementById('btn-reset').onclick=()=>{
+    resetFocus();
+    d3.select('#info-panel').style('display','none');
+    document.querySelectorAll('.status-filter').forEach(c=>c.checked=true);
+    applyFilters();
+    svg.transition().duration(500).call(zoom.transform,d3.zoomIdentity.translate(0,0).scale(1));
+};
+
+// ── Tick ──────────────────────────────────────────────────────────────────────
+sim.on('tick',()=>{
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('transform',d=>'translate('+d.x+','+d.y+')');
+});
+
+// ── Stats bar ─────────────────────────────────────────────────────────────────
+const st=DATA.stats;
+document.getElementById('stats').textContent=
+    'Blocked: '+st.blocked+' · Suspicious: '+st.suspicious+
+    ' · Clear: '+st.clear+' · Unknown: '+st.unknown+
+    ' · Nodes: '+st.total+' · Edges: '+st.edges;
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+</body>
+</html>
