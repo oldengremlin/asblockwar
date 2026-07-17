@@ -21,7 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -34,9 +34,6 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.ASBlockWar;
-import net.ukrcom.asblockwar.actions.FileUtils;
-import net.ukrcom.asblockwar.graph.GraphBuilder;
-import net.ukrcom.asblockwar.graph.GraphExporter;
 
 /**
  * Контролер вікна перегляду графа залежностей RPSL-об'єктів.
@@ -99,26 +96,48 @@ public class DependencyGraphController {
         Thread.ofVirtual().start(() -> {
             try {
                 String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-                ProcessBuilder pb;
                 if (os.contains("win")) {
-                    pb = new ProcessBuilder(
-                            "cmd", "/c", "start", "", htmlPath.toUri().toString());
+                    launch("cmd", "/c", "start", "", htmlPath.toUri().toString());
                 } else if (os.contains("mac")) {
-                    pb = new ProcessBuilder("open", htmlPath.toString());
+                    launch("open", htmlPath.toString());
                 } else {
-                    pb = new ProcessBuilder("xdg-open", htmlPath.toString());
+                    // Linux: try launchers in order until one succeeds
+                    if (!launch("xdg-open",        htmlPath.toString()) &&
+                        !launch("firefox",          htmlPath.toString()) &&
+                        !launch("chromium-browser", htmlPath.toString()) &&
+                        !launch("chromium",         htmlPath.toString())) {
+                        log.error("Жоден браузер не знайдено. Відкрийте вручну: {}", htmlPath);
+                        Platform.runLater(() ->
+                            new Alert(Alert.AlertType.WARNING,
+                                    "Браузер не знайдено.\nВідкрийте файл вручну:\n" + htmlPath,
+                                    ButtonType.OK).showAndWait());
+                    }
                 }
-                pb.redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                  .redirectError(ProcessBuilder.Redirect.DISCARD)
-                  .start();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 log.error("Не вдалося відкрити браузер", e);
                 Platform.runLater(() ->
-                        new Alert(Alert.AlertType.ERROR,
-                                "Не вдалося відкрити браузер:\n" + e.getMessage(),
-                                ButtonType.OK).showAndWait());
+                    new Alert(Alert.AlertType.ERROR,
+                            "Не вдалося відкрити браузер:\n" + e.getMessage(),
+                            ButtonType.OK).showAndWait());
             }
         });
+    }
+
+    /**
+     * Запускає команду і чекає до 2 с; повертає {@code true} якщо процес стартував
+     * та вийшов з кодом 0, або якщо він ще виконується (браузер відкрився).
+     */
+    private static boolean launch(String... cmd) {
+        try {
+            Process p = new ProcessBuilder(cmd)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            boolean exited = p.waitFor(2, TimeUnit.SECONDS);
+            return !exited || p.exitValue() == 0;
+        } catch (IOException | InterruptedException e) {
+            return false;
+        }
     }
 
     // ── WebView mode ──────────────────────────────────────────────────────────
@@ -141,36 +160,18 @@ public class DependencyGraphController {
 
     // ── WebView builder ───────────────────────────────────────────────────────
 
+    /**
+     * Завантажує вже згенерований HTML-файл у WebView через {@code file://} URL,
+     * що дозволяє браузерному рушію завантажити CDN-скрипти (d3.js) та правильно
+     * відобразити canvas-граф.
+     */
     private void buildAndDisplay() {
-        statusLabel.setText("Будуємо граф залежностей…");
-
-        Thread.ofVirtual().start(() -> {
-            try {
-                Set<String> allMntBy  = FileUtils.readFileEntries(
-                        Path.of(ASBlockWar.config.getListMntbyFile()));
-                Set<String> allAsSets = FileUtils.readFileEntries(
-                        Path.of(ASBlockWar.config.getListAssetFile()));
-
-                GraphBuilder graph = GraphBuilder.build(
-                        ASBlockWar.lastAggressorAsnResources,
-                        ASBlockWar.suspiciousAsnResources,
-                        ASBlockWar.resourcesForVerification,
-                        allMntBy,
-                        allAsSets);
-
-                String html = GraphExporter.generateHtml(graph);
-                long nodes = graph.getNodes().size();
-                long edges = graph.getEdges().size();
-
-                Platform.runLater(() -> {
-                    webView.getEngine().loadContent(html, "text/html");
-                    statusLabel.setText(String.format(
-                            "Граф: %d вузлів, %d ребер", nodes, edges));
-                });
-            } catch (IOException e) {
-                log.error("Не вдалося побудувати граф залежностей", e);
-                Platform.runLater(() -> statusLabel.setText("Помилка: " + e.getMessage()));
-            }
-        });
+        Path htmlPath = Path.of(ASBlockWar.config.getDependencyGraphPath()).toAbsolutePath();
+        if (!Files.exists(htmlPath)) {
+            statusLabel.setText("Файл не знайдено: " + htmlPath + "\nВиконайте Run спочатку.");
+            return;
+        }
+        statusLabel.setText("Завантажуємо " + htmlPath.getFileName() + "…");
+        webView.getEngine().load(htmlPath.toUri().toString());
     }
 }
