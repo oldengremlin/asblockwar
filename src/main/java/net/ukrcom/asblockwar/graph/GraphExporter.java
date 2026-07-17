@@ -85,7 +85,7 @@ public class GraphExporter {
                     graph.getNodes().size(), graph.getEdges().size());
 
             Process sfdp = new ProcessBuilder(
-                    "sfdp", "-Tplain", "-Goverlap=false", dotFile.toString())
+                    "sfdp", "-Tplain", dotFile.toString())
                     .redirectError(ProcessBuilder.Redirect.DISCARD)
                     .start();
 
@@ -146,7 +146,7 @@ public class GraphExporter {
     private static String buildDot(GraphBuilder graph) {
         int n = graph.getNodes().size(), e = graph.getEdges().size();
         StringBuilder sb = new StringBuilder(n * 20 + e * 40 + 64);
-        sb.append("digraph G {\n  graph [overlap=false splines=false];\n");
+        sb.append("digraph G {\n  graph [splines=false];\n");
         for (GraphNode node : graph.getNodes().values()) {
             sb.append("  ").append(dotId(node.id())).append(";\n");
         }
