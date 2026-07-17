@@ -288,13 +288,13 @@ public class MainWindowsController implements Initializable {
 
             refreshUi();
             statusLabel.setText("Done.");
+            dependencyButton.setDisable(false);
         } catch (IOException e) {
             log.error("GUI: cannot open progress dialog", e);
             statusLabel.setText("Error: " + e.getMessage());
         } finally {
             runButton.setDisable(false);
             propertiesButton.setDisable(false);
-            dependencyButton.setDisable(false);
         }
     }
 
