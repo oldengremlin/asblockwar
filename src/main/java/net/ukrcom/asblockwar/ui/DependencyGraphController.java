@@ -53,13 +53,49 @@ public class DependencyGraphController {
 
     // ── static factory ────────────────────────────────────────────────────────
 
+    /** Поріг розміру файлу, вище якого WebView не пропонується (2 МБ). */
+    private static final long WEBVIEW_SIZE_LIMIT_BYTES = 2L * 1024 * 1024;
+
     /**
      * Показує діалог вибору режиму перегляду і відкриває граф залежностей.
+     *
+     * <p>Якщо файл графа перевищує {@value #WEBVIEW_SIZE_LIMIT_BYTES} байт —
+     * WebView не пропонується: завантаження великого Canvas-графа з D3-симуляцією
+     * у libjfxwebkit блокує JavaFX Application Thread і призводить до «зависання».
      *
      * @param owner батьківське вікно
      * @throws IOException якщо FXML-файл не вдалося завантажити
      */
     public static void show(Stage owner) throws IOException {
+        Path htmlPath = Path.of(ASBlockWar.config.getDependencyGraphPath()).toAbsolutePath();
+        if (!Files.exists(htmlPath)) {
+            new Alert(Alert.AlertType.ERROR,
+                    "Файл графа не знайдено:\n" + htmlPath
+                    + "\n\nВиконайте Run для генерації.",
+                    ButtonType.OK).showAndWait();
+            return;
+        }
+
+        long fileSize;
+        try { fileSize = Files.size(htmlPath); } catch (IOException e) { fileSize = 0; }
+        boolean largeGraph = fileSize > WEBVIEW_SIZE_LIMIT_BYTES;
+
+        if (largeGraph) {
+            long mb = fileSize / (1024 * 1024);
+            Alert info = new Alert(Alert.AlertType.INFORMATION);
+            info.initOwner(owner);
+            info.setTitle("Граф залежностей");
+            info.setHeaderText("Великий граф (" + mb + " МБ) — відкриваємо у браузері");
+            info.setContentText(
+                    "WebView може зависнути для графів такого розміру.\n"
+                    + "Файл буде відкрито у зовнішньому браузері.");
+            info.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+            Optional<ButtonType> r = info.showAndWait();
+            if (r.isEmpty() || r.get() == ButtonType.CANCEL) return;
+            openInExternalBrowser(htmlPath);
+            return;
+        }
+
         ButtonType btnBrowser = new ButtonType("Браузер (рекомендовано)");
         ButtonType btnWebView = new ButtonType("WebView");
 
@@ -76,7 +112,7 @@ public class DependencyGraphController {
         if (choice.isEmpty() || choice.get() == ButtonType.CANCEL) return;
 
         if (choice.get() == btnBrowser) {
-            openInExternalBrowser(owner);
+            openInExternalBrowser(htmlPath);
         } else {
             openInWebView(owner);
         }
@@ -84,15 +120,7 @@ public class DependencyGraphController {
 
     // ── browser mode ──────────────────────────────────────────────────────────
 
-    private static void openInExternalBrowser(Stage owner) {
-        Path htmlPath = Path.of(ASBlockWar.config.getDependencyGraphPath()).toAbsolutePath();
-        if (!Files.exists(htmlPath)) {
-            new Alert(Alert.AlertType.ERROR,
-                    "Файл графа не знайдено:\n" + htmlPath
-                    + "\n\nВиконайте Run для генерації.",
-                    ButtonType.OK).showAndWait();
-            return;
-        }
+    private static void openInExternalBrowser(Path htmlPath) {
         Thread.ofVirtual().start(() -> {
             try {
                 String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);

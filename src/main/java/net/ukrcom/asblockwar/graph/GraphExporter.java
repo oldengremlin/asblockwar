@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GraphExporter {
 
-    private static final int SFDP_TIMEOUT_SEC = 120;
+    private static final int SFDP_TIMEOUT_SEC = 300;
 
     private GraphExporter() {}
 
