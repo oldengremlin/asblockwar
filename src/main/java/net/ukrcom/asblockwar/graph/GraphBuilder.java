@@ -71,21 +71,23 @@ public class GraphBuilder {
 
         GraphBuilder g = new GraphBuilder();
 
-        blocked.forEach((asn, rpsl) -> {
-            g.addNode(asn, NodeType.ASN, NodeStatus.BLOCKED,
-                    extractAsnLabel(rpsl), extractAsnDetails(asn, rpsl));
-            g.parseRpslEdges(asn, rpsl);
+        // blocked і cleared — CPU-важкі (regex × RPSL-блок), незалежні між собою,
+        // ConcurrentHashMap thread-safe → parallelStream масштабується до кількості ядер
+        blocked.entrySet().parallelStream().forEach(e -> {
+            g.addNode(e.getKey(), NodeType.ASN, NodeStatus.BLOCKED,
+                    extractAsnLabel(e.getValue()), extractAsnDetails(e.getKey(), e.getValue()));
+            g.parseRpslEdges(e.getKey(), e.getValue());
         });
 
         suspicious.forEach((asn, sus) -> g.addNode(asn, NodeType.ASN, NodeStatus.SUSPICIOUS,
                 asn, "country: " + sus.country() + "\n" + sus.matchedLine()));
 
-        cleared.forEach((asn, asnObj) -> {
-            String rpsl = asnObj.data() != null ? asnObj.data() : "";
-            g.addNode(asn, NodeType.ASN, NodeStatus.CLEAR,
-                    extractAsnLabel(rpsl), extractAsnDetails(asn, rpsl));
+        cleared.entrySet().parallelStream().forEach(e -> {
+            String rpsl = e.getValue().data() != null ? e.getValue().data() : "";
+            g.addNode(e.getKey(), NodeType.ASN, NodeStatus.CLEAR,
+                    extractAsnLabel(rpsl), extractAsnDetails(e.getKey(), rpsl));
             if (!rpsl.isBlank()) {
-                g.parseRpslEdges(asn, rpsl);
+                g.parseRpslEdges(e.getKey(), rpsl);
             }
         });
 
