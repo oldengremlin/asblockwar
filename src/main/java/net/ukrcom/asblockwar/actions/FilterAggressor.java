@@ -79,6 +79,7 @@ public class FilterAggressor {
     }
 
     private static String matchedAggressorLine(String rpsl) {
+        log.debug("matchedAggressorLine аналізує:\n{}", rpsl);
         Matcher m = ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl);
         return m.find() ? m.group(1).trim() : null;
     }
@@ -129,7 +130,6 @@ public class FilterAggressor {
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
                     String rpsl = entry.getValue();
-                    log.debug("Аналізуємо {}", rpsl);
                     if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
