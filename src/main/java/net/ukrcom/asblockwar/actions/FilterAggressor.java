@@ -99,6 +99,7 @@ public class FilterAggressor {
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
                     String rpsl = entry.getValue();
+                    log.debug("Аналізуємо {}", rpsl);
                     if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
