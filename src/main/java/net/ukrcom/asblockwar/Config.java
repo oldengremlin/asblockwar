@@ -79,7 +79,8 @@ public class Config {
             Map.entry("--force-net", "ForceNETBlock"),
             Map.entry("--aggressor-pattern", "AggressorPattern"),
             Map.entry("--recursive-asset", "RecursiveAsset"),
-            Map.entry("--batch", "BatchMode")
+            Map.entry("--batch", "BatchMode"),
+            Map.entry("--dependency-graph", "DependencyGraph")
     );
 
     // -----------------------------------------------------------------------
@@ -190,9 +191,10 @@ public class Config {
 
     @Option(names = {"-dg", "--dependency-graph"}, arity = "0..1",
             fallbackValue = "dependency-graph.html",
+            defaultValue = "dependency-graph.html",
             paramLabel = "<path>",
             description = "Generate dependency graph HTML%n"
-            + "  (default output when flag is bare: dependency-graph.html)")
+            + "  (default: dependency-graph.html; empty string disables)")
     private String dependencyGraphPath;
 
     // -----------------------------------------------------------------------
@@ -323,6 +325,8 @@ public class Config {
         if (this.recursiveAsset >= 0) {
             p.setProperty("RecursiveAsset", String.valueOf(this.recursiveAsset));
         }
+        p.setProperty("DependencyGraph",
+                this.dependencyGraphPath != null ? this.dependencyGraphPath : "");
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");
@@ -373,9 +377,9 @@ public class Config {
         return list == null ? "" : String.join(",", list);
     }
 
-    /** Повертає {@code true}, якщо опцію {@code --dependency-graph} / {@code -dg} передано. */
+    /** Повертає {@code true}, якщо генерація графа увімкнена (шлях не порожній). */
     public boolean isDependencyGraph() {
-        return dependencyGraphPath != null;
+        return dependencyGraphPath != null && !dependencyGraphPath.isBlank();
     }
 
     private static String defaultAfterCommand() {

@@ -67,6 +67,7 @@ public class DependencyGraphController {
         stage.initOwner(owner);
         stage.setTitle("ASBlockWar — Dependency Graph");
         stage.setScene(new Scene(root, 1280, 900));
+        stage.setMaximized(true);
         stage.show();
 
         ctrl.buildAndDisplay();

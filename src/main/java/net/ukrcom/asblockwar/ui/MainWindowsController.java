@@ -288,7 +288,7 @@ public class MainWindowsController implements Initializable {
 
             refreshUi();
             statusLabel.setText("Done.");
-            dependencyButton.setDisable(false);
+            dependencyButton.setDisable(!ASBlockWar.config.isDependencyGraph());
         } catch (IOException e) {
             log.error("GUI: cannot open progress dialog", e);
             statusLabel.setText("Error: " + e.getMessage());
@@ -327,6 +327,9 @@ public class MainWindowsController implements Initializable {
             dialog.showAndWait();
 
             refreshUi();
+            if (!ASBlockWar.config.isDependencyGraph()) {
+                dependencyButton.setDisable(true);
+            }
         } catch (IOException e) {
             log.error("GUI: cannot open properties dialog", e);
             statusLabel.setText("Error: " + e.getMessage());

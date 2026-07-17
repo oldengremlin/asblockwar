@@ -75,6 +75,8 @@ public class PropertiesController implements Initializable {
     private CheckBox fieldBatch;
     @FXML
     private TextField fieldAfterCommand;
+    @FXML
+    private TextField fieldDependencyGraph;
 
     @FXML
     private ListView<String> listBlockCountry;
@@ -108,6 +110,9 @@ public class PropertiesController implements Initializable {
         fieldRecursiveAsset.setText(String.valueOf(ASBlockWar.config.getRecursiveAsset()));
         fieldBatch.setSelected(ASBlockWar.config.isBatchMode());
         fieldAfterCommand.setText(ASBlockWar.config.getAfterCommand());
+        fieldDependencyGraph.setText(
+                ASBlockWar.config.getDependencyGraphPath() != null
+                ? ASBlockWar.config.getDependencyGraphPath() : "");
 
         setupList(listBlockCountry, ASBlockWar.config.getBlockCountry());
         setupList(listForceAsBlock, ASBlockWar.config.getForceAsBlock());
@@ -162,6 +167,11 @@ public class PropertiesController implements Initializable {
     @FXML
     private void browseAfterCommand() {
         pick(false, fieldAfterCommand, "Select After command script");
+    }
+
+    @FXML
+    private void browseDependencyGraph() {
+        pick(false, fieldDependencyGraph, "Select dependency graph output file");
     }
 
     private void pick(boolean dirOnly, TextField field, String title) {
@@ -243,6 +253,7 @@ public class PropertiesController implements Initializable {
             }
             ASBlockWar.config.setBatchMode(fieldBatch.isSelected());
             ASBlockWar.config.setAfterCommand(fieldAfterCommand.getText().trim());
+            ASBlockWar.config.setDependencyGraphPath(fieldDependencyGraph.getText().trim());
             ASBlockWar.config.setBlockCountry(new ArrayList<>(listBlockCountry.getItems()));
             ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
             ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));
