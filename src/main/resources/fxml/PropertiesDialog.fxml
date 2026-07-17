@@ -101,6 +101,8 @@
                            <TextField fx:id="fieldDependencyGraph" promptText="(empty = disabled)" HBox.hgrow="ALWAYS" />
                            <Button text="…" prefWidth="28.0" onAction="#browseDependencyGraph" />
                         </HBox>
+                        <Label text="Граф: використовувати sfdp:" GridPane.rowIndex="14" GridPane.columnIndex="0" />
+                        <CheckBox fx:id="fieldUseSfdp" GridPane.rowIndex="14" GridPane.columnIndex="1" />
                      </children>
                   </GridPane>
 
