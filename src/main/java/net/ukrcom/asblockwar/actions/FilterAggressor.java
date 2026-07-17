@@ -73,7 +73,7 @@ public class FilterAggressor {
             }
             log.debug("isAggressor: country={} — не в BlockCountry", country);
         }
-        log.debug("isAggressor: country не знайдено або не в BlockCountry → пропущено");
+        log.debug("isAggressor: country відсутній або не входить до BlockCountry  → пропущено\n{}", rpsl);
         return false;
     }
 
