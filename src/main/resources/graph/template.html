@@ -287,13 +287,26 @@ d3.select('#search').on('input',function(){
 function zoomToFit(ids){
     const pts=DATA.nodes.filter(n=>ids.has(n.id)&&n.x!=null);
     if(!pts.length)return;
-    const xs=pts.map(n=>n.x),ys=pts.map(n=>n.y);
-    const x0=Math.min(...xs)-60,x1=Math.max(...xs)+60;
-    const y0=Math.min(...ys)-60,y1=Math.max(...ys)+60;
+    const x0=d3.min(pts,n=>n.x)-60,x1=d3.max(pts,n=>n.x)+60;
+    const y0=d3.min(pts,n=>n.y)-60,y1=d3.max(pts,n=>n.y)+60;
     const sc=Math.min(3,.85/Math.max((x1-x0)/W,(y1-y0)/H));
     svg.transition().duration(650)
        .call(zoom.transform,d3.zoomIdentity.translate(W/2-sc*(x0+x1)/2,H/2-sc*(y0+y1)/2).scale(sc));
 }
+
+let fitDone=false;
+function fitAll(){
+    if(fitDone)return;
+    const ns=DATA.nodes.filter(n=>n.x!=null);
+    if(!ns.length)return;
+    const x0=d3.min(ns,n=>n.x)-60,x1=d3.max(ns,n=>n.x)+60;
+    const y0=d3.min(ns,n=>n.y)-60,y1=d3.max(ns,n=>n.y)+60;
+    const sc=Math.min(2,.85/Math.max((x1-x0)/W,(y1-y0)/H));
+    svg.transition().duration(800)
+       .call(zoom.transform,d3.zoomIdentity.translate(W/2-sc*(x0+x1)/2,H/2-sc*(y0+y1)/2).scale(sc));
+    fitDone=true;
+}
+sim.on('end',fitAll);
 
 // ── Status filters ────────────────────────────────────────────────────────────
 document.querySelectorAll('.status-filter').forEach(cb=>{
@@ -321,10 +334,12 @@ document.getElementById('btn-reset').onclick=()=>{
 };
 
 // ── Tick ──────────────────────────────────────────────────────────────────────
+let tickCount=0;
 sim.on('tick',()=>{
     link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
         .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
     node.attr('transform',d=>'translate('+d.x+','+d.y+')');
+    if(++tickCount===300)fitAll();
 });
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
