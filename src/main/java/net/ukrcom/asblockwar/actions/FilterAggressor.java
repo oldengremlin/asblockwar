@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntnerFull;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
@@ -34,6 +35,9 @@ public class FilterAggressor {
 
     private static final Pattern COUNTRY_PATTERN
             = Pattern.compile("(?im)^country:\\s*([A-Z]{2,3})\\b");
+
+    private static final Pattern SERVICE_MNT
+            = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
 
     private FilterAggressor() {
     }
@@ -80,6 +84,32 @@ public class FilterAggressor {
     }
 
     /**
+     * Збагачує RPSL-блок для перевірки на підозрілу AS: до aut-num + org-блоку
+     * додає mntner- та role-блоки всіх не-RIPE mnt-by/mnt-ref записів.
+     * Це дозволяє {@link #matchedAggressorLine} знаходити збіги AggressorPattern
+     * у даних mntner (адреса, телефон, назва організації), які відсутні в
+     * GDPR-санованих RPSL-об'єктах.
+     *
+     * @param rpsl вихідний RPSL-блок (synthetic header + aut-num + org)
+     * @return розширений блок з доданими mntner/role-блоками
+     */
+    private static String enrichForSuspiciousCheck(String rpsl) {
+        StringBuilder enriched = new StringBuilder(rpsl);
+        rpsl.lines()
+                .filter(l -> l.matches("(?i)^mnt-(by|ref):\\s*\\S+"))
+                .map(l -> l.replaceFirst("(?i)^mnt-(?:by|ref):\\s*", "").trim())
+                .filter(v -> !v.isEmpty() && !SERVICE_MNT.matcher(v).matches())
+                .distinct()
+                .forEach(mnt -> {
+                    String block = new retrieveMntnerFull(mnt).get();
+                    if (!block.isEmpty()) {
+                        enriched.append("\n").append(block);
+                    }
+                });
+        return enriched.toString();
+    }
+
+    /**
      * Фільтрує карту ASN за критерієм BlockCountry (country з RPSL-блоку).
      * <p>
      * AS, яких country відсутня або не входить до {@code blocked}:
@@ -103,7 +133,7 @@ public class FilterAggressor {
                     if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
-                    String matched = matchedAggressorLine(rpsl);
+                    String matched = matchedAggressorLine(enrichForSuspiciousCheck(rpsl));
                     if (matched != null) {
                         log.warn("Не в BlockCountry, але AggressorPattern збігається: {}", entry.getKey());
                         ASBlockWar.suspiciousAsnResources.put(

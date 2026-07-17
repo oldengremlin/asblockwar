@@ -103,6 +103,7 @@ public class retrieveOrganisation {
             while (rs.next()) {
                 this.autNumBlock = rs.getString("block");
                 this.sb.append(getAsn(this.autNum));
+                this.sb.append(this.autNumBlock).append("\n");
             }
 
         } catch (SQLException ex) {
