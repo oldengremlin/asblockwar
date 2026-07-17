@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import javafx.application.Platform;
@@ -97,10 +98,19 @@ public class DependencyGraphController {
         }
         Thread.ofVirtual().start(() -> {
             try {
-                new ProcessBuilder("xdg-open", htmlPath.toString())
-                        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                        .redirectError(ProcessBuilder.Redirect.DISCARD)
-                        .start();
+                String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+                ProcessBuilder pb;
+                if (os.contains("win")) {
+                    pb = new ProcessBuilder(
+                            "cmd", "/c", "start", "", htmlPath.toUri().toString());
+                } else if (os.contains("mac")) {
+                    pb = new ProcessBuilder("open", htmlPath.toString());
+                } else {
+                    pb = new ProcessBuilder("xdg-open", htmlPath.toString());
+                }
+                pb.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                  .redirectError(ProcessBuilder.Redirect.DISCARD)
+                  .start();
             } catch (IOException e) {
                 log.error("Не вдалося відкрити браузер", e);
                 Platform.runLater(() ->
