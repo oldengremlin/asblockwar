@@ -85,11 +85,11 @@ net.ukrcom.asblockwar/
 │   ├── retrieveRouteOriginPrefixes.java # список префіксів за origin AS
 │   └── retrieveRouteOrigins.java    # список origin AS за CIDR
 │
-├── graph/                            # граф залежностей RPSL-об'єктів
+├── graph/                            # граф залежностей RPSL-об'єктів (SVG + D3.js v7)
 │   ├── EdgeRelation.java             # enum: MNT_BY / MNT_REF / ORG / MEMBER_OF / PEER
-│   ├── GraphBuilder.java             # будує граф з blocked/suspicious/cleared мап
+│   ├── GraphBuilder.java             # будує граф з blocked/suspicious/cleared мап (parallelStream)
 │   ├── GraphEdge.java                # record: (source, target, relation)
-│   ├── GraphExporter.java            # генерує HTML з template.html + JSON-даними
+│   ├── GraphExporter.java            # генерує HTML з template.html + JSON; sfdp layout або D3
 │   ├── GraphNode.java                # record: (id, type, status, label, details)
 │   ├── NodeStatus.java               # enum: BLOCKED(4) > SUSPICIOUS(3) > CLEAR(2) > UNKNOWN(1)
 │   └── NodeType.java                 # enum: ASN / AS_SET / MNTNER / ORGANISATION
@@ -206,7 +206,33 @@ AS, що збігаються з `AggressorPattern`, але не входять 
 
 Всі три колекції скидаються / перезаписуються на початку кожного `runProcessing()`.
 
-### 5. Критерій блокування AS
+### 5. GraphBuilder — паралельна побудова графа
+
+Клас `GraphBuilder.build()` обробляє дві CPU-важкі колекції через `parallelStream()`:
+
+```java
+blocked.entrySet().parallelStream().forEach(e -> {
+    g.addNode(e.getKey(), NodeType.ASN, NodeStatus.BLOCKED,
+              extractAsnLabel(e.getValue()), extractAsnDetails(e.getKey(), e.getValue()));
+    g.parseRpslEdges(e.getKey(), e.getValue());
+});
+// suspicious — Sequential (тривіально мала)
+cleared.entrySet().parallelStream().forEach(e -> { ... });
+```
+
+Це безпечно, бо:
+- `Pattern`-об'єкти компілюються statically, `Matcher`-и — stack-local
+- `nodes` — `ConcurrentHashMap`, `edges` — `ConcurrentHashMap.newKeySet()`
+- `allMntBy`, `allAsSets`, `suspicious` — тривіально малі → залишаються sequential
+- `edges.removeIf()` (peer-фільтрація) — sequential, бо залежить від повної мапи вузлів
+
+При 5 000+ заблокованих ASN з RPSL-блоками прискорення практично лінійне відносно
+кількості ядер.
+
+`GraphExporter` — суто послідовний pipeline (A→B→C→D→E без незалежних гілок):
+sfdp-координати → JSON → template → запис на диск.
+
+### 6. Критерій блокування AS
 
 ```java
 // FilterAggressor.isAggressor()
@@ -221,7 +247,7 @@ return isCountryBlocked(rpsl, blocked);   // country: з RPSL-блоку ∈ Blo
 конфігу, і може бути перекомпільоване через діалог Properties з валідацією).
 `ForceASBlock` обходить `isAggressor()` повністю.
 
-### 6. GUI ↔ обробка: `UIProgressCallback`
+### 7. GUI ↔ обробка: `UIProgressCallback`
 
 `ASBlockWar.uiCallback` — `volatile` статичне поле, `null` в CLI-режимі.
 Всі виклики захищені `if (cb != null)` або `if (ASBlockWar.uiCallback != null)`.
@@ -230,7 +256,7 @@ return isCountryBlocked(rpsl, blocked);   // country: з RPSL-блоку ∈ Blo
 знімає після завершення. Throttling підсвічування — 100 мс між викликами
 через `AtomicLong` + `compareAndSet`.
 
-### 7. Логування в GUI (GuiLogAppender)
+### 8. Логування в GUI (GuiLogAppender)
 
 `GuiLogAppender` динамічно прикріплюється до кореневого логера Logback
 на початку `startProcessing()` і відкріплюється після завершення:
@@ -307,6 +333,29 @@ CLI-аргументи (--option=value)
 та resolved `List<String> newOpt`, яке заповнюється через `parseList(newOptOverride)` у конструкторі.
 
 Help генерується автоматично з анотацій — `printHelp()` більше не існує.
+
+### Config-only властивість (без CLI-опції)
+
+Якщо параметр керується **лише через Properties-діалог** (немає CLI `@Option`),
+наприклад `UseSfdp` — перемикач між sfdp і D3 layout у графі:
+
+1. Додати resolved-поле з Lombok `@Getter @Setter`:
+   ```java
+   private boolean useSfdp = true;
+   ```
+2. У конструкторі після `loadProperties()` резолвити з properties-файлу:
+   ```java
+   this.useSfdp = Boolean.parseBoolean(
+           properties.getProperty("UseSfdp", "true").trim());
+   ```
+3. Додати у `save()`:
+   ```java
+   p.setProperty("UseSfdp", String.valueOf(this.useSfdp));
+   ```
+4. Додати checkbox у `PropertiesDialog.fxml` та відповідні поля/виклики у `PropertiesController`.
+
+Не додавати `@Option`-поле і не записувати у `OPT_TO_PROP` — параметр залишається
+прихованим від командного рядка і живе лише у конфігураційному файлі та діалозі.
 
 ---
 
@@ -449,3 +498,9 @@ refactor: рефакторинг без зміни поведінки
 5. **Нова підсистема (пакет)**: власний пакет з чистими record/enum типами даних,
    builder-класом і exporter/renderer. Дані для GUI зберігати у `volatile` статичному
    полі `ASBlockWar.*` — без повторного запуску pipeline у GUI-режимі.
+
+   Приклад — підсистема `graph/`:
+   - `GraphBuilder.build()` приймає готові мапи та будує граф (parallelStream для важких кроків)
+   - `GraphExporter.export()` рендерить SVG-template + D3.js у автономний HTML
+   - Шаблон — `src/main/resources/graph/template.html` (вбудовується у JAR, не фільтрується)
+   - Дані для GUI — `ASBlockWar.lastAggressorAsnResources` (volatile, заповнюється після run)

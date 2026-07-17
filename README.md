@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/D3.js. Поточна версія — **3.5.4**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.6.7**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.3.12-<buildNumber>.jar
+target/ASBlockWar-3.6.7-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.3.12-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.6.7-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -92,6 +92,8 @@ ForceNETBlock=
 AggressorPattern=(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\.ru)$
 BatchMode=false
 AfterCommand=after.sh
+DependencyGraph=
+UseSfdp=true
 ```
 
 За потреби перед збіркою можна створити файл `src/main/resources/asblockwar.properties` на основі зразка нижче — він вбудовується у JAR при `mvn package` і завантажується з classpath.
@@ -147,12 +149,20 @@ BatchMode=false
 
 # Шлях до скрипту, що виконується у пакетному режимі
 AfterCommand=after.sh
+
+# Шлях до HTML-файлу графа залежностей (порожньо = вимкнено; також керується через -dg)
+DependencyGraph=
+
+# Використовувати sfdp для pre-computed layout графа (true) або D3 force-simulation (false)
+# При true: граф відкривається миттєво, layout компактний (потребує graphviz у PATH)
+# При false: D3 будує граф у браузері, органічна «супернова», але повільно на великих графах
+UseSfdp=true
 ```
 
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.3.12-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.6.7-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -206,7 +216,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.3.12-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.6.7-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -243,7 +253,7 @@ java -jar target/ASBlockWar-3.3.12-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.3.12-00000001.jar --gui
+java -jar target/ASBlockWar-3.6.7-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -301,13 +311,18 @@ java -jar target/ASBlockWar-3.3.12-00000001.jar --gui
 | List file | файл |
 | MNT-BY file | файл |
 | AS-SET file | файл |
+| DB URI (JDBC) | текст — JDBC URI до бази whois-lite-local |
 | Store directory | директорія |
-| WAR file | файл |
+| WAR file (JunOS) | файл |
 | Blackbgp file | файл |
+| Get blackhole (IPv4) | текст — shell-команда читання поточної таблиці blackbgp |
+| Get blackhole (IPv6) | текст — shell-команда читання IPv6-таблиці blackbgp |
 | Enable IPv6 | прапорець |
 | Recursive AS-SET depth | число (`-1` = вимкнено) |
 | Batch mode | прапорець |
 | After command | файл |
+| Dependency graph | файл — шлях до вихідного HTML; порожньо = вимкнено |
+| Use sfdp layout | прапорець — `true`: sfdp pre-computed layout (миттєво), `false`: D3 force-simulation (органічна «супернова», повільно) |
 | Block countries | редагований список, коди країн (напр. `RU`, `BY`); кнопки `+` / `−` |
 | Force block ASNs | редагований список ASN, що блокуються незалежно від country/pattern (напр. `AS209671`); `+` / `−` |
 | Force blackhole networks | редагований список мереж/хостів, що примусово додаються до blackbgp (напр. `185.104.208.34/32`); `+` / `−` |
@@ -346,18 +361,32 @@ java -jar target/ASBlockWar-3.3.12-00000001.jar --gui
 ## Граф залежностей
 
 Опція `-dg` / `--dependency-graph` генерує автономний HTML-файл з інтерактивним
-force-directed графом зв'язків між RPSL-об'єктами.
+SVG-графом зв'язків між RPSL-об'єктами, побудованим на базі D3.js v7.
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.5.1-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.6.7-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.5.1-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.6.7-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
 у вбудованому WebView в окремому вікні.
+
+### Режими layout
+
+| Режим | `UseSfdp` | Опис |
+|---|---|---|
+| **sfdp** (за замовчуванням) | `true` | Координати розраховуються заздалегідь утилітою `sfdp` (пакет graphviz). Граф відкривається миттєво з компактним pre-computed layout. Якщо `sfdp` не знайдено у PATH — автоматичне перемикання на D3. |
+| **D3 force-simulation** | `false` | Layout будується у браузері D3 force-directed simulation. Дає органічну «супернову» (центр щільний, гало на периферії), але може бути повільним для великих графів. |
+
+Перемикання — через checkbox **Use sfdp layout** у діалозі Properties або властивість `UseSfdp` у конфігураційному файлі.
+
+### Порядок відображення
+
+Вузли розміщені у чотирьох SVG-шарах у порядку UNKNOWN → CLEAR → SUSPICIOUS → BLOCKED,
+тому `BLOCKED` і `SUSPICIOUS` завжди відображаються поверх решти вузлів.
 
 ### Вузли та ребра
 
@@ -474,7 +503,7 @@ flowchart TD
     RP["[13] report\nВилучено / Додано / Модифіковано\n+ підозрілі AS поза BlockCountry зі збігом AggressorPattern"]
 
     RP --> DG{"[14] --dependency-graph?"}
-    DG -- так --> GR["GraphBuilder.build()\nGraphExporter.export()\ndependency-graph.html"]
+    DG -- так --> GR["GraphBuilder.build() [parallelStream: blocked, cleared]\nGraphExporter.export()\nsfdp layout (UseSfdp=true) або D3 force-simulation\ndependency-graph.html"]
     DG -- ні --> BC
     GR --> BC["[15] BatchRunner\nAfterCommand-скрипт (якщо -b)\nstdout/stderr → лог"]
 
@@ -497,7 +526,7 @@ flowchart TD
 🟢 зелений — обробка (MR, DC) &nbsp;
 🟣 фіолетовий — вивід (SM, WR, BG, WR2, ST, SD, AL, ML, NF, RP)
 
-Кроки `[1]` і `[2]` виконуються послідовно. Кроки `[9a]`/`[9b]` та `[12a]`–`[12d]` виконуються паралельно (virtual threads). Крок `[14]` виконується лише за наявності `-dg` / `--dependency-graph`. Крок `[15]` виконується тільки у пакетному режимі (`-b` / `--batch`).
+Кроки `[1]` і `[2]` виконуються послідовно. Кроки `[9a]`/`[9b]` та `[12a]`–`[12d]` виконуються паралельно (virtual threads). У кроці `[14]` мапи `blocked` та `cleared` обробляються паралельно через `parallelStream()` у `GraphBuilder.build()`. Крок `[14]` виконується лише за наявності `-dg` / `--dependency-graph`. Крок `[15]` виконується тільки у пакетному режимі (`-b` / `--batch`).
 
 ### Критерій блокування та AggressorPattern
 
@@ -677,7 +706,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.3.12-00000001.jar --batch
+java -jar target/ASBlockWar-3.6.7-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -775,7 +804,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.3.12-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.6.7-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD
@@ -834,6 +863,12 @@ AS2345       │ AS6789      │
 Незалежні етапи виводу (`storeWarResources` / `storeBlackbgpResources`, а також
 `storeDetails` / `storeAsList` / `storeMaintainersList` / `storeNetworkFiles`)
 запускаються одночасно окремими задачами executor-а, а не послідовно.
+
+Побудова графа залежностей у `GraphBuilder.build()` (крок `[14]`) використовує
+`parallelStream()` для CPU-важких кроків: записи у`blocked` та `cleared` обробляються
+паралельно — regex-парсинг RPSL-блоків масштабується до кількості ядер. Колекції
+`ConcurrentHashMap` / `ConcurrentHashMap.newKeySet()` thread-safe. Тривіально малі
+колекції (`suspicious`, `allMntBy`, `allAsSets`) залишаються послідовними.
 
 ---
 
