@@ -133,11 +133,10 @@ public class GraphExporter {
 
     private static boolean isSfdpAvailable() {
         try {
-            Process p = new ProcessBuilder("sfdp", "-V")
-                    .redirectErrorStream(true).start();
-            boolean ok = p.waitFor(5, TimeUnit.SECONDS) && p.exitValue() == 0;
-            if (!ok) log.debug("sfdp недоступний або вийшов з помилкою");
-            return ok;
+            // Just check the binary starts — some versions exit non-0 for -V
+            new ProcessBuilder("sfdp", "-V")
+                    .redirectErrorStream(true).start().destroy();
+            return true;
         } catch (Exception e) {
             log.debug("sfdp не знайдено: {}", e.getMessage());
             return false;
