@@ -207,6 +207,8 @@ public class Config {
     private boolean blackbgpIpv6Explicit = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
     private int recursiveAsset = -1;
+    // Чи використовувати sfdp для pre-computed layout графа залежностей
+    private boolean useSfdp = true;
 
     /**
      * Ініціалізує конфігурацію: розбирає CLI-аргументи, завантажує
@@ -266,6 +268,9 @@ public class Config {
             this.blackbgpIpv6 = Boolean.parseBoolean(
                     properties.getProperty("BlackbgpIpv6", "true").trim());
         }
+
+        this.useSfdp = Boolean.parseBoolean(
+                properties.getProperty("UseSfdp", "true").trim());
 
         // Resolve recursiveAsset: null flag = absent
         this.recursiveAsset = recursiveAssetFlag != null ? recursiveAssetFlag : -1;
@@ -327,6 +332,7 @@ public class Config {
         }
         p.setProperty("DependencyGraph",
                 this.dependencyGraphPath != null ? this.dependencyGraphPath : "");
+        p.setProperty("UseSfdp", String.valueOf(this.useSfdp));
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
  * Генерує автономний HTML-файл з Canvas-графом залежностей RPSL-об'єктів.
@@ -74,6 +75,7 @@ public class GraphExporter {
     // ── sfdp layout ────────────────────────────────────────────────────────────
 
     private static Map<String, double[]> tryComputeLayout(GraphBuilder graph) {
+        if (!ASBlockWar.config.isUseSfdp()) return Map.of();
         if (!isSfdpAvailable()) return Map.of();
 
         Path dotFile = null;

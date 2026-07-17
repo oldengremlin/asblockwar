@@ -77,6 +77,8 @@ public class PropertiesController implements Initializable {
     private TextField fieldAfterCommand;
     @FXML
     private TextField fieldDependencyGraph;
+    @FXML
+    private CheckBox fieldUseSfdp;
 
     @FXML
     private ListView<String> listBlockCountry;
@@ -113,6 +115,7 @@ public class PropertiesController implements Initializable {
         fieldDependencyGraph.setText(
                 ASBlockWar.config.getDependencyGraphPath() != null
                 ? ASBlockWar.config.getDependencyGraphPath() : "");
+        fieldUseSfdp.setSelected(ASBlockWar.config.isUseSfdp());
 
         setupList(listBlockCountry, ASBlockWar.config.getBlockCountry());
         setupList(listForceAsBlock, ASBlockWar.config.getForceAsBlock());
@@ -254,6 +257,7 @@ public class PropertiesController implements Initializable {
             ASBlockWar.config.setBatchMode(fieldBatch.isSelected());
             ASBlockWar.config.setAfterCommand(fieldAfterCommand.getText().trim());
             ASBlockWar.config.setDependencyGraphPath(fieldDependencyGraph.getText().trim());
+            ASBlockWar.config.setUseSfdp(fieldUseSfdp.isSelected());
             ASBlockWar.config.setBlockCountry(new ArrayList<>(listBlockCountry.getItems()));
             ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
             ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));
