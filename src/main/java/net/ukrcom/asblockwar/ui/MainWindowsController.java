@@ -66,6 +66,8 @@ public class MainWindowsController implements Initializable {
     @FXML
     private Button propertiesButton;
     @FXML
+    private Button dependencyButton;
+    @FXML
     private Accordion accordion;
     @FXML
     private TitledPane paneListMntBy;
@@ -267,6 +269,7 @@ public class MainWindowsController implements Initializable {
     private void doRun() {
         runButton.setDisable(true);
         propertiesButton.setDisable(true);
+        dependencyButton.setDisable(true);
         statusLabel.setText("Running...");
         try {
             URL fxmlUrl = getClass().getResource("/fxml/RunProgressDialog.fxml");
@@ -291,6 +294,18 @@ public class MainWindowsController implements Initializable {
         } finally {
             runButton.setDisable(false);
             propertiesButton.setDisable(false);
+            dependencyButton.setDisable(false);
+        }
+    }
+
+    @FXML
+    private void doDependencyGraph() {
+        try {
+            Stage owner = (Stage) runButton.getScene().getWindow();
+            DependencyGraphController.show(owner);
+        } catch (IOException e) {
+            log.error("GUI: cannot open dependency graph", e);
+            statusLabel.setText("Error: " + e.getMessage());
         }
     }
 

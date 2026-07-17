@@ -43,6 +43,8 @@ import net.ukrcom.asblockwar.actions.ForceBlockActions;
 import net.ukrcom.asblockwar.actions.MakeAggressor;
 import net.ukrcom.asblockwar.actions.Reporter;
 import net.ukrcom.asblockwar.actions.StoreActions;
+import net.ukrcom.asblockwar.graph.GraphBuilder;
+import net.ukrcom.asblockwar.graph.GraphExporter;
 
 /**
  * Головна точка входу та ядро обробки ASBlockWar.
@@ -70,6 +72,9 @@ public class ASBlockWar {
 
     // AS, що збігаються з AggressorPattern але не входять до BlockCountry
     public static Map<String, SuspiciousAS> suspiciousAsnResources = new ConcurrentHashMap<>();
+
+    // Останній результат обробки — заблоковані ASN → RPSL-блок; доступний для GUI
+    public static volatile Map<String, String> lastAggressorAsnResources = new ConcurrentHashMap<>();
 
     /**
      * Точка входу програми.
@@ -210,6 +215,23 @@ public class ASBlockWar {
         }
 
         Reporter.report(aggressorAsnResources);
+
+        lastAggressorAsnResources = aggressorAsnResources;
+
+        if (config.isDependencyGraph()) {
+            try {
+                GraphBuilder graph = GraphBuilder.build(
+                        aggressorAsnResources,
+                        suspiciousAsnResources,
+                        resourcesForVerification,
+                        allMntBy,
+                        allAsSets);
+                GraphExporter.export(graph, config.getDependencyGraphPath());
+            } catch (IOException e) {
+                LOGGER.warn("Не вдалося згенерувати граф залежностей: {}", e.getMessage());
+            }
+        }
+
         LOGGER.info("Готово за {}.", formatDuration(System.nanoTime() - t0));
         BatchRunner.runBatchCommand();
         if (config.isBatchMode()) {

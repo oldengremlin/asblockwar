@@ -1,0 +1,110 @@
+/*
+ * Copyright 2026 olden.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package net.ukrcom.asblockwar.ui;
+
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Path;
+import java.util.Set;
+import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.web.WebView;
+import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
+import net.ukrcom.asblockwar.ASBlockWar;
+import net.ukrcom.asblockwar.actions.FileUtils;
+import net.ukrcom.asblockwar.graph.GraphBuilder;
+import net.ukrcom.asblockwar.graph.GraphExporter;
+
+/**
+ * Контролер вікна перегляду графа залежностей RPSL-об'єктів.
+ *
+ * <p>Завантажує дані з поточного in-memory стану ASBlockWar (або з файлів, якщо
+ * обробка ще не виконувалась), будує граф через {@link GraphBuilder} і відображає
+ * автономний D3.js HTML у {@link WebView}.
+ */
+@Slf4j
+public class DependencyGraphController {
+
+    @FXML
+    private WebView webView;
+
+    @FXML
+    private Label statusLabel;
+
+    // ── static factory ────────────────────────────────────────────────────────
+
+    /**
+     * Відкриває вікно графа залежностей і запускає побудову графа у фоновому потоці.
+     *
+     * @param owner батьківське вікно (для позиціювання)
+     * @throws IOException якщо FXML-файл не вдалося завантажити
+     */
+    public static void show(Stage owner) throws IOException {
+        URL fxmlUrl = DependencyGraphController.class.getResource("/fxml/DependencyGraphView.fxml");
+        FXMLLoader loader = new FXMLLoader(fxmlUrl);
+        Parent root = loader.load();
+        DependencyGraphController ctrl = loader.getController();
+
+        Stage stage = new Stage();
+        stage.initOwner(owner);
+        stage.setTitle("ASBlockWar — Dependency Graph");
+        stage.setScene(new Scene(root, 1280, 900));
+        stage.show();
+
+        ctrl.buildAndDisplay();
+    }
+
+    // ── internal ──────────────────────────────────────────────────────────────
+
+    private void buildAndDisplay() {
+        statusLabel.setText("Будуємо граф залежностей…");
+
+        Thread.ofVirtual().start(() -> {
+            try {
+                Set<String> allMntBy  = FileUtils.readFileEntries(
+                        Path.of(ASBlockWar.config.getListMntbyFile()));
+                Set<String> allAsSets = FileUtils.readFileEntries(
+                        Path.of(ASBlockWar.config.getListAssetFile()));
+
+                GraphBuilder graph = GraphBuilder.build(
+                        ASBlockWar.lastAggressorAsnResources,
+                        ASBlockWar.suspiciousAsnResources,
+                        ASBlockWar.resourcesForVerification,
+                        allMntBy,
+                        allAsSets);
+
+                String html = GraphExporter.generateHtml(graph);
+
+                long nodes = graph.getNodes().size();
+                long edges = graph.getEdges().size();
+
+                Platform.runLater(() -> {
+                    webView.getEngine().loadContent(html, "text/html");
+                    statusLabel.setText(String.format(
+                            "Граф: %d вузлів, %d ребер", nodes, edges));
+                });
+            } catch (IOException e) {
+                log.error("Не вдалося побудувати граф залежностей", e);
+                Platform.runLater(() -> statusLabel.setText("Помилка: " + e.getMessage()));
+            }
+        });
+    }
+}
