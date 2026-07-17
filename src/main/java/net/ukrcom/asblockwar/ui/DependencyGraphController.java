@@ -15,11 +15,11 @@
  */
 package net.ukrcom.asblockwar.ui;
 
-import java.awt.Desktop;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import javafx.application.Platform;
@@ -96,19 +96,29 @@ public class DependencyGraphController {
                     ButtonType.OK).showAndWait();
             return;
         }
-        try {
-            if (Desktop.isDesktopSupported()
-                    && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(htmlPath.toUri());
-            } else {
-                new ProcessBuilder("xdg-open", htmlPath.toString()).inheritIO().start();
+        Thread.ofVirtual().start(() -> {
+            try {
+                String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+                ProcessBuilder pb;
+                if (os.contains("win")) {
+                    pb = new ProcessBuilder(
+                            "cmd", "/c", "start", "", htmlPath.toUri().toString());
+                } else if (os.contains("mac")) {
+                    pb = new ProcessBuilder("open", htmlPath.toString());
+                } else {
+                    pb = new ProcessBuilder("xdg-open", htmlPath.toString());
+                }
+                pb.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                  .redirectError(ProcessBuilder.Redirect.DISCARD)
+                  .start();
+            } catch (IOException e) {
+                log.error("Не вдалося відкрити браузер", e);
+                Platform.runLater(() ->
+                        new Alert(Alert.AlertType.ERROR,
+                                "Не вдалося відкрити браузер:\n" + e.getMessage(),
+                                ButtonType.OK).showAndWait());
             }
-        } catch (IOException e) {
-            log.error("Не вдалося відкрити браузер", e);
-            new Alert(Alert.AlertType.ERROR,
-                    "Не вдалося відкрити браузер:\n" + e.getMessage(),
-                    ButtonType.OK).showAndWait();
-        }
+        });
     }
 
     // ── WebView mode ──────────────────────────────────────────────────────────
