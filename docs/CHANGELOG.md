@@ -5,6 +5,47 @@
 
 ---
 
+## [3.6.13] — 2026-07-18
+
+### Виправлено
+
+- **Ребра AS-SET → MNTNER через `mnt-by:`/`mnt-ref:` у RPSL AS-SET**: метод
+  `parseAsSetEdges()` тепер також парсить поля `mnt-by:` та `mnt-ref:` з RPSL
+  AS-SET-блоків (аналогічно до `parseRpslEdges()` для aut-num). AS-PHIBEE-TELECOM з
+  `mnt-by: PHIBEE` тепер отримує відповідне ребро до мантейнера.
+
+- **Ребра з mntner reverse-lookup RPSL (aut-num / as-set)**: новий метод
+  `parseMntnerEdges()` парсить RPSL-результат `-rmb` (поля `aut-num:` та `as-set:`)
+  і створює MNT_BY-ребра від підтримуваних об'єктів до мантейнера. Для ASN — лише
+  якщо вузол вже є у графі (щоб не породжувати фантомні вузли). Для AS-SET — завжди
+  додає вузол і ребро. MNT-RU-JSCIOT-1 з `as-set: AS-AOIOT` тепер не є сиротою.
+
+- **BFS-розширення AS-SET карти**: нові методи `fetchMissingAsSetRpsl()` та
+  `expandAsSetMap()` у `MakeAggressor` завантажують RPSL для AS-SET-ів, що
+  з'являються в `members:` вже відомих AS-SET-ів, але ще не мають RPSL. Ітерується
+  до стабілізації. AS-VENIGO, AS-DEVCLIC та аналогічні AS-SET-и, відкриті через
+  members AS-PHIBEE-TELECOM, тепер мають свої `members:` розпарсені.
+
+- **AS-SET з mntner reverse-lookup додаються до карти до BFS**: AS-SET-и, знайдені
+  у RPSL мантейнерів через reverse-lookup (`as-set:` у `-rmb`), додаються до
+  `allAsSetMap` з порожнім RPSL до BFS — `fetchMissingAsSetRpsl()` завантажує їх
+  RPSL в тому ж проході.
+
+### Додано
+
+- **Завантаження RPSL для ASN-членів AS-SET-ів**: новий метод `fetchMemberAsnRpsl()`
+  у `MakeAggressor` завантажує RPSL для ASN, що є членами відомих AS-SET-ів, але
+  відсутні у blocked/suspicious/cleared. Ці ASN додаються у граф як вузли зі статусом
+  UNKNOWN з повним парсингом `mnt-by:`, `org:` і `peer`. AS201699 (член AS-PHIBEE-TELECOM)
+  тепер відображається з ребрами до LEVELSYS-MNT та ORG-LSS7-RIPE.
+
+- **`mntnerResources` у `ASBlockWar`**: новий volatile-поля, аналогічний `asSetResources`,
+  зберігає reverse-lookup RPSL мантейнерів зібраний під час
+  `makeAggressorAssetAndMntbyResources()`. Передається у `GraphBuilder.build()` як
+  `Map<String, String>` замість `Set<String>`.
+
+---
+
 ## [3.6.12] — 2026-07-18
 
 ### Оптимізовано
