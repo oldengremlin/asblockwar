@@ -80,8 +80,13 @@ public class GraphBuilder {
             g.parseRpslEdges(e.getKey(), e.getValue());
         });
 
-        suspicious.forEach((asn, sus) -> g.addNode(asn, NodeType.ASN, NodeStatus.SUSPICIOUS,
-                asn, "country: " + sus.country() + "\n" + sus.matchedLine()));
+        suspicious.forEach((asn, sus) -> {
+            g.addNode(asn, NodeType.ASN, NodeStatus.SUSPICIOUS,
+                    asn, "country: " + sus.country() + "\n" + sus.matchedLine());
+            if (sus.rpsl() != null && !sus.rpsl().isBlank()) {
+                g.parseRpslEdges(asn, sus.rpsl());
+            }
+        });
 
         cleared.entrySet().parallelStream().forEach(e -> {
             String rpsl = e.getValue().data() != null ? e.getValue().data() : "";

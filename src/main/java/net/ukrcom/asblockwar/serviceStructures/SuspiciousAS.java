@@ -25,8 +25,9 @@ package net.ukrcom.asblockwar.serviceStructures;
  * @param asn         рядкове позначення автономної системи (наприклад, {@code "AS12345"})
  * @param country     код країни з RPSL-блоку, або {@code "?"} якщо поле відсутнє
  * @param matchedLine рядок RPSL-блоку, що збігся з AggressorPattern
+ * @param rpsl        повний RPSL-блок для побудови ребер графа залежностей
  * @author olden
  */
-public record SuspiciousAS(String asn, String country, String matchedLine) {
+public record SuspiciousAS(String asn, String country, String matchedLine, String rpsl) {
 
 }

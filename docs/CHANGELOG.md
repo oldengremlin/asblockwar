@@ -5,6 +5,18 @@
 
 ---
 
+## [3.6.10] — 2026-07-18
+
+### Виправлено
+
+- **RPSL-ребра для suspicious ASN**: `SuspiciousAS` тепер зберігає повний RPSL-блок
+  (поле `rpsl`). `GraphBuilder.build()` викликає `parseRpslEdges()` і для підозрілих
+  ASN — вони тепер беруть участь у побудові ребер MNT_BY / MNT_REF / ORG /
+  MEMBER_OF / PEER нарівні з blocked і cleared. AS-SET-и та мантейнери, пов'язані
+  лише з suspicious ASN, більше не залишаються «сиротами».
+
+---
+
 ## [3.6.9] — 2026-07-18
 
 ### Виправлено

@@ -146,7 +146,7 @@ public class FilterAggressor {
                         log.warn("Не в BlockCountry, але AggressorPattern збігається: {}", entry.getKey());
                         ASBlockWar.suspiciousAsnResources.put(
                                 entry.getKey(),
-                                new SuspiciousAS(entry.getKey(), extractCountry(rpsl), matched)
+                                new SuspiciousAS(entry.getKey(), extractCountry(rpsl), matched, rpsl)
                         );
                     } else {
                         log.warn("Вилучено (country не в блокованих, pattern не збігається): {}", entry.getKey());
