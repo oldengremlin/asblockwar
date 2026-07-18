@@ -45,6 +45,7 @@ public class GraphBuilder {
     private static final Pattern COUNTRY_PAT = Pattern.compile("(?m)^country:\\s*([A-Z]{2,3})");
     private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:\\s*(.+)$");
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:\\s*(\\S+)");
 
     private final Map<String, GraphNode> nodes = new ConcurrentHashMap<>();
     private final Set<GraphEdge> edges = ConcurrentHashMap.newKeySet();
@@ -97,6 +98,31 @@ public class GraphBuilder {
         // Peer-ребра видаляємо там де хоча б один кінець не є відомим вузлом
         g.edges.removeIf(e -> e.relation() == EdgeRelation.PEER
                 && (!g.nodes.containsKey(e.source()) || !g.nodes.containsKey(e.target())));
+
+        // Поширюємо BLOCKED/SUSPICIOUS з вузлів ASN на суміжні не-ASN вузли
+        // (mntner, org, as-set) через структурні ребра (не PEER).
+        // Пріоритет: BLOCKED > SUSPICIOUS — завжди перемагає вищий.
+        g.edges.stream()
+                .filter(e -> e.relation() != EdgeRelation.PEER)
+                .forEach(e -> {
+                    GraphNode src = g.nodes.get(e.source());
+                    if (src == null || src.type() != NodeType.ASN) {
+                        return;
+                    }
+                    if (src.status() != NodeStatus.BLOCKED && src.status() != NodeStatus.SUSPICIOUS) {
+                        return;
+                    }
+                    g.nodes.computeIfPresent(e.target(), (id, current) -> {
+                        if (current.type() == NodeType.ASN) {
+                            return current;
+                        }
+                        if (src.status().priority() > current.status().priority()) {
+                            return new GraphNode(id, current.type(), src.status(),
+                                    current.label(), current.details());
+                        }
+                        return current;
+                    });
+                });
 
         log.info("Граф побудовано: {} вузлів, {} ребер", g.nodes.size(), g.edges.size());
         return g;
@@ -158,6 +184,13 @@ public class GraphBuilder {
             addNode(org, NodeType.ORGANISATION, NodeStatus.UNKNOWN, org,
                     orgName.isBlank() ? "" : orgName);
             addEdge(asn, org, EdgeRelation.ORG);
+        });
+
+        allMatches(MEMBER_OF_PAT, rpsl).forEach(set -> {
+            if (!set.isBlank()) {
+                addNode(set, NodeType.AS_SET, NodeStatus.UNKNOWN, set, "");
+                addEdge(asn, set, EdgeRelation.MEMBER_OF);
+            }
         });
 
         // Peer-ребра — додаємо умовно, будуть відфільтровані якщо target не в графі
