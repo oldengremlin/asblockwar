@@ -248,6 +248,14 @@ g.edges.parallelStream().filter(e -> e.relation() != EdgeRelation.PEER).forEach(
 `allMntBy` залишається sequential — там лише `addNode()`, без regex-парсингу.
 При 5 000+ заблокованих ASN прискорення практично лінійне відносно кількості ядер.
 
+Якщо `config.isDependencyWithUnknown()` == `false` (за замовчуванням), після всього
+вищесказаного виконується фінальна фільтрація:
+```java
+g.nodes.values().removeIf(n -> n.status() == NodeStatus.UNKNOWN);
+g.edges.removeIf(e -> !g.nodes.containsKey(e.source()) || !g.nodes.containsKey(e.target()));
+```
+Вузли, яким status propagation підняла статус до BLOCKED/SUSPICIOUS/CLEAR, зберігаються.
+
 `GraphExporter` — суто послідовний pipeline (A→B→C→D→E без незалежних гілок):
 sfdp-координати → JSON → template → запис на диск.
 

@@ -267,7 +267,8 @@ public class ASBlockWar {
                         resourcesForVerification,
                         allMntByMap,
                         allAsSetMap,
-                        memberAsnRpsl);
+                        memberAsnRpsl,
+                        config.isDependencyWithUnknown());
                 GraphExporter.export(graph, config.getDependencyGraphPath());
             } catch (IOException e) {
                 LOGGER.warn("Не вдалося згенерувати граф залежностей: {}", e.getMessage());

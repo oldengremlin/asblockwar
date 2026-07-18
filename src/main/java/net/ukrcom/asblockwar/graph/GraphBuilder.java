@@ -72,7 +72,8 @@ public class GraphBuilder {
             Map<String, ASN> cleared,
             Map<String, String> allMntBy,
             Map<String, String> allAsSets,
-            Map<String, String> memberAsns) {
+            Map<String, String> memberAsns,
+            boolean dependencyWithUnknown) {
 
         GraphBuilder g = new GraphBuilder();
 
@@ -155,6 +156,14 @@ public class GraphBuilder {
                 });
 
         log.info("Граф побудовано: {} вузлів, {} ребер", g.nodes.size(), g.edges.size());
+
+        // Якщо DependencyWithUnknown=false — видаляємо вузли зі статусом UNKNOWN і ребра до них
+        if (!dependencyWithUnknown) {
+            g.nodes.values().removeIf(n -> n.status() == NodeStatus.UNKNOWN);
+            g.edges.removeIf(e -> !g.nodes.containsKey(e.source()) || !g.nodes.containsKey(e.target()));
+            log.info("Граф без Unknown: {} вузлів, {} ребер", g.nodes.size(), g.edges.size());
+        }
+
         return g;
     }
 

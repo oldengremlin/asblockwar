@@ -103,6 +103,8 @@
                         </HBox>
                         <Label text="Use sfdp layout:" GridPane.rowIndex="14" GridPane.columnIndex="0" />
                         <CheckBox fx:id="fieldUseSfdp" GridPane.rowIndex="14" GridPane.columnIndex="1" />
+                        <Label text="Include unknown nodes:" GridPane.rowIndex="15" GridPane.columnIndex="0" />
+                        <CheckBox fx:id="fieldDependencyWithUnknown" GridPane.rowIndex="15" GridPane.columnIndex="1" />
                      </children>
                   </GridPane>
 
