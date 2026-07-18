@@ -5,6 +5,34 @@
 
 ---
 
+## [3.6.12] — 2026-07-18
+
+### Оптимізовано
+
+- **parallelStream для suspicious та allAsSets у GraphBuilder**: після додавання
+  `parseRpslEdges()` для suspicious (3.6.10) та `parseAsSetEdges()` для allAsSets
+  (3.6.11) обидва цикли залишились sequential, хоча виконують CPU-важкий regex-парсинг.
+  Тепер усі чотири карти (blocked, suspicious, cleared, allAsSets) обробляються через
+  `parallelStream()`. `allMntBy` залишається sequential — там лише `addNode()` без regex.
+
+---
+
+## [3.6.11] — 2026-07-18
+
+### Виправлено
+
+- **Ребра між AS-SET-ами та їх членами через `members:`**: `MakeAggressor` тепер
+  зберігає RPSL-блоки AS-SET у `ASBlockWar.asSetResources`. `GraphBuilder.build()`
+  отримує `Map<String, String>` (ім'я → RPSL) замість `Set<String>` і викликає
+  новий метод `parseAsSetEdges()` для кожного AS-SET з RPSL. Метод парсить поле
+  `members:` (підтримує кілька значень на рядку через кому): для ASN-членів додає
+  ребро `ASN → AS-SET` (якщо ASN вже є у графі), для AS-SET-членів додає вузол і
+  ребро `AS-SET → AS-SET`. Ребра з невідомими кінцями прибираються фільтром разом
+  з PEER. `AS-MAILRU → members: AS-VK → members: AS49281, AS47764, ...` тепер
+  повністю відображаються у графі.
+
+---
+
 ## [3.6.10] — 2026-07-18
 
 ### Виправлено

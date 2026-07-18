@@ -76,6 +76,9 @@ public class ASBlockWar {
     // Останній результат обробки — заблоковані ASN → RPSL-блок; доступний для GUI
     public static volatile Map<String, String> lastAggressorAsnResources = new ConcurrentHashMap<>();
 
+    // AS-SET RPSL-блоки, зібрані під час makeAggressorAssetAndMntbyResources(); для побудови графа
+    public static volatile Map<String, String> asSetResources = new ConcurrentHashMap<>();
+
     /**
      * Точка входу програми.
      * <p>
@@ -180,6 +183,10 @@ public class ASBlockWar {
         Set<String> allMntBy = FileUtils.readFileEntries(Path.of(listMntbyFile));
         Set<String> allAsSets = FileUtils.readFileEntries(Path.of(config.getListAssetFile()));
 
+        // Об'єднуємо RPSL з поточного запуску з іменами з файлу (RPSL може бути порожнім)
+        Map<String, String> allAsSetMap = new ConcurrentHashMap<>(asSetResources);
+        allAsSets.forEach(name -> allAsSetMap.putIfAbsent(name, ""));
+
         try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
             final var fa = aggressorAsnResources;
             final var fm = allMntBy;
@@ -225,7 +232,7 @@ public class ASBlockWar {
                         suspiciousAsnResources,
                         resourcesForVerification,
                         allMntBy,
-                        allAsSets);
+                        allAsSetMap);
                 GraphExporter.export(graph, config.getDependencyGraphPath());
             } catch (IOException e) {
                 LOGGER.warn("Не вдалося згенерувати граф залежностей: {}", e.getMessage());

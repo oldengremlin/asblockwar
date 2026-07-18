@@ -46,6 +46,7 @@ public class GraphBuilder {
     private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:\\s*(.+)$");
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
     private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:\\s*(\\S+)");
+    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^members:\\s*(.+)$");
 
     private final Map<String, GraphNode> nodes = new ConcurrentHashMap<>();
     private final Set<GraphEdge> edges = ConcurrentHashMap.newKeySet();
@@ -68,23 +69,24 @@ public class GraphBuilder {
             Map<String, SuspiciousAS> suspicious,
             Map<String, ASN> cleared,
             Set<String> allMntBy,
-            Set<String> allAsSets) {
+            Map<String, String> allAsSets) {
 
         GraphBuilder g = new GraphBuilder();
 
-        // blocked і cleared — CPU-важкі (regex × RPSL-блок), незалежні між собою,
-        // ConcurrentHashMap thread-safe → parallelStream масштабується до кількості ядер
+        // Чотири CPU-важкі потоки (regex × RPSL-блок), незалежні між собою.
+        // ConcurrentHashMap/newKeySet thread-safe, Matcher локальний → parallelStream безпечний.
         blocked.entrySet().parallelStream().forEach(e -> {
             g.addNode(e.getKey(), NodeType.ASN, NodeStatus.BLOCKED,
                     extractAsnLabel(e.getValue()), extractAsnDetails(e.getKey(), e.getValue()));
             g.parseRpslEdges(e.getKey(), e.getValue());
         });
 
-        suspicious.forEach((asn, sus) -> {
-            g.addNode(asn, NodeType.ASN, NodeStatus.SUSPICIOUS,
-                    asn, "country: " + sus.country() + "\n" + sus.matchedLine());
-            if (sus.rpsl() != null && !sus.rpsl().isBlank()) {
-                g.parseRpslEdges(asn, sus.rpsl());
+        suspicious.entrySet().parallelStream().forEach(e -> {
+            g.addNode(e.getKey(), NodeType.ASN, NodeStatus.SUSPICIOUS,
+                    e.getKey(), "country: " + e.getValue().country() + "\n" + e.getValue().matchedLine());
+            String rpsl = e.getValue().rpsl();
+            if (rpsl != null && !rpsl.isBlank()) {
+                g.parseRpslEdges(e.getKey(), rpsl);
             }
         });
 
@@ -97,11 +99,20 @@ public class GraphBuilder {
             }
         });
 
-        allMntBy.forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
-        allAsSets.forEach(as -> g.addNode(as, NodeType.AS_SET, NodeStatus.UNKNOWN, as, ""));
+        allAsSets.entrySet().parallelStream().forEach(e -> {
+            g.addNode(e.getKey(), NodeType.AS_SET, NodeStatus.UNKNOWN, e.getKey(), "");
+            if (!e.getValue().isBlank()) {
+                g.parseAsSetEdges(e.getKey(), e.getValue());
+            }
+        });
 
-        // Peer-ребра видаляємо там де хоча б один кінець не є відомим вузлом
-        g.edges.removeIf(e -> e.relation() == EdgeRelation.PEER
+        // allMntBy — тривіально: просто addNode без regex, sequential достатньо
+        allMntBy.forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
+
+        // Ребра де хоча б один кінець не є відомим вузлом:
+        // PEER — щоб не породжувати фантомні ASN-вузли;
+        // MEMBER_OF — для ASN-членів з as-set.members, що не входять до жодної карти
+        g.edges.removeIf(e -> (e.relation() == EdgeRelation.PEER || e.relation() == EdgeRelation.MEMBER_OF)
                 && (!g.nodes.containsKey(e.source()) || !g.nodes.containsKey(e.target())));
 
         // Поширюємо статус з вузлів ASN на суміжні не-ASN вузли
@@ -201,6 +212,26 @@ public class GraphBuilder {
                 .map(String::toUpperCase)
                 .filter(peer -> !peer.equals(asn))
                 .forEach(peer -> addEdge(asn, peer, EdgeRelation.PEER));
+    }
+
+    private void parseAsSetEdges(String asSetId, String rpsl) {
+        allMatches(MEMBERS_PAT, rpsl).forEach(line -> {
+            for (String token : line.split("[,\\s]+")) {
+                String member = token.trim().replaceAll(";$", "");
+                if (member.isEmpty()) {
+                    continue;
+                }
+                String memberUp = member.toUpperCase();
+                if (memberUp.matches("AS\\d+")) {
+                    // ASN-член: ребро ASN → AS-SET (буде відфільтровано якщо ASN не в графі)
+                    addEdge(memberUp, asSetId, EdgeRelation.MEMBER_OF);
+                } else if (memberUp.startsWith("AS-") || memberUp.startsWith("RS-") || memberUp.startsWith("FLTR-")) {
+                    // AS-SET або filter-set: завжди додаємо вузол і ребро
+                    addNode(memberUp, NodeType.AS_SET, NodeStatus.UNKNOWN, memberUp, "");
+                    addEdge(memberUp, asSetId, EdgeRelation.MEMBER_OF);
+                }
+            }
+        });
     }
 
     private static java.util.List<String> allMatches(Pattern p, String text) {
