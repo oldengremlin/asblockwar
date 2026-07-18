@@ -73,19 +73,20 @@ public class GraphBuilder {
 
         GraphBuilder g = new GraphBuilder();
 
-        // blocked і cleared — CPU-важкі (regex × RPSL-блок), незалежні між собою,
-        // ConcurrentHashMap thread-safe → parallelStream масштабується до кількості ядер
+        // Чотири CPU-важкі потоки (regex × RPSL-блок), незалежні між собою.
+        // ConcurrentHashMap/newKeySet thread-safe, Matcher локальний → parallelStream безпечний.
         blocked.entrySet().parallelStream().forEach(e -> {
             g.addNode(e.getKey(), NodeType.ASN, NodeStatus.BLOCKED,
                     extractAsnLabel(e.getValue()), extractAsnDetails(e.getKey(), e.getValue()));
             g.parseRpslEdges(e.getKey(), e.getValue());
         });
 
-        suspicious.forEach((asn, sus) -> {
-            g.addNode(asn, NodeType.ASN, NodeStatus.SUSPICIOUS,
-                    asn, "country: " + sus.country() + "\n" + sus.matchedLine());
-            if (sus.rpsl() != null && !sus.rpsl().isBlank()) {
-                g.parseRpslEdges(asn, sus.rpsl());
+        suspicious.entrySet().parallelStream().forEach(e -> {
+            g.addNode(e.getKey(), NodeType.ASN, NodeStatus.SUSPICIOUS,
+                    e.getKey(), "country: " + e.getValue().country() + "\n" + e.getValue().matchedLine());
+            String rpsl = e.getValue().rpsl();
+            if (rpsl != null && !rpsl.isBlank()) {
+                g.parseRpslEdges(e.getKey(), rpsl);
             }
         });
 
@@ -98,13 +99,15 @@ public class GraphBuilder {
             }
         });
 
-        allMntBy.forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
-        allAsSets.forEach((as, rpsl) -> {
-            g.addNode(as, NodeType.AS_SET, NodeStatus.UNKNOWN, as, "");
-            if (!rpsl.isBlank()) {
-                g.parseAsSetEdges(as, rpsl);
+        allAsSets.entrySet().parallelStream().forEach(e -> {
+            g.addNode(e.getKey(), NodeType.AS_SET, NodeStatus.UNKNOWN, e.getKey(), "");
+            if (!e.getValue().isBlank()) {
+                g.parseAsSetEdges(e.getKey(), e.getValue());
             }
         });
+
+        // allMntBy — тривіально: просто addNode без regex, sequential достатньо
+        allMntBy.forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
 
         // Ребра де хоча б один кінець не є відомим вузлом:
         // PEER — щоб не породжувати фантомні ASN-вузли;

@@ -5,6 +5,18 @@
 
 ---
 
+## [3.6.12] — 2026-07-18
+
+### Оптимізовано
+
+- **parallelStream для suspicious та allAsSets у GraphBuilder**: після додавання
+  `parseRpslEdges()` для suspicious (3.6.10) та `parseAsSetEdges()` для allAsSets
+  (3.6.11) обидва цикли залишились sequential, хоча виконують CPU-важкий regex-парсинг.
+  Тепер усі чотири карти (blocked, suspicious, cleared, allAsSets) обробляються через
+  `parallelStream()`. `allMntBy` залишається sequential — там лише `addNode()` без regex.
+
+---
+
 ## [3.6.11] — 2026-07-18
 
 ### Виправлено
