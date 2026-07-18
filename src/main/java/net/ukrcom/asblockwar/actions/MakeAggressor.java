@@ -116,6 +116,7 @@ public class MakeAggressor {
      */
     public static Map<String, String> makeAggressorAssetAndMntbyResources() {
         Map<String, String> aggressorMntbyResources = new ConcurrentHashMap<>();
+        ASBlockWar.asSetResources.clear();
 
         // 1. Створюємо Executor на Virtual Threads (Java 21+)
         // Він буде створювати новий легкий потік на кожне завдання.
@@ -144,6 +145,7 @@ public class MakeAggressor {
                     String result = new retrieveAsSet(asSet).get();
                     if (!result.isBlank()) {
                         aggressorMntbyResources.put(asSet, result);
+                        ASBlockWar.asSetResources.put(asSet, result);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
