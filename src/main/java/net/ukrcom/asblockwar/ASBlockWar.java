@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javafx.application.Application;
 import org.slf4j.Logger;
@@ -78,6 +79,9 @@ public class ASBlockWar {
 
     // AS-SET RPSL-блоки, зібрані під час makeAggressorAssetAndMntbyResources(); для побудови графа
     public static volatile Map<String, String> asSetResources = new ConcurrentHashMap<>();
+
+    // Mntner RPSL-блоки (reverse-lookup -rmb), зібрані під час makeAggressorAssetAndMntbyResources()
+    public static volatile Map<String, String> mntnerResources = new ConcurrentHashMap<>();
 
     /**
      * Точка входу програми.
@@ -183,10 +187,6 @@ public class ASBlockWar {
         Set<String> allMntBy = FileUtils.readFileEntries(Path.of(listMntbyFile));
         Set<String> allAsSets = FileUtils.readFileEntries(Path.of(config.getListAssetFile()));
 
-        // Об'єднуємо RPSL з поточного запуску з іменами з файлу (RPSL може бути порожнім)
-        Map<String, String> allAsSetMap = new ConcurrentHashMap<>(asSetResources);
-        allAsSets.forEach(name -> allAsSetMap.putIfAbsent(name, ""));
-
         try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
             final var fa = aggressorAsnResources;
             final var fm = allMntBy;
@@ -226,13 +226,48 @@ public class ASBlockWar {
         lastAggressorAsnResources = aggressorAsnResources;
 
         if (config.isDependencyGraph()) {
+            // Об'єднуємо RPSL з поточного запуску з іменами з файлу (RPSL може бути порожнім)
+            Map<String, String> allAsSetMap = new ConcurrentHashMap<>(asSetResources);
+            allAsSets.forEach(name -> allAsSetMap.putIfAbsent(name, ""));
+
+            // AS-SET-и, що фігурують у reverse-lookup мантейнерів, але ще не у map
+            {
+                Pattern mntnerAssetPat = Pattern.compile("(?m)^as-set:\\s*(\\S+)");
+                mntnerResources.values().parallelStream().forEach(rpsl -> {
+                    if (rpsl == null || rpsl.isBlank()) return;
+                    Matcher mt = mntnerAssetPat.matcher(rpsl);
+                    while (mt.find()) {
+                        String s = mt.group(1).trim().toUpperCase();
+                        if (!s.isEmpty()) allAsSetMap.putIfAbsent(s, "");
+                    }
+                });
+            }
+
+            // Завантажуємо RPSL для AS-SET-ів, що ще не мають RPSL (з файлу або з mntner-lookup)
+            MakeAggressor.fetchMissingAsSetRpsl(allAsSetMap);
+
+            // BFS: знаходимо AS-SET-членів у members: і завантажуємо їх RPSL
+            MakeAggressor.expandAsSetMap(allAsSetMap);
+
+            // RPSL для ASN-членів AS-SET-ів, що ще не є в графі (blocked/suspicious/cleared)
+            Set<String> knownAsns = new HashSet<>();
+            knownAsns.addAll(aggressorAsnResources.keySet());
+            suspiciousAsnResources.keySet().forEach(knownAsns::add);
+            resourcesForVerification.keySet().forEach(knownAsns::add);
+            Map<String, String> memberAsnRpsl = MakeAggressor.fetchMemberAsnRpsl(allAsSetMap, knownAsns);
+
+            // Mntner map: RPSL з поточного запуску + імена з файлу
+            Map<String, String> allMntByMap = new ConcurrentHashMap<>(mntnerResources);
+            allMntBy.forEach(name -> allMntByMap.putIfAbsent(name, ""));
+
             try {
                 GraphBuilder graph = GraphBuilder.build(
                         aggressorAsnResources,
                         suspiciousAsnResources,
                         resourcesForVerification,
-                        allMntBy,
-                        allAsSetMap);
+                        allMntByMap,
+                        allAsSetMap,
+                        memberAsnRpsl);
                 GraphExporter.export(graph, config.getDependencyGraphPath());
             } catch (IOException e) {
                 LOGGER.warn("Не вдалося згенерувати граф залежностей: {}", e.getMessage());

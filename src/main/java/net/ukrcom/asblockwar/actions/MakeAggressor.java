@@ -25,6 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
@@ -117,6 +120,7 @@ public class MakeAggressor {
     public static Map<String, String> makeAggressorAssetAndMntbyResources() {
         Map<String, String> aggressorMntbyResources = new ConcurrentHashMap<>();
         ASBlockWar.asSetResources.clear();
+        ASBlockWar.mntnerResources.clear();
 
         // 1. Створюємо Executor на Virtual Threads (Java 21+)
         // Він буде створювати новий легкий потік на кожне завдання.
@@ -175,6 +179,7 @@ public class MakeAggressor {
                         dbLimit.acquire();
                         String result = new retrieveMntBy(mntBy).get();
                         aggressorMntbyResources.put(mntBy, result);
+                        ASBlockWar.mntnerResources.put(mntBy, result);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     } finally {
@@ -262,5 +267,122 @@ public class MakeAggressor {
         }
 
         return aggressorAsnResources;
+    }
+
+    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^members:\\s*(.+)$");
+
+    /**
+     * Завантажує RPSL для AS-SET-записів у map, що мають порожній RPSL (один прохід).
+     */
+    public static void fetchMissingAsSetRpsl(Map<String, String> asSetMap) {
+        Set<String> toFetch = asSetMap.entrySet().parallelStream()
+                .filter(e -> e.getValue() == null || e.getValue().isBlank())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        if (toFetch.isEmpty()) return;
+        log.info("Завантаження RPSL для {} AS-SET (прямий доступ)...", toFetch.size());
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            toFetch.forEach(asSet -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    String rpsl = new retrieveAsSet(asSet).get();
+                    String r = rpsl != null ? rpsl : "";
+                    asSetMap.put(asSet, r);
+                    if (!r.isBlank()) ASBlockWar.asSetResources.put(asSet, r);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    asSetMap.putIfAbsent(asSet, "");
+                } finally {
+                    dbLimit.release();
+                }
+            }));
+        }
+    }
+
+    /**
+     * BFS-розширення: знаходить AS-SET імена у полях members: існуючих записів,
+     * яких ще немає в map, і завантажує їх RPSL. Повторює до стабілізації.
+     */
+    public static void expandAsSetMap(Map<String, String> asSetMap) {
+        boolean found;
+        do {
+            Set<String> toFetch = ConcurrentHashMap.newKeySet();
+            asSetMap.entrySet().parallelStream().forEach(entry -> {
+                String rpsl = entry.getValue();
+                if (rpsl == null || rpsl.isBlank()) return;
+                Matcher m = MEMBERS_PAT.matcher(rpsl);
+                while (m.find()) {
+                    for (String token : m.group(1).split("[,\\s]+")) {
+                        String t = token.trim().replaceAll(";$", "").toUpperCase();
+                        if (!t.isEmpty()
+                                && (t.startsWith("AS-") || t.startsWith("RS-") || t.startsWith("FLTR-"))
+                                && !asSetMap.containsKey(t)) {
+                            toFetch.add(t);
+                        }
+                    }
+                }
+            });
+            found = !toFetch.isEmpty();
+            if (found) {
+                log.info("BFS AS-SET: завантаження {} нових записів...", toFetch.size());
+                try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                    Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+                    toFetch.forEach(asSet -> executor.submit(() -> {
+                        try {
+                            dbLimit.acquire();
+                            String rpsl = new retrieveAsSet(asSet).get();
+                            String r = rpsl != null ? rpsl : "";
+                            asSetMap.put(asSet, r);
+                            if (!r.isBlank()) ASBlockWar.asSetResources.put(asSet, r);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            asSetMap.put(asSet, "");
+                        } finally {
+                            dbLimit.release();
+                        }
+                    }));
+                }
+            }
+        } while (found);
+    }
+
+    /**
+     * Завантажує RPSL для ASN-членів AS-SET-ів, яких ще немає у графі (blocked/suspicious/cleared).
+     * Повертає map asn → rpsl лише для ASN з непорожнім результатом.
+     */
+    public static Map<String, String> fetchMemberAsnRpsl(Map<String, String> asSetMap, Set<String> alreadyKnown) {
+        Set<String> toFetch = ConcurrentHashMap.newKeySet();
+        asSetMap.entrySet().parallelStream().forEach(entry -> {
+            String rpsl = entry.getValue();
+            if (rpsl == null || rpsl.isBlank()) return;
+            Matcher m = MEMBERS_PAT.matcher(rpsl);
+            while (m.find()) {
+                for (String token : m.group(1).split("[,\\s]+")) {
+                    String t = token.trim().replaceAll(";$", "").toUpperCase();
+                    if (t.matches("AS\\d+") && !alreadyKnown.contains(t)) {
+                        toFetch.add(t);
+                    }
+                }
+            }
+        });
+        Map<String, String> result = new ConcurrentHashMap<>();
+        if (toFetch.isEmpty()) return result;
+        log.info("Завантаження RPSL для {} ASN-членів AS-SET...", toFetch.size());
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            toFetch.forEach(asn -> executor.submit(() -> {
+                try {
+                    dbLimit.acquire();
+                    String rpsl = new retrieveOrganisation(asn).get();
+                    if (rpsl != null && !rpsl.isBlank()) result.put(asn, rpsl);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    dbLimit.release();
+                }
+            }));
+        }
+        return result;
     }
 }

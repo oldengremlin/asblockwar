@@ -47,6 +47,8 @@ public class GraphBuilder {
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
     private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:\\s*(\\S+)");
     private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^members:\\s*(.+)$");
+    private static final Pattern MNTNER_AUTNUM_PAT = Pattern.compile("(?m)^aut-num:\\s*(AS\\d+)");
+    private static final Pattern MNTNER_ASSET_PAT = Pattern.compile("(?m)^as-set:\\s*(\\S+)");
 
     private final Map<String, GraphNode> nodes = new ConcurrentHashMap<>();
     private final Set<GraphEdge> edges = ConcurrentHashMap.newKeySet();
@@ -68,8 +70,9 @@ public class GraphBuilder {
             Map<String, String> blocked,
             Map<String, SuspiciousAS> suspicious,
             Map<String, ASN> cleared,
-            Set<String> allMntBy,
-            Map<String, String> allAsSets) {
+            Map<String, String> allMntBy,
+            Map<String, String> allAsSets,
+            Map<String, String> memberAsns) {
 
         GraphBuilder g = new GraphBuilder();
 
@@ -106,8 +109,21 @@ public class GraphBuilder {
             }
         });
 
-        // allMntBy — тривіально: просто addNode без regex, sequential достатньо
-        allMntBy.forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
+        // allMntBy — додаємо вузли; sequential достатньо (немає regex)
+        allMntBy.keySet().forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, ""));
+
+        // ASN-члени AS-SET-ів, яких немає у blocked/suspicious/cleared — додаємо як UNKNOWN
+        memberAsns.entrySet().parallelStream().forEach(e -> {
+            g.addNode(e.getKey(), NodeType.ASN, NodeStatus.UNKNOWN,
+                    extractAsnLabel(e.getValue()), extractAsnDetails(e.getKey(), e.getValue()));
+            g.parseRpslEdges(e.getKey(), e.getValue());
+        });
+
+        // Ребра з mntner RPSL (reverse-lookup: aut-num та as-set, що мають mnt-by цього mntner).
+        // Запускаємо ПІСЛЯ всіх ASN-вузлів, щоб фільтр nodes::containsKey був актуальним.
+        allMntBy.entrySet().parallelStream()
+                .filter(e -> e.getValue() != null && !e.getValue().isBlank())
+                .forEach(e -> g.parseMntnerEdges(e.getKey(), e.getValue()));
 
         // Ребра де хоча б один кінець не є відомим вузлом:
         // PEER — щоб не породжувати фантомні ASN-вузли;
@@ -118,7 +134,7 @@ public class GraphBuilder {
         // Поширюємо статус з вузлів ASN на суміжні не-ASN вузли
         // (mntner, org, as-set) через структурні ребра (не PEER).
         // Повний ланцюжок: BLOCKED > SUSPICIOUS > CLEAR > UNKNOWN.
-        // ASN-вузлів зі статусом UNKNOWN не існує → effectivly лише три статуси.
+        // ASN-члени AS-SET-ів (з memberAsns) мають статус UNKNOWN — він не перезаписує вищі.
         g.edges.stream()
                 .filter(e -> e.relation() != EdgeRelation.PEER)
                 .forEach(e -> {
@@ -231,6 +247,37 @@ public class GraphBuilder {
                     addEdge(memberUp, asSetId, EdgeRelation.MEMBER_OF);
                 }
             }
+        });
+
+        // mnt-by та mnt-ref з RPSL AS-SET (аналогічно до parseRpslEdges для ASN)
+        allMatches(MNT_BY_PAT, rpsl).forEach(mnt -> {
+            if (!SERVICE_MNT.matcher(mnt).matches()) {
+                addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, "");
+                addEdge(asSetId, mnt, EdgeRelation.MNT_BY);
+            }
+        });
+        allMatches(MNT_REF_PAT, rpsl).forEach(mnt -> {
+            if (!SERVICE_MNT.matcher(mnt).matches()) {
+                addNode(mnt, NodeType.MNTNER, NodeStatus.UNKNOWN, mnt, "");
+                addEdge(asSetId, mnt, EdgeRelation.MNT_REF);
+            }
+        });
+    }
+
+    /**
+     * Парсить mntner RPSL (reverse-lookup: результат -rmb) для полів aut-num та as-set.
+     * Створює ребра від об'єктів до mntner. Для ASN — лише якщо вузол вже є у графі.
+     */
+    private void parseMntnerEdges(String mntnerId, String rpsl) {
+        allMatches(MNTNER_AUTNUM_PAT, rpsl).stream()
+                .map(String::toUpperCase)
+                .filter(nodes::containsKey)
+                .forEach(asn -> addEdge(asn, mntnerId, EdgeRelation.MNT_BY));
+
+        allMatches(MNTNER_ASSET_PAT, rpsl).forEach(asSet -> {
+            String asSetUp = asSet.toUpperCase();
+            addNode(asSetUp, NodeType.AS_SET, NodeStatus.UNKNOWN, asSetUp, "");
+            addEdge(asSetUp, mntnerId, EdgeRelation.MNT_BY);
         });
     }
 
