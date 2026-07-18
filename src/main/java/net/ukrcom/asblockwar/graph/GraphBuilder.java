@@ -99,17 +99,15 @@ public class GraphBuilder {
         g.edges.removeIf(e -> e.relation() == EdgeRelation.PEER
                 && (!g.nodes.containsKey(e.source()) || !g.nodes.containsKey(e.target())));
 
-        // Поширюємо BLOCKED/SUSPICIOUS з вузлів ASN на суміжні не-ASN вузли
+        // Поширюємо статус з вузлів ASN на суміжні не-ASN вузли
         // (mntner, org, as-set) через структурні ребра (не PEER).
-        // Пріоритет: BLOCKED > SUSPICIOUS — завжди перемагає вищий.
+        // Повний ланцюжок: BLOCKED > SUSPICIOUS > CLEAR > UNKNOWN.
+        // ASN-вузлів зі статусом UNKNOWN не існує → effectivly лише три статуси.
         g.edges.stream()
                 .filter(e -> e.relation() != EdgeRelation.PEER)
                 .forEach(e -> {
                     GraphNode src = g.nodes.get(e.source());
                     if (src == null || src.type() != NodeType.ASN) {
-                        return;
-                    }
-                    if (src.status() != NodeStatus.BLOCKED && src.status() != NodeStatus.SUSPICIOUS) {
                         return;
                     }
                     g.nodes.computeIfPresent(e.target(), (id, current) -> {
