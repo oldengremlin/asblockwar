@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.6.14**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.6.15**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.6.14-<buildNumber>.jar
+target/ASBlockWar-3.6.15-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.6.14-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.6.15-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -94,6 +94,7 @@ BatchMode=false
 AfterCommand=after.sh
 DependencyGraph=
 UseSfdp=true
+DependencyWithUnknown=false
 ```
 
 За потреби перед збіркою можна створити файл `src/main/resources/asblockwar.properties` на основі зразка нижче — він вбудовується у JAR при `mvn package` і завантажується з classpath.
@@ -157,12 +158,17 @@ DependencyGraph=
 # При true: граф відкривається миттєво, layout компактний (потребує graphviz у PATH)
 # При false: D3 будує граф у браузері, органічна «супернова», але повільно на великих графах
 UseSfdp=true
+
+# Включати вузли зі статусом UNKNOWN до графа залежностей (false за замовчуванням)
+# При false: залишаються лише BLOCKED/SUSPICIOUS/CLEAR вузли та їхня інфраструктура
+# При true: повний граф з усіма member-ASN та мантейнерами без статусу (набагато більший)
+DependencyWithUnknown=false
 ```
 
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.6.14-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.6.15-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -216,7 +222,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.6.14-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.6.15-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -253,7 +259,7 @@ java -jar target/ASBlockWar-3.6.14-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.6.14-00000001.jar --gui
+java -jar target/ASBlockWar-3.6.15-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -323,6 +329,7 @@ java -jar target/ASBlockWar-3.6.14-00000001.jar --gui
 | After command | файл |
 | Dependency graph | файл — шлях до вихідного HTML; порожньо = вимкнено |
 | Use sfdp layout | прапорець — `true`: sfdp pre-computed layout (миттєво), `false`: D3 force-simulation (органічна «супернова», повільно) |
+| Include unknown nodes | прапорець — `true`: повний граф з усіма UNKNOWN-вузлами; `false` (за замовчуванням): лише BLOCKED/SUSPICIOUS/CLEAR та їхня інфраструктура |
 | Block countries | редагований список, коди країн (напр. `RU`, `BY`); кнопки `+` / `−` |
 | Force block ASNs | редагований список ASN, що блокуються незалежно від country/pattern (напр. `AS209671`); `+` / `−` |
 | Force blackhole networks | редагований список мереж/хостів, що примусово додаються до blackbgp (напр. `185.104.208.34/32`); `+` / `−` |
@@ -365,10 +372,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.6.14-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.6.15-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.6.14-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.6.15-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -426,6 +433,11 @@ java -jar ASBlockWar-3.6.14-00000001.jar -dg /tmp/asblockwar-graph.html
   тисячі вузлів-фантомів з чужих AS).
 - Якщо один і той самий вузол є і `BLOCKED`, і `UNKNOWN` (через різні джерела даних),
   застосовується вищий пріоритет: `BLOCKED > SUSPICIOUS > CLEAR > UNKNOWN`.
+- При `DependencyWithUnknown=false` (за замовчуванням): після поширення статусів
+  усі вузли, що залишились зі статусом `UNKNOWN`, видаляються з графа разом з
+  ребрами до них. Мантейнери і організації, на які хоча б одна blocked/suspicious/clear
+  AS поширила статус — зберігаються. Призначення: аналітичний режим, де видно
+  лише заблоковані/підозрілі/вилучені AS та їхню організаційну інфраструктуру.
 
 ### Інтерактивність
 
@@ -706,7 +718,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.6.14-00000001.jar --batch
+java -jar target/ASBlockWar-3.6.15-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -804,7 +816,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.6.14-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.6.15-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD

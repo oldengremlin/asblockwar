@@ -209,6 +209,8 @@ public class Config {
     private int recursiveAsset = -1;
     // Чи використовувати sfdp для pre-computed layout графа залежностей
     private boolean useSfdp = true;
+    // Чи включати вузли зі статусом UNKNOWN до графа залежностей (за замовчуванням false)
+    private boolean dependencyWithUnknown = false;
 
     /**
      * Ініціалізує конфігурацію: розбирає CLI-аргументи, завантажує
@@ -271,6 +273,8 @@ public class Config {
 
         this.useSfdp = Boolean.parseBoolean(
                 properties.getProperty("UseSfdp", "true").trim());
+        this.dependencyWithUnknown = Boolean.parseBoolean(
+                properties.getProperty("DependencyWithUnknown", "false").trim());
 
         // Resolve recursiveAsset: null flag = absent
         this.recursiveAsset = recursiveAssetFlag != null ? recursiveAssetFlag : -1;
@@ -333,6 +337,7 @@ public class Config {
         p.setProperty("DependencyGraph",
                 this.dependencyGraphPath != null ? this.dependencyGraphPath : "");
         p.setProperty("UseSfdp", String.valueOf(this.useSfdp));
+        p.setProperty("DependencyWithUnknown", String.valueOf(this.dependencyWithUnknown));
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");
