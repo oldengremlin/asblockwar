@@ -138,8 +138,13 @@ net.ukrcom.asblockwar/
 | 12b | `StoreActions.storeAsList()` | Записує STORE/AS.list |
 | 12c | `StoreActions.storeMaintainersList()` | Записує STORE/maintainers.list |
 | 12d | `StoreActions.storeNetworkFiles()` | Записує STORE/networks.list та STORE/NET/ |
-| 13 | `BatchRunner.runBatchCommand()` | Запускає AfterCommand-скрипт (якщо `-b`) |
-| 14 | `Reporter.report()` | Виводить фінальну таблицю змін + таблицю підозрілих AS |
+| 13 | `Reporter.report()` | Виводить фінальну таблицю змін + таблицю підозрілих AS |
+| 14a | `MakeAggressor.fetchMissingAsSetRpsl()` | Завантажує RPSL для AS-SET-ів без RPSL (тільки якщо `--dependency-graph`) |
+| 14b | `MakeAggressor.expandAsSetMap()` | BFS: нові AS-SET-и з `members:` — ітерується до стабілізації |
+| 14c | `MakeAggressor.fetchMemberAsnRpsl()` | Завантажує RPSL для ASN-членів AS-SET-ів поза blocked/suspicious/cleared |
+| 14d | `GraphBuilder.build()` | Будує граф залежностей (parallelStream для всіх CPU-важких мап) |
+| 14e | `GraphExporter.export()` | Генерує HTML (sfdp або D3 force-simulation) |
+| 15 | `BatchRunner.runBatchCommand()` | Запускає AfterCommand-скрипт (якщо `-b`) |
 
 ---
 
@@ -173,8 +178,15 @@ SQLite підтримує паралельні читання (`WAL` / `PRAGMA j
 у конструкторі і закриває його в `try-with-resources`. Результат повертається
 через `get()`. Не статичні методи — кожен виклик = новий об'єкт.
 
-Виняток — `retrieveOrganisation`: має статичний `ConcurrentHashMap<String,String>`
-кеш на весь час роботи процесу (ASN-блоки не змінюються під час одного запуску).
+Три класи мають статичний `ConcurrentHashMap<String, String>` кеш на весь час роботи
+процесу (RPSL-блоки не змінюються між запитами в межах одного запуску):
+
+- `retrieveOrganisation` — кеш aut-num / organisation блоків
+- `retrieveAsSet` — кеш as-set RPSL блоків
+- `retrieveMntBy` — кеш результатів reverse-lookup мантейнера
+
+При GUI multi-run кеш зберігається між запусками (він статичний). При додаванні
+нового retrieve-класу, що може викликатись повторно — рекомендується аналогічний кеш.
 
 ### 3. Атомарний запис файлів
 
@@ -208,26 +220,33 @@ AS, що збігаються з `AggressorPattern`, але не входять 
 
 ### 5. GraphBuilder — паралельна побудова графа
 
-Клас `GraphBuilder.build()` обробляє дві CPU-важкі колекції через `parallelStream()`:
+Клас `GraphBuilder.build()` обробляє всі CPU-важкі колекції через `parallelStream()`:
 
 ```java
-blocked.entrySet().parallelStream().forEach(e -> {
-    g.addNode(e.getKey(), NodeType.ASN, NodeStatus.BLOCKED,
-              extractAsnLabel(e.getValue()), extractAsnDetails(e.getKey(), e.getValue()));
-    g.parseRpslEdges(e.getKey(), e.getValue());
-});
-// suspicious — Sequential (тривіально мала)
-cleared.entrySet().parallelStream().forEach(e -> { ... });
+blocked.entrySet().parallelStream().forEach(e -> { /* parseRpslEdges */ });
+suspicious.entrySet().parallelStream().forEach(e -> { /* parseRpslEdges */ });
+cleared.entrySet().parallelStream().forEach(e -> { /* parseRpslEdges */ });
+allAsSets.entrySet().parallelStream().forEach(e -> { /* parseAsSetEdges */ });
+memberAsns.entrySet().parallelStream().forEach(e -> { /* parseRpslEdges */ });
+// allMntBy — sequential (лише addNode(), без regex)
+allMntBy.keySet().forEach(mnt -> g.addNode(mnt, NodeType.MNTNER, ...));
+// parseMntnerEdges — parallelStream, запускається ПІСЛЯ побудови всіх ASN-вузлів
+allMntBy.entrySet().parallelStream().filter(...).forEach(e -> g.parseMntnerEdges(...));
+// edges.removeIf() — sequential, бо залежить від повної мапи вузлів
+g.edges.removeIf(e -> (e.relation() == PEER || e.relation() == MEMBER_OF)
+        && (!g.nodes.containsKey(e.source()) || !g.nodes.containsKey(e.target())));
+// Поширення статусу — parallelStream (computeIfPresent атомарна на ConcurrentHashMap)
+g.edges.parallelStream().filter(e -> e.relation() != EdgeRelation.PEER).forEach(...);
 ```
 
 Це безпечно, бо:
 - `Pattern`-об'єкти компілюються statically, `Matcher`-и — stack-local
 - `nodes` — `ConcurrentHashMap`, `edges` — `ConcurrentHashMap.newKeySet()`
-- `allMntBy`, `allAsSets`, `suspicious` — тривіально малі → залишаються sequential
-- `edges.removeIf()` (peer-фільтрація) — sequential, бо залежить від повної мапи вузлів
+- `computeIfPresent` на `ConcurrentHashMap` є атомарною, `GraphNode` — immutable record
+- `edges.removeIf()` — sequential, залежить від стабільного стану повної мапи вузлів
 
-При 5 000+ заблокованих ASN з RPSL-блоками прискорення практично лінійне відносно
-кількості ядер.
+`allMntBy` залишається sequential — там лише `addNode()`, без regex-парсингу.
+При 5 000+ заблокованих ASN прискорення практично лінійне відносно кількості ядер.
 
 `GraphExporter` — суто послідовний pipeline (A→B→C→D→E без незалежних гілок):
 sfdp-координати → JSON → template → запис на диск.
