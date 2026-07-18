@@ -186,21 +186,28 @@ public class GraphBuilder {
         if (id == null || id.isBlank()) {
             return;
         }
-        nodes.merge(id.trim(), new GraphNode(id.trim(), type, status, label, details),
+        // RPSL-ідентифікатори регістронезалежні — нормалізуємо до верхнього регістру
+        String normId = id.trim().toUpperCase();
+        nodes.merge(normId, new GraphNode(normId, type, status, label, details),
                 (existing, incoming) -> {
                     NodeStatus better = existing.status().priority() >= incoming.status().priority()
                                         ? existing.status() : incoming.status();
                     String betterLabel = existing.label().isBlank() ? incoming.label() : existing.label();
                     String betterDetails = existing.details().isBlank() ? incoming.details() : existing.details();
-                    return new GraphNode(id.trim(), existing.type(), better, betterLabel, betterDetails);
+                    return new GraphNode(normId, existing.type(), better, betterLabel, betterDetails);
                 });
     }
 
     private void addEdge(String source, String target, EdgeRelation relation) {
-        if (source == null || target == null || source.equals(target)) {
+        if (source == null || target == null) {
             return;
         }
-        edges.add(new GraphEdge(source.trim(), target.trim(), relation));
+        String normSrc = source.trim().toUpperCase();
+        String normTgt = target.trim().toUpperCase();
+        if (normSrc.equals(normTgt)) {
+            return;
+        }
+        edges.add(new GraphEdge(normSrc, normTgt, relation));
     }
 
     private void parseRpslEdges(String asn, String rpsl) {
