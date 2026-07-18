@@ -233,7 +233,7 @@ public class ASBlockWar {
             // AS-SET-и, що фігурують у reverse-lookup мантейнерів, але ще не у map
             {
                 Pattern mntnerAssetPat = Pattern.compile("(?m)^as-set:\\s*(\\S+)");
-                mntnerResources.values().forEach(rpsl -> {
+                mntnerResources.values().parallelStream().forEach(rpsl -> {
                     if (rpsl == null || rpsl.isBlank()) return;
                     Matcher mt = mntnerAssetPat.matcher(rpsl);
                     while (mt.find()) {

@@ -275,7 +275,7 @@ public class MakeAggressor {
      * Завантажує RPSL для AS-SET-записів у map, що мають порожній RPSL (один прохід).
      */
     public static void fetchMissingAsSetRpsl(Map<String, String> asSetMap) {
-        Set<String> toFetch = asSetMap.entrySet().stream()
+        Set<String> toFetch = asSetMap.entrySet().parallelStream()
                 .filter(e -> e.getValue() == null || e.getValue().isBlank())
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toSet());
@@ -308,7 +308,8 @@ public class MakeAggressor {
         boolean found;
         do {
             Set<String> toFetch = ConcurrentHashMap.newKeySet();
-            asSetMap.forEach((name, rpsl) -> {
+            asSetMap.entrySet().parallelStream().forEach(entry -> {
+                String rpsl = entry.getValue();
                 if (rpsl == null || rpsl.isBlank()) return;
                 Matcher m = MEMBERS_PAT.matcher(rpsl);
                 while (m.find()) {
@@ -352,7 +353,8 @@ public class MakeAggressor {
      */
     public static Map<String, String> fetchMemberAsnRpsl(Map<String, String> asSetMap, Set<String> alreadyKnown) {
         Set<String> toFetch = ConcurrentHashMap.newKeySet();
-        asSetMap.forEach((name, rpsl) -> {
+        asSetMap.entrySet().parallelStream().forEach(entry -> {
+            String rpsl = entry.getValue();
             if (rpsl == null || rpsl.isBlank()) return;
             Matcher m = MEMBERS_PAT.matcher(rpsl);
             while (m.find()) {
