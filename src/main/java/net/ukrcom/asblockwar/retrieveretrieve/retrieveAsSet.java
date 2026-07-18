@@ -22,6 +22,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.ukrcom.asblockwar.Config;
 
 /**
@@ -32,6 +34,8 @@ import net.ukrcom.asblockwar.Config;
  */
 @Slf4j
 public class retrieveAsSet {
+
+    private static final Map<String, String> cache = new ConcurrentHashMap<>();
 
     private final Config config;
     private StringBuilder sb;
@@ -48,17 +52,21 @@ public class retrieveAsSet {
     public retrieveAsSet(String asSet) {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.sb = new StringBuilder();
-
         this.asSet = asSet;
 
-        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI());) {
+        if (cache.containsKey(asSet)) {
+            this.sb.append(cache.get(asSet));
+            return;
+        }
+
+        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             this.conn = connection;
-
             this.loadAsSet();
-
         } catch (SQLException ex) {
             log.error("Помилка при отриманні AsSet", ex);
         }
+
+        cache.put(asSet, this.sb.toString());
     }
 
     /**

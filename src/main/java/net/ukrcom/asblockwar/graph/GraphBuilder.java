@@ -135,7 +135,7 @@ public class GraphBuilder {
         // (mntner, org, as-set) через структурні ребра (не PEER).
         // Повний ланцюжок: BLOCKED > SUSPICIOUS > CLEAR > UNKNOWN.
         // ASN-члени AS-SET-ів (з memberAsns) мають статус UNKNOWN — він не перезаписує вищі.
-        g.edges.stream()
+        g.edges.parallelStream()
                 .filter(e -> e.relation() != EdgeRelation.PEER)
                 .forEach(e -> {
                     GraphNode src = g.nodes.get(e.source());
