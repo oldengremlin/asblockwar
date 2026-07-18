@@ -5,6 +5,26 @@
 
 ---
 
+## [3.6.14] — 2026-07-18
+
+### Оптимізовано
+
+- **Кеш для `retrieveAsSet`**: доданий статичний `ConcurrentHashMap<String, String> cache`,
+  аналогічний до вже наявного в `retrieveOrganisation`. Повторне звернення до одного
+  AS-SET (напр., при GUI multi-run або дублях у BFS) повертає збережений RPSL без
+  звернення до БД.
+
+- **Кеш для `retrieveMntBy`**: аналогічний статичний кеш доданий до `retrieveMntBy`.
+  Reverse-lookup одного мантейнера виконується лише один раз навіть якщо його викликали
+  з кількох місць.
+
+- **`parallelStream()` для поширення статусу у `GraphBuilder`**: прохід, що поширює
+  статус вузла ASN на суміжні не-ASN вузли (mntner, org, as-set) через структурні ребра,
+  змінено з послідовного `stream()` на `parallelStream()`. Безпечно: `computeIfPresent`
+  на `ConcurrentHashMap` є атомарною, `GraphNode` — immutable record.
+
+---
+
 ## [3.6.13] — 2026-07-18
 
 ### Виправлено
