@@ -245,6 +245,12 @@ g.edges.parallelStream().filter(e -> e.relation() != EdgeRelation.PEER).forEach(
 - `computeIfPresent` на `ConcurrentHashMap` є атомарною, `GraphNode` — immutable record
 - `edges.removeIf()` — sequential, залежить від стабільного стану повної мапи вузлів
 
+**Нормалізація ідентифікаторів**: `addNode()` і `addEdge()` перетворюють усі
+ідентифікатори до верхнього регістру (`id.trim().toUpperCase()`) — RPSL-об'єкти
+регістронезалежні за стандартом. `LIDERTELECOM-MNT` і `lidertelecom-mnt` або
+`AS41761` і `as41761` дають один вузол; дублікати зливаються через `merge()` зі
+збереженням вищого статусу і першого непорожнього label/details.
+
 `allMntBy` залишається sequential — там лише `addNode()`, без regex-парсингу.
 При 5 000+ заблокованих ASN прискорення практично лінійне відносно кількості ядер.
 
