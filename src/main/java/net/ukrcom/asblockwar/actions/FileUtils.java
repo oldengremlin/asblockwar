@@ -27,6 +27,8 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
  * Утиліти для читання та запису файлів конфігурації та сховища.
@@ -34,6 +36,7 @@ import java.util.stream.Stream;
  * Забезпечує атомарний запис через тимчасові файли та файлові блокування,
  * а також читання списків записів з файлів.
  */
+@Slf4j
 public class FileUtils {
 
     private FileUtils() {
@@ -87,6 +90,11 @@ public class FileUtils {
      */
     public static void writeStoreFile(Path file, String content) throws IOException {
         if (content == null || content.isBlank()) {
+            return;
+        }
+        // У режимі dry-run жодних записів на диск не виконуємо
+        if (ASBlockWar.config != null && ASBlockWar.config.isDryRun()) {
+            log.info("DRY-RUN: skip write → {}", file);
             return;
         }
         Path lockPath = file.resolveSibling(file.getFileName() + ".lock");

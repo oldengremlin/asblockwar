@@ -18,6 +18,7 @@ package net.ukrcom.asblockwar.actions;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.serviceStructures.Action;
@@ -82,6 +83,35 @@ public class Reporter {
                 String m = i < modified.size() ? modified.get(i).asn() : "";
                 log.info(String.format(FMT, r, a, m));
             }
+
+            // Деталі змін: ASN + країна + назва організації
+            record DetailRow(String asn, String act, String country, String org) {}
+            List<DetailRow> details = Stream.of(removed, added, modified).flatMap(List::stream)
+                    .map(a -> new DetailRow(
+                        a.asn(),
+                        switch (a.action()) {
+                            case add    -> "Додано";
+                            case remove -> "Вилучено";
+                            case modify -> "Змінено";
+                        },
+                        RpslUtils.rpslField(a.data(), "country"),
+                        RpslUtils.rpslField(a.data(), "org-name")))
+                    .toList();
+
+            final String HA = "ASN", HB = "Дія", HC = "CN", HD = "Організація";
+            int cA = Math.max(HA.length(), details.stream().mapToInt(d -> d.asn().length()).max().orElse(0));
+            int cB = Math.max(HB.length(), details.stream().mapToInt(d -> d.act().length()).max().orElse(0));
+            int cC = Math.max(HC.length(), details.stream().mapToInt(d -> d.country().length()).max().orElse(0));
+
+            String fmt2 = "%-" + cA + "s │ %-" + cB + "s │ %-" + cC + "s │ %s";
+            String sep2 = "━".repeat(cA + 1) + "┿" + "━".repeat(cB + 2) + "┿"
+                        + "━".repeat(cC + 2) + "┿" + "━".repeat(HD.length());
+
+            log.info("");
+            log.info("Деталі змін:");
+            log.info(String.format(fmt2, HA, HB, HC, HD));
+            log.info(sep2);
+            details.forEach(d -> log.info(String.format(fmt2, d.asn(), d.act(), d.country(), d.org())));
         }
 
         List<SuspiciousAS> suspicious = ASBlockWar.suspiciousAsnResources.values().stream()
