@@ -20,8 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import javafx.collections.FXCollections;
@@ -81,6 +83,8 @@ public class PropertiesController implements Initializable {
     private CheckBox fieldUseSfdp;
     @FXML
     private CheckBox fieldDependencyWithUnknown;
+    @FXML
+    private TextField fieldPrimaryEnemyResources;
 
     @FXML
     private ListView<String> listBlockCountry;
@@ -119,6 +123,7 @@ public class PropertiesController implements Initializable {
                 ? ASBlockWar.config.getDependencyGraphPath() : "");
         fieldUseSfdp.setSelected(ASBlockWar.config.isUseSfdp());
         fieldDependencyWithUnknown.setSelected(ASBlockWar.config.isDependencyWithUnknown());
+        fieldPrimaryEnemyResources.setText(String.join(",", ASBlockWar.config.getPrimaryEnemyResources()));
 
         setupList(listBlockCountry, ASBlockWar.config.getBlockCountry());
         setupList(listForceAsBlock, ASBlockWar.config.getForceAsBlock());
@@ -262,6 +267,11 @@ public class PropertiesController implements Initializable {
             ASBlockWar.config.setDependencyGraphPath(fieldDependencyGraph.getText().trim());
             ASBlockWar.config.setUseSfdp(fieldUseSfdp.isSelected());
             ASBlockWar.config.setDependencyWithUnknown(fieldDependencyWithUnknown.isSelected());
+            ASBlockWar.config.setPrimaryEnemyResources(
+                    Arrays.stream(fieldPrimaryEnemyResources.getText().split(","))
+                          .map(String::trim).filter(s -> !s.isEmpty())
+                          .map(String::toUpperCase)
+                          .collect(Collectors.toCollection(ArrayList::new)));
             ASBlockWar.config.setBlockCountry(new ArrayList<>(listBlockCountry.getItems()));
             ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
             ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));

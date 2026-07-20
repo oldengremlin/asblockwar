@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.6.16**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.7.0**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.6.16-<buildNumber>.jar
+target/ASBlockWar-3.7.0-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.6.16-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.7.0-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -95,6 +95,7 @@ AfterCommand=after.sh
 DependencyGraph=
 UseSfdp=true
 DependencyWithUnknown=false
+PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 ```
 
 За потреби перед збіркою можна створити файл `src/main/resources/asblockwar.properties` на основі зразка нижче — він вбудовується у JAR при `mvn package` і завантажується з classpath.
@@ -163,6 +164,11 @@ UseSfdp=true
 # При false: залишаються лише BLOCKED/SUSPICIOUS/CLEAR вузли та їхня інфраструктура
 # При true: повний граф з усіма member-ASN та мантейнерами без статусу (набагато більший)
 DependencyWithUnknown=false
+
+# Перелік AS-SET-ів через кому, що вважаються «ворожими ресурсами» у граф-пошуку
+# Ці ідентифікатори виступають цілями алгоритму Дейкстри у граф-панелі браузера
+# Редагується також через поле «Primary enemy resources» у діалозі Properties
+PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 ```
 
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
@@ -212,17 +218,17 @@ AS-VK
 
 Файл виконує подвійну роль:
 
-- **Вхідний**: записи, додані вручну, завантажуються при запуску і їх члени перевіряються нарівні з вбудованими `blockedAsSet`. Це дозволяє розширювати список AS-SET-ів без перекомпіляції.
-- **Вихідний**: AS-SET-и, виявлені автоматично через `import`/`export`-поля ворожих ASN, а також всі вбудовані `blockedAsSet`, записуються при кожному запуску. Файл перезаписується відсортованим. Імена з trailing `;` (артефакт RPSL-парсингу) очищаються автоматично.
+- **Вхідний**: записи, додані вручну, завантажуються при запуску і їх члени перевіряються нарівні з елементами `PrimaryEnemyResources`. Це дозволяє розширювати список AS-SET-ів без перекомпіляції.
+- **Вихідний**: AS-SET-и, виявлені автоматично через `import`/`export`-поля ворожих ASN, а також всі елементи `PrimaryEnemyResources`, записуються при кожному запуску. Файл перезаписується відсортованим. Імена з trailing `;` (артефакт RPSL-парсингу) очищаються автоматично.
 
-Вбудовані AS-SET-и (`AS-MAILRU`, `AS-VKONTAKTE`, `AS-VK`, `AS-YANDEX`, `AS-M100`) завжди обробляються та записуються у файл незалежно від його поточного вмісту.
+Елементи `PrimaryEnemyResources` (за замовчуванням: `AS-MAILRU`, `AS-VKONTAKTE`, `AS-VK`, `AS-YANDEX`, `AS-M100`) завжди обробляються та записуються у файл незалежно від його поточного вмісту.
 
 ---
 
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.6.16-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.7.0-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -252,6 +258,7 @@ java -jar target/ASBlockWar-3.6.16-00000001.jar [параметри]
 | `--after-command=<шлях>` | Скрипт для пакетного режиму (за замовчуванням: `after.sh` / `after.cmd`) |
 | `-dg`, `--dependency-graph` | Згенерувати HTML-граф залежностей (за замовчуванням: `dependency-graph.html`) |
 | `-dg=<шлях>`, `--dependency-graph=<шлях>` | Задати власний шлях для HTML-файлу графа |
+| `--primary-enemy=<items,...>` | AS-SET-и через кому, що **додаються** до `PrimaryEnemyResources` (адитивно, не замінює значення з файлу конфігурації) |
 | `-h`, `--help` | Вивести довідку та вийти |
 
 ---
@@ -259,7 +266,7 @@ java -jar target/ASBlockWar-3.6.16-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.6.16-00000001.jar --gui
+java -jar target/ASBlockWar-3.7.0-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -330,6 +337,7 @@ java -jar target/ASBlockWar-3.6.16-00000001.jar --gui
 | Dependency graph | файл — шлях до вихідного HTML; порожньо = вимкнено |
 | Use sfdp layout | прапорець — `true`: sfdp pre-computed layout (миттєво), `false`: D3 force-simulation (органічна «супернова», повільно) |
 | Include unknown nodes | прапорець — `true`: повний граф з усіма UNKNOWN-вузлами; `false` (за замовчуванням): лише BLOCKED/SUSPICIOUS/CLEAR та їхня інфраструктура |
+| Primary enemy resources | текстове поле — перелік AS-SET-ів через кому, що виступають цілями пошуку Дейкстри у граф-панелі (за замовчуванням: `AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100`) |
 | Block countries | редагований список, коди країн (напр. `RU`, `BY`); кнопки `+` / `−` |
 | Force block ASNs | редагований список ASN, що блокуються незалежно від country/pattern (напр. `AS209671`); `+` / `−` |
 | Force blackhole networks | редагований список мереж/хостів, що примусово додаються до blackbgp (напр. `185.104.208.34/32`); `+` / `−` |
@@ -454,6 +462,7 @@ java -jar ASBlockWar-3.6.16-00000001.jar -dg /tmp/asblockwar-graph.html
 - **Zoom / pan** — колесо миші та drag фону.
 - **Tooltip** — при наведенні на вузол або ребро.
 - **Кнопка Reset** — знімає фокус і відновлює початковий вигляд.
+- **🔍 Пошук шляху до ворожого ресурсу** — з'являється в інфо-панелі при кліку на будь-який вузол (окрім самих `PrimaryEnemyResources`). По кліку запускається зважений алгоритм Дейкстри від поточного вузла до всіх досяжних вузлів `PrimaryEnemyResources`. Пріоритет ребер: `ASN`→1, `AS_SET`→2, `MNTNER`→10, `ORGANISATION`→100 (маршрути через AS-простір пріоритетніші за організаційні зв'язки). Результати відсортовано за вагою; клік по маршруту підсвічує всі вузли та ребра на ньому.
 
 ---
 
@@ -467,7 +476,7 @@ flowchart TD
     M1 --> M2
 
     M1["[1] makeAggressorAsnResources\nlist.txt → RPSL з DB для кожного ASN\nvirtual threads + semaphore"]
-    M2["[2] makeAggressorAssetAndMntbyResources\nlist.mnt-by.txt + list.as-set.txt + blockedAsSet\nas-set / mnt-by → RPSL блоки"]
+    M2["[2] makeAggressorAssetAndMntbyResources\nlist.mnt-by.txt + list.as-set.txt + PrimaryEnemyResources\nas-set / mnt-by → RPSL блоки"]
 
     M1 --> F1["[3] filterAggressorAsnResources ①\ncountry ∈ BlockCountry → залишити\nне в BlockCountry → resourcesForVerification Action.remove\nне в BlockCountry + збіг AGGRESSOR_PATTERN → suspiciousAsnResources"]
 
@@ -589,11 +598,19 @@ flowchart TD
 
 > **Приклад:** AS209671 (Qrator Labs CZ) з `country: CZ` та `abuse-mailbox: abuse@itsystem.msk.ru` можна додати до `ForceASBlock=AS209671` — її AS та маршрути заблокуються незалежно від країни реєстрації.
 
-### Вбудовані AS-SET-и (blockedAsSet)
+### PrimaryEnemyResources — ворожі AS-SET-и
 
-Завжди перевіряються незалежно від `list.as-set.txt`:
+Перелік AS-SET-ів, що виконують подвійну роль:
 
-- `AS-MAILRU`, `AS-VKONTAKTE`, `AS-VK`, `AS-YANDEX`, `AS-M100`
+1. **Джерело для пошуку member-ASN**: обробляються нарівні з записами `list.as-set.txt` і завжди записуються до нього при кожному запуску.
+2. **Цілі алгоритму Дейкстри у граф-панелі**: виступають кінцевими вузлами при пошуку шляху через граф залежностей.
+
+За замовчуванням: `AS-MAILRU`, `AS-VKONTAKTE`, `AS-VK`, `AS-YANDEX`, `AS-M100`.
+
+Налаштовується через:
+- властивість `PrimaryEnemyResources` у `asblockwar.properties`
+- поле **Primary enemy resources** у діалозі Properties
+- CLI-опція `--primary-enemy=<items,...>` (**адитивна**: додає елементи до значення з файлу, не замінює)
 
 ---
 
@@ -721,7 +738,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.6.16-00000001.jar --batch
+java -jar target/ASBlockWar-3.7.0-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).

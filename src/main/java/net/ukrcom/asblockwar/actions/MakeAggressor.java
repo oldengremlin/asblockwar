@@ -50,14 +50,6 @@ public class MakeAggressor {
     private MakeAggressor() {
     }
 
-    public static final String[] blockedAsSet = {
-        "AS-MAILRU",
-        "AS-VKONTAKTE",
-        "AS-VK",
-        "AS-YANDEX",
-        "AS-M100"
-    };
-
     /**
      * Читає список ASN з {@code list.txt} і завантажує RPSL-блок організації для кожного.
      * <p>
@@ -112,7 +104,7 @@ public class MakeAggressor {
     /**
      * Завантажує RPSL-блоки для AS-SET та MNT-BY записів.
      * <p>
-     * Об'єднує захардкоджений список {@link #blockedAsSet} з переліком зі збереженого файлу AS-SET,
+     * Об'єднує {@code PrimaryEnemyResources} з переліком зі збереженого файлу AS-SET,
      * а також читає файл MNT-BY. Для кожного запису отримує повний RPSL-блок із локальної БД.
      *
      * @return суміщена карта {@code ідентифікатор → RPSL-блок} для AS-SET та MNT-BY
@@ -137,7 +129,7 @@ public class MakeAggressor {
                 fileAsSets = Set.of();
             }
 
-            Stream.concat(Arrays.stream(blockedAsSet), fileAsSets.stream())
+            Stream.concat(ASBlockWar.config.getPrimaryEnemyResources().stream(), fileAsSets.stream())
                     .distinct()
                     .forEach(asSet -> executor.submit(() -> {
                 UIProgressCallback cb = ASBlockWar.uiCallback;

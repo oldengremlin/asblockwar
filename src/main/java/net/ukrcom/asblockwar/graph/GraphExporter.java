@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -275,7 +276,15 @@ public class GraphExporter {
                 .append(",\"total\":").append(graph.getNodes().size())
                 .append(",\"edges\":").append(graph.getEdges().size())
                 .append(",\"preLayout\":").append(!positions.isEmpty())
-                .append("}}");
+                .append("},\"primaryEnemyIds\":[");
+        List<String> pei = ASBlockWar.config.getPrimaryEnemyResources();
+        for (int i = 0; i < pei.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(jsonStr(pei.get(i).toUpperCase()));
+        }
+        sb.append("]}");
 
         return sb.toString();
     }
