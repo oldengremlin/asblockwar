@@ -265,13 +265,16 @@ public class Config {
         this.forceNetBlock = parseList(forceNetBlockOverride);
 
         // PrimaryEnemyResources: load from property, then ADD items from CLI (add semantics)
+        // Голі числа (наприклад, "2848") нормалізуються до "AS2848"
         this.primaryEnemyResources = parseList(
                 properties.getProperty("PrimaryEnemyResources",
                         "AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100")).stream()
                 .map(String::toUpperCase)
+                .map(s -> s.matches("\\d+") ? "AS" + s : s)
                 .collect(Collectors.toCollection(ArrayList::new));
         parseList(primaryEnemyOverride).stream()
                 .map(String::toUpperCase)
+                .map(s -> s.matches("\\d+") ? "AS" + s : s)
                 .filter(item -> !this.primaryEnemyResources.contains(item))
                 .forEach(this.primaryEnemyResources::add);
 

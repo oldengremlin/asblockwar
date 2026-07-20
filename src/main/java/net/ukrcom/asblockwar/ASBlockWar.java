@@ -178,7 +178,10 @@ public class ASBlockWar {
         StoreActions.storeMntByResources(discovery.mntBy());
 
         Set<String> allDiscoveredAsSets = new HashSet<>(discovery.asSets());
-        config.getPrimaryEnemyResources().forEach(allDiscoveredAsSets::add);
+        // AS\d+-записи (окремі ASN) не є AS-SET-ами — до list.as-set.txt не додаємо
+        config.getPrimaryEnemyResources().stream()
+                .filter(s -> !s.matches("AS\\d+"))
+                .forEach(allDiscoveredAsSets::add);
         StoreActions.storeListAsSet(allDiscoveredAsSets);
 
         Set<String> effectivePrefixes = StoreActions.storeResources(aggressorAsnResources);
