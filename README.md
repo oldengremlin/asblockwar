@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.7.4**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.7.6**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.7.4-<buildNumber>.jar
+target/ASBlockWar-3.7.6-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.7.6-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -174,7 +174,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.6.16-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.7.6-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -228,7 +228,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.7.6-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -266,7 +266,7 @@ java -jar target/ASBlockWar-3.7.4-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar --gui
+java -jar target/ASBlockWar-3.7.6-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -380,10 +380,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.6.16-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.7.6-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.6.16-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.7.6-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -462,7 +462,7 @@ java -jar ASBlockWar-3.6.16-00000001.jar -dg /tmp/asblockwar-graph.html
 - **Zoom / pan** — колесо миші та drag фону.
 - **Tooltip** — при наведенні на вузол або ребро.
 - **Кнопка Reset** — знімає фокус і відновлює початковий вигляд.
-- **🔍 Пошук шляху до ворожого ресурсу** — з'являється в інфо-панелі при кліку на будь-який вузол (окрім самих `PrimaryEnemyResources`). По кліку запускається зважений алгоритм Дейкстри від поточного вузла до всіх досяжних вузлів `PrimaryEnemyResources`. Пріоритет ребер: `ASN`→1, `AS_SET`→2, `MNTNER`→10, `ORGANISATION`→100 (маршрути через AS-простір пріоритетніші за організаційні зв'язки). Результати відсортовано за вагою; клік по маршруту підсвічує всі вузли та ребра на ньому.
+- **🔍 Пошук шляху до первинного ворожого ресурсу** — з'являється в інфо-панелі при кліку на будь-який вузол. По кліку запускається зважений алгоритм Дейкстри від поточного вузла до всіх досяжних вузлів `PrimaryEnemyResources`. Пріоритет ребер: `ASN`→1, `AS_SET`→2, `MNTNER`→10, `ORGANISATION`→100 (маршрути через AS-простір пріоритетніші за організаційні зв'язки). Результати відсортовано: AS-SET — за алфавітом першими, ASN — за номером після них. Клік по маршруту підсвічує всі вузли та ребра на ньому, а також відкриває **плаваюче вікно** з покроковим переліком вузлів (ID з кольором статусу, тип, назва) — вікно можна перетягувати, закривати кнопкою ×, і таких вікон можна тримати відкритими декілька одночасно.
 
 ---
 
@@ -738,7 +738,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar --batch
+java -jar target/ASBlockWar-3.7.6-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -836,7 +836,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.6.16-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.7.6-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD

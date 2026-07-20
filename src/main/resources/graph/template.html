@@ -454,7 +454,7 @@ function showInfo(n, connCount) {
         + (n.label && n.label !== n.id ? '<div class="info-label">' + esc(n.label) + '</div>' : '')
         + (n.details ? '<pre class="info-details">' + esc(n.details) + '</pre>' : '')
         + '<div class="info-neighbors">' + '&#1055;&#1088;&#1103;&#1084;&#1080;&#1093; &#1079;&#1074;\'&#1103;&#1079;&#1082;&#1110;&#1074;: ' + connCount + '</div>';
-    if (PRIMARY_ENEMY_IDS.size > 0 && !PRIMARY_ENEMY_IDS.has(n.id)) {
+    if (PRIMARY_ENEMY_IDS.size > 0) {
         html += '<div id="enemy-search-area" style="margin-top:8px;border-top:1px solid #CFD8DC;padding-top:6px">'
             + '<a href="#" id="btn-find-enemy" style="font-size:10px;color:#0288D1;text-decoration:none">'
             + '&#128269; &#1055;&#1086;&#1096;&#1091;&#1082; &#1096;&#1083;&#1103;&#1093;&#1091; &#1076;&#1086; &#1087;&#1077;&#1088;&#1074;&#1080;&#1085;&#1085;&#1086;&#1075;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;</a></div>';
@@ -636,7 +636,9 @@ function runEnemySearch(n) {
         document.querySelectorAll('.enemy-path-link').forEach(a =>
             a.addEventListener('click', e => {
                 e.preventDefault();
-                highlightPath(new Set(e.currentTarget.dataset.path.split(',')));
+                const pathArr = e.currentTarget.dataset.path.split(',');
+                highlightPath(new Set(pathArr));
+                showPathModal(pathArr);
             })
         );
     }, 0);
@@ -649,6 +651,132 @@ function highlightPath(pathIds) {
     d3.select('#search-count').text(pathIds.size + '&#160;&#1085;&#1072; &#1096;&#1083;&#1103;&#1093;&#1091;');
     applyVisibility();
     zoomToFit(pathIds);
+}
+
+// Кольори статусів для тексту у вікні шляху
+const STATUS_COLORS = {BLOCKED:'#C62828',SUSPICIOUS:'#E65100',CLEAR:'#2E7D32',UNKNOWN:'#01579B'};
+
+// Відкриває плаваюче не-модальне вікно із деталями знайденого шляху.
+// Можна відкрити одночасно декілька таких вікон — кожне незалежне.
+function showPathModal(pathArr) {
+    // Зміщення нового вікна відносно попередніх, щоб не повністю перекривалися
+    const existing = document.querySelectorAll('.path-float-panel');
+    const offset = existing.length * 24;
+
+    const panel = document.createElement('div');
+    panel.className = 'path-float-panel';
+    panel.style.cssText = [
+        'position:fixed',
+        'top:' + (64 + offset) + 'px',
+        'left:' + (Math.max(10, window.innerWidth - 480 - offset)) + 'px',
+        'width:340px',
+        'background:#fff',
+        'border:1px solid #CFD8DC',
+        'border-radius:8px',
+        'box-shadow:0 4px 16px rgba(0,0,0,.25)',
+        'font-size:11px',
+        'z-index:50',
+        'overflow:hidden',
+        'resize:both',
+    ].join(';');
+
+    // Перший і останній елемент шляху для заголовку
+    const fromId = pathArr[0];
+    const toId   = pathArr[pathArr.length - 1];
+
+    // Заголовок
+    const header = document.createElement('div');
+    header.style.cssText = 'background:#37474F;color:#fff;padding:7px 10px;display:flex;' +
+        'justify-content:space-between;align-items:center;font-size:11px;font-weight:600;' +
+        'cursor:move;user-select:none';
+    header.innerHTML = 'Шлях: ' + esc(fromId) + ' → ' + esc(toId) +
+        ' <span style="color:#90A4AE;font-size:10px;font-weight:400">(' + (pathArr.length - 1) + ' перех.)</span>';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'background:none;border:none;color:#90A4AE;cursor:pointer;' +
+        'font-size:18px;line-height:1;padding:0 0 0 8px;flex-shrink:0';
+    closeBtn.title = 'Закрити';
+    closeBtn.addEventListener('click', () => panel.remove());
+    header.appendChild(closeBtn);
+    panel.appendChild(header);
+
+    // Тіло з переліком вузлів шляху
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:10px 12px;overflow-y:auto;max-height:380px';
+
+    pathArr.forEach((id, idx) => {
+        const n = nodeMap.get(id);
+        const status  = n ? n.status : 'UNKNOWN';
+        const type    = n ? n.type   : '?';
+        const label   = n ? n.label  : '';
+        const color   = STATUS_COLORS[status] || STATUS_COLORS.UNKNOWN;
+
+        // Рядок вузла
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:6px;margin:2px 0';
+
+        // Порядковий номер
+        const num = document.createElement('span');
+        num.style.cssText = 'min-width:18px;color:#90A4AE;text-align:right;flex-shrink:0;padding-top:1px';
+        num.textContent = (idx + 1) + '.';
+
+        // Основна інформація
+        const info = document.createElement('div');
+        info.style.cssText = 'flex:1;min-width:0';
+
+        const idSpan = document.createElement('span');
+        idSpan.style.cssText = 'font-weight:700;color:' + color + ';word-break:break-all';
+        idSpan.textContent = id;
+
+        const typeBadge = document.createElement('span');
+        typeBadge.style.cssText = 'display:inline-block;background:#ECEFF1;color:#546E7A;' +
+            'border-radius:3px;font-size:9px;padding:0 4px;margin-left:5px;vertical-align:middle;white-space:nowrap';
+        typeBadge.textContent = type;
+
+        info.appendChild(idSpan);
+        info.appendChild(typeBadge);
+
+        if (label) {
+            const lbl = document.createElement('div');
+            lbl.style.cssText = 'color:#607D8B;font-size:10px;margin-top:1px;word-break:break-all';
+            lbl.textContent = label;
+            info.appendChild(lbl);
+        }
+
+        row.appendChild(num);
+        row.appendChild(info);
+        body.appendChild(row);
+
+        // Стрілка між вузлами (не після останнього)
+        if (idx < pathArr.length - 1) {
+            const arrow = document.createElement('div');
+            arrow.style.cssText = 'color:#90A4AE;font-size:10px;margin:0 0 0 24px;line-height:1.2';
+            arrow.textContent = '↓';
+            body.appendChild(arrow);
+        }
+    });
+
+    panel.appendChild(body);
+    document.body.appendChild(panel);
+
+    // Drag — переміщення вікна мишею за заголовок
+    let dragX = 0, dragY = 0;
+    header.addEventListener('mousedown', e => {
+        if (e.target === closeBtn) return;
+        dragX = e.clientX - panel.offsetLeft;
+        dragY = e.clientY - panel.offsetTop;
+        const onMove = mv => {
+            panel.style.left = (mv.clientX - dragX) + 'px';
+            panel.style.top  = (mv.clientY - dragY) + 'px';
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
 }
 </script>
 </body>

@@ -40,6 +40,7 @@ mvn clean verify -DskipTests
 | `org.projectlombok` | `lombok` | `@Slf4j`, `@Getter`, `@Setter` |
 | `org.slf4j` / `ch.qos.logback` | slf4j-api / logback-classic | Логування |
 | `org.openjfx` | `javafx-fxml`, `javafx-web` | GUI (JavaFX 27-ea) |
+| `info.picocli` | `picocli` | Парсинг CLI-аргументів (`@Command`, `@Option`) |
 
 > **Правило версій JavaFX**: всі `javafx-*` модулі мають бути однієї версії
 > (`27-ea+6` наразі). При додаванні нового модуля (наприклад `javafx-media`)
