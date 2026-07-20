@@ -105,8 +105,6 @@
                         <CheckBox fx:id="fieldUseSfdp" GridPane.rowIndex="14" GridPane.columnIndex="1" />
                         <Label text="Include unknown nodes:" GridPane.rowIndex="15" GridPane.columnIndex="0" />
                         <CheckBox fx:id="fieldDependencyWithUnknown" GridPane.rowIndex="15" GridPane.columnIndex="1" />
-                        <Label text="Primary enemy resources:" GridPane.rowIndex="16" GridPane.columnIndex="0" />
-                        <TextField fx:id="fieldPrimaryEnemyResources" promptText="AS-MAILRU,AS-VK,…" maxWidth="Infinity" GridPane.rowIndex="16" GridPane.columnIndex="1" />
                      </children>
                   </GridPane>
 
@@ -139,6 +137,16 @@
                      <VBox spacing="4.0" alignment="TOP_CENTER">
                         <Button text="+" prefWidth="28.0" onAction="#addForceNetBlock" />
                         <Button text="−" prefWidth="28.0" onAction="#removeForceNetBlock" />
+                     </VBox>
+                  </HBox>
+
+                  <!-- Primary enemy resources (Dijkstra targets) -->
+                  <Label text="Primary enemy resources (AS-SETs — targets for dependency graph path search):" />
+                  <HBox spacing="6.0">
+                     <ListView fx:id="listPrimaryEnemyResources" HBox.hgrow="ALWAYS" prefHeight="90.0" />
+                     <VBox spacing="4.0" alignment="TOP_CENTER">
+                        <Button text="+" prefWidth="28.0" onAction="#addPrimaryEnemyResource" />
+                        <Button text="−" prefWidth="28.0" onAction="#removePrimaryEnemyResource" />
                      </VBox>
                   </HBox>
 
