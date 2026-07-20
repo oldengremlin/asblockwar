@@ -17,7 +17,6 @@ package net.ukrcom.asblockwar;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -179,7 +178,7 @@ public class ASBlockWar {
         StoreActions.storeMntByResources(discovery.mntBy());
 
         Set<String> allDiscoveredAsSets = new HashSet<>(discovery.asSets());
-        Arrays.stream(MakeAggressor.blockedAsSet).forEach(allDiscoveredAsSets::add);
+        config.getPrimaryEnemyResources().forEach(allDiscoveredAsSets::add);
         StoreActions.storeListAsSet(allDiscoveredAsSets);
 
         Set<String> effectivePrefixes = StoreActions.storeResources(aggressorAsnResources);
