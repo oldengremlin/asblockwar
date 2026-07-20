@@ -123,29 +123,26 @@ net.ukrcom.asblockwar/
 
 | Крок | Метод | Що робить |
 |---|---|---|
-| 1 | `MakeAggressor.makeAggressorAsnResources()` | Читає `list.txt`, завантажує org-блоки з DB |
-| 2 | `FilterAggressor.filterAggressorAsnResources()` | Відсіює записи, що не відповідають патерну |
-| 3 | `ForceBlockActions.applyForceAsBlock()` | Додає примусові ASN з `ForceASBlock` |
-| 4 | `MakeAggressor.makeAggressorAssetAndMntbyResources()` | Завантажує mntner/as-set блоки (враховує `PrimaryEnemyResources` замість захардкодженого `blockedAsSet`) |
-| 5 | `MakeAggressor.makeAggressorResources()` | З блоків mntner/as-set витягує нові ASN |
-| 6 | `DiscoverAggressor.discoverCooperatingAsnResources()` | Розкриває import/export AS-SET |
-| 7 | Repeat filter (крок 2 ще раз) | Фільтрує щойно знайдені ASN |
-| 8 | `StoreActions.storeAggressorAsnResources()` | Бекап + запис нового `list.txt` |
-| 9a | `StoreActions.storeWarResources()` | Генерує Juniper regex WAR-файл |
-| 9b | `StoreActions.storeBlackbgpResources()` | Генерує blackbgp diff-файл |
-| 10 | `StoreActions.storeMntByResources()` | Оновлює `list.mnt-by.txt` |
-| 11 | `StoreActions.storeListAsSet()` | Оновлює `list.as-set.txt` |
-| 12a | `StoreActions.storeDetails()` | Записує STORE/AS/, STORE/MNT/, STORE/AS-SET/ тощо |
-| 12b | `StoreActions.storeAsList()` | Записує STORE/AS.list |
-| 12c | `StoreActions.storeMaintainersList()` | Записує STORE/maintainers.list |
-| 12d | `StoreActions.storeNetworkFiles()` | Записує STORE/networks.list та STORE/NET/ |
-| 13 | `Reporter.report()` | Виводить фінальну таблицю змін + таблицю підозрілих AS |
-| 14a | `MakeAggressor.fetchMissingAsSetRpsl()` | Завантажує RPSL для AS-SET-ів без RPSL (тільки якщо `--dependency-graph`) |
-| 14b | `MakeAggressor.expandAsSetMap()` | BFS: нові AS-SET-и з `members:` — ітерується до стабілізації |
-| 14c | `MakeAggressor.fetchMemberAsnRpsl()` | Завантажує RPSL для ASN-членів AS-SET-ів поза blocked/suspicious/cleared |
-| 14d | `GraphBuilder.build()` | Будує граф залежностей (parallelStream для всіх CPU-важких мап) |
-| 14e | `GraphExporter.export()` | Генерує HTML (sfdp або D3 force-simulation) |
-| 15 | `BatchRunner.runBatchCommand()` | Запускає AfterCommand-скрипт (якщо `-b`) |
+| 1 | `MakeAggressor.makeAggressorAsnResources()` | Читає `list.txt`, завантажує повний RPSL (aut-num + org) з DB |
+| 2 | `MakeAggressor.makeAggressorAssetAndMntbyResources()` | Завантажує RPSL-блоки для `list.mnt-by.txt`, `list.as-set.txt` та `PrimaryEnemyResources` |
+| 3 | `FilterAggressor.filterAggressorAsnResources()` ① | Перша фільтрація мапи з кроку 1: country ∈ BlockCountry; решта → `resourcesForVerification(remove)` або `suspiciousAsnResources` |
+| 4 | `MakeAggressor.makeAggressorResources()` | З RPSL-блоків кроку 2 витягує нові ASN (country ∈ BlockCountry → add/modify/remove) |
+| 5 | `FilterAggressor.filterAggressorAsnResources()` ② | Фінальна фільтрація об'єднаної мапи (кроки 3+4): залишаються лише country ∈ BlockCountry |
+| 6 | `ForceBlockActions.applyForceAsBlock()` | Додає ASN з `ForceASBlock` (обходять country + AggressorPattern; нові → `resourcesForVerification(add)`, вже наявні — не дублюються у звіт) |
+| 7 | `DiscoverAggressor.discoverCooperatingAsnResources()` | Розкриває import/export AS-SET та прямі ASN-посилання ворожих aut-num; нові знахідки (country ∈ BlockCountry) додаються до мапи |
+| 8 | `StoreActions.storeMntByResources()` + `storeListAsSet()` | Дописує нові мантейнери до `list.mnt-by.txt`; оновлює `list.as-set.txt` |
+| 9 | `StoreActions.storeResources()` | Бекап + запис `list.txt`; паралельно: `storeWarResources()` (Juniper WAR) та `storeBlackbgpResources()` (blackbgp diff) |
+| 10a | `StoreActions.storeDetails()` | STORE/AS/, STORE/MNT/, STORE/MNT-SET-AS/, STORE/AS-SET/, STORE/AS-NET/ |
+| 10b | `StoreActions.storeAsList()` | STORE/AS.list |
+| 10c | `StoreActions.storeMaintainersList()` | STORE/maintainers.list |
+| 10d | `StoreActions.storeNetworkFiles()` | STORE/networks.list та STORE/NET/ (кроки 10a–10d паралельні) |
+| 11 | `Reporter.report()` | Таблиця змін (Вилучено / Додано / Змінено + деталі org-name/country) + таблиця підозрілих AS |
+| 12a | `MakeAggressor.fetchMissingAsSetRpsl()` | Завантажує RPSL для AS-SET-ів без блоку (тільки якщо `--dependency-graph && !--dry-run`) |
+| 12b | `MakeAggressor.expandAsSetMap()` | BFS: нові AS-SET-и з `members:` — ітерується до стабілізації |
+| 12c | `MakeAggressor.fetchMemberAsnRpsl()` | RPSL для ASN-членів AS-SET-ів поза blocked/suspicious/cleared |
+| 12d | `GraphBuilder.build()` | Будує граф (parallelStream для CPU-важких мап) |
+| 12e | `GraphExporter.export()` | Генерує HTML (sfdp або D3 force-simulation) |
+| 13 | `BatchRunner.runBatchCommand()` | Запускає AfterCommand-скрипт (якщо `-b && !--dry-run`) |
 
 ---
 
@@ -410,6 +407,31 @@ Help генерується автоматично з анотацій — `prin
 
 Не додавати `@Option`-поле і не записувати у `OPT_TO_PROP` — параметр залишається
 прихованим від командного рядка і живе лише у конфігураційному файлі та діалозі.
+
+### CLI-only транзитивний прапорець (без збереження в Properties)
+
+Якщо параметр **присутній лише у CLI** і свідомо не зберігається між запусками,
+наприклад `--dry-run` / `-n`:
+
+1. Додати `@Option`-поле з Lombok `@Getter` (boxed Boolean або boolean):
+   ```java
+   @Option(names = {"-n", "--dry-run"},
+           description = "Simulate processing without writing files or running AfterCommand")
+   private boolean dryRun;
+   ```
+   Lombok генерує `isDryRun()` для `boolean`.
+2. **Не** додавати до `OPT_TO_PROP` — інакше значення записалося б у Properties-файл.
+3. **Не** додавати до `save()` — прапорець не повинен зберігатися.
+4. **Не** додавати у `PropertiesDialog` — налаштування тимчасове, не постійне.
+
+Прапорець перевіряється у всіх точках запису/виконання:
+
+| Де перевіряється | Що пропускається |
+|---|---|
+| `FileUtils.writeStoreFile()` | будь-який запис файлу через цей метод |
+| `StoreActions.storeResources()` | бекап `list.txt` + сам запис (окремий `Files.move()`) |
+| `ASBlockWar.runProcessing()` | умова `isDependencyGraph() && !isDryRun()` |
+| `BatchRunner.runBatchCommand()` | AfterCommand-скрипт |
 
 ---
 
