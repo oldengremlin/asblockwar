@@ -211,7 +211,11 @@ public class PropertiesController implements Initializable {
 
     @FXML
     private void addPrimaryEnemyResource() {
-        promptAdd(listPrimaryEnemyResources, "AS-SET", "e.g. AS-MAILRU", s -> s.toUpperCase().startsWith("AS") ? s.toUpperCase() : "AS-" + s.toUpperCase());
+        promptAdd(listPrimaryEnemyResources, "AS-SET або ASN", "e.g. AS-MAILRU або 12389", s -> {
+            String up = s.trim().toUpperCase();
+            if (up.matches("\\d+")) return "AS" + up;          // голе число → ASN-ідентифікатор
+            return up.startsWith("AS") ? up : "AS-" + up;      // без AS-префіксу → AS-SET
+        });
     }
 
     @FXML

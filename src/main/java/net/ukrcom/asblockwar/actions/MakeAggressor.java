@@ -129,7 +129,9 @@ public class MakeAggressor {
                 fileAsSets = Set.of();
             }
 
-            Stream.concat(ASBlockWar.config.getPrimaryEnemyResources().stream(), fileAsSets.stream())
+            // AS\d+-записи (окремі ASN) пропускаємо — вони не є AS-SET-ами і нічого не дадуть у БД
+            Stream.concat(ASBlockWar.config.getPrimaryEnemyResources().stream()
+                    .filter(s -> !s.matches("AS\\d+")), fileAsSets.stream())
                     .distinct()
                     .forEach(asSet -> executor.submit(() -> {
                 UIProgressCallback cb = ASBlockWar.uiCallback;
