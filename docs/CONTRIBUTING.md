@@ -125,7 +125,7 @@ net.ukrcom.asblockwar/
 | 1 | `MakeAggressor.makeAggressorAsnResources()` | Читає `list.txt`, завантажує org-блоки з DB |
 | 2 | `FilterAggressor.filterAggressorAsnResources()` | Відсіює записи, що не відповідають патерну |
 | 3 | `ForceBlockActions.applyForceAsBlock()` | Додає примусові ASN з `ForceASBlock` |
-| 4 | `MakeAggressor.makeAggressorAssetAndMntbyResources()` | Завантажує mntner/as-set блоки |
+| 4 | `MakeAggressor.makeAggressorAssetAndMntbyResources()` | Завантажує mntner/as-set блоки (враховує `PrimaryEnemyResources` замість захардкодженого `blockedAsSet`) |
 | 5 | `MakeAggressor.makeAggressorResources()` | З блоків mntner/as-set витягує нові ASN |
 | 6 | `DiscoverAggressor.discoverCooperatingAsnResources()` | Розкриває import/export AS-SET |
 | 7 | Repeat filter (крок 2 ще раз) | Фільтрує щойно знайдені ASN |
@@ -339,6 +339,26 @@ CLI-аргументи (--option=value)
 - `@Option(...) private String fieldNameOverride` — Picocli встановлює з CLI;
   `null` коли флаг відсутній
 
+**ADD-семантика для параметрів-списків** (`--primary-enemy` як зразок):
+Деякі CLI-опції не замінюють відповідну властивість, а лише доповнюють її.
+Зразок реалізації — `--primary-enemy`:
+
+1. Опція **не** записується в `OPT_TO_PROP` (інакше вона перекривала б файл).
+2. Resolved-поле `List<String> primaryEnemyResources` заповнюється з `properties`
+   у конструкторі (крок 2 трифазної ініціалізації).
+3. Після цього вміст `primaryEnemyOverride` (рядок з CLI) парситься через
+   `parseList()` і елементи, яких ще немає у списку, **додаються** до нього:
+   ```java
+   parseList(primaryEnemyOverride).stream()
+       .map(String::toUpperCase)
+       .filter(item -> !this.primaryEnemyResources.contains(item))
+       .forEach(this.primaryEnemyResources::add);
+   ```
+4. `save()` записує об'єднаний список у файл через `joinList()`.
+
+Ту саму схему використовує `ForceASBlock` (але через `OPT_TO_PROP` з replace).
+`--primary-enemy` демонструє чисту ADD-семантику без заміни.
+
 Спеціальні випадки:
 - `Boolean ipv6Flag` / `Boolean noIpv6Flag` (boxed) — `null` коли відсутні;
   дозволяють виявити, чи задано `--ipv6`/`--no-ipv6` явно
@@ -535,5 +555,8 @@ refactor: рефакторинг без зміни поведінки
    Приклад — підсистема `graph/`:
    - `GraphBuilder.build()` приймає готові мапи та будує граф (parallelStream для важких кроків)
    - `GraphExporter.export()` рендерить SVG-template + D3.js у автономний HTML
+   - `GraphExporter.buildJson()` вбудовує масив `primaryEnemyIds` у JSON графа —
+     JS-шаблон зчитує його у `Set PRIMARY_ENEMY_IDS` і використовує для алгоритму
+     Дейкстри без жорсткого кодування ідентифікаторів у шаблоні
    - Шаблон — `src/main/resources/graph/template.html` (вбудовується у JAR, не фільтрується)
    - Дані для GUI — `ASBlockWar.lastAggressorAsnResources` (volatile, заповнюється після run)

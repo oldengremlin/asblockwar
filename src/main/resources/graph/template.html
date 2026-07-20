@@ -457,7 +457,7 @@ function showInfo(n, connCount) {
     if (PRIMARY_ENEMY_IDS.size > 0 && !PRIMARY_ENEMY_IDS.has(n.id)) {
         html += '<div id="enemy-search-area" style="margin-top:8px;border-top:1px solid #CFD8DC;padding-top:6px">'
             + '<a href="#" id="btn-find-enemy" style="font-size:10px;color:#0288D1;text-decoration:none">'
-            + '&#128269; Search for primary enemy resource</a></div>';
+            + '&#128269; &#1055;&#1086;&#1096;&#1091;&#1082; &#1096;&#1083;&#1103;&#1093;&#1091; &#1076;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;</a></div>';
     }
     d3.select('#info-body').html(html);
     d3.select('#info-panel').style('display', 'block');
@@ -529,8 +529,10 @@ function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Primary enemy BFS ─────────────────────────────────────────────────────
-// Undirected adjacency list built lazily on first BFS call.
+// ── Зважений Dijkstra до ворожих ресурсів ────────────────────────────────
+// Пріоритет ребра визначається типом вузла призначення:
+// ASN(1) > AS_SET(2) > MNTNER(10) > ORGANISATION(100).
+// Ненаправлений список суміжності будується один раз при першому виклику.
 let _adjList = null;
 function getAdjList() {
     if (_adjList) return _adjList;
@@ -546,24 +548,61 @@ function getAdjList() {
     return _adjList;
 }
 
-// BFS from startId (undirected); returns Map of targetId → path array for each
-// reachable primary enemy resource.
+function _edgeW(nodeId) {
+    const n = nodeMap.get(nodeId);
+    if (!n) return 1;
+    if (n.type === 'ORGANISATION') return 100;
+    if (n.type === 'MNTNER')       return 10;
+    if (n.type === 'AS_SET')       return 2;
+    return 1; // ASN
+}
+
+// Мінімальна бінарна купа: зберігає пари [вартість, id].
+class _MinHeap {
+    constructor() { this._d = []; }
+    push(it) { this._d.push(it); this._up(this._d.length - 1); }
+    pop() {
+        const top = this._d[0], last = this._d.pop();
+        if (this._d.length > 0) { this._d[0] = last; this._dn(0); }
+        return top;
+    }
+    get size() { return this._d.length; }
+    _up(i) {
+        const d = this._d;
+        while (i > 0) { const p=(i-1)>>1; if (d[p][0]<=d[i][0]) break; [d[p],d[i]]=[d[i],d[p]]; i=p; }
+    }
+    _dn(i) {
+        const d=this._d, n=d.length;
+        for(;;){let m=i,l=2*i+1,r=l+1; if(l<n&&d[l][0]<d[m][0])m=l; if(r<n&&d[r][0]<d[m][0])m=r; if(m===i)break; [d[m],d[i]]=[d[i],d[m]]; i=m;}
+    }
+}
+
+// Dijkstra від startId (ненаправлений, зважений за типом вузла призначення).
+// Повертає Map targetId → { path: string[], cost: number } для кожного
+// досяжного вузла PrimaryEnemyResources (один найкоротший зважений шлях).
 function findPrimaryEnemyPaths(startId) {
     const adj = getAdjList();
-    const visited = new Set([startId]);
+    const dist = new Map([[startId, 0]]);
     const prev = new Map();
-    const queue = [startId];
+    const pq = new _MinHeap();
+    pq.push([0, startId]);
     const found = new Map();
-    while (queue.length > 0) {
-        const cur = queue.shift();
+    while (pq.size > 0) {
+        const [d, cur] = pq.pop();
+        if (d > (dist.get(cur) ?? Infinity)) continue;
         if (cur !== startId && PRIMARY_ENEMY_IDS.has(cur)) {
             const path = [];
             let node = cur;
             while (node !== undefined) { path.unshift(node); node = prev.get(node); }
-            found.set(cur, path);
+            found.set(cur, { path, cost: d });
         }
         for (const nb of (adj.get(cur) || [])) {
-            if (!visited.has(nb)) { visited.add(nb); prev.set(nb, cur); queue.push(nb); }
+            const nd = d + _edgeW(nb);
+            if (nd < (dist.get(nb) ?? Infinity)) {
+                dist.set(nb, nd);
+                prev.set(nb, cur);
+                pq.push([nd, nb]);
+            }
         }
     }
     return found;
@@ -572,19 +611,20 @@ function findPrimaryEnemyPaths(startId) {
 function runEnemySearch(n) {
     const area = document.getElementById('enemy-search-area');
     if (!area) return;
-    area.innerHTML = '<span style="font-size:10px;color:#78909C">Searching…</span>';
+    area.innerHTML = '<span style="font-size:10px;color:#78909C">&#1055;&#1086;&#1096;&#1091;&#1082;&#8230;</span>';
     setTimeout(() => {
         const paths = findPrimaryEnemyPaths(n.id);
         if (paths.size === 0) {
-            area.innerHTML = '<div style="font-size:10px;color:#78909C;font-style:italic">No connection to primary enemy resources found.</div>';
+            area.innerHTML = '<div style="font-size:10px;color:#78909C;font-style:italic">&#1064;&#1083;&#1103;&#1093;&#1110;&#1074; &#1076;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1080;&#1093; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1110;&#1074; &#1085;&#1077; &#1079;&#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1086;.</div>';
             return;
         }
-        let html = '<div style="font-size:10px;font-weight:600;color:#263238;margin-bottom:4px">Paths to primary enemy:</div>';
-        paths.forEach((path, tid) => {
+        const sorted = [...paths.entries()].sort((a, b) => a[1].cost - b[1].cost);
+        let html = '<div style="font-size:10px;font-weight:600;color:#263238;margin-bottom:4px">&#1064;&#1083;&#1103;&#1093;&#1080; &#1076;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;:</div>';
+        sorted.forEach(([tid, {path}]) => {
             const h = path.length - 1;
             html += '<div style="margin:2px 0"><a href="#" class="enemy-path-link" data-path="'
                 + path.join(',') + '" style="font-size:10px;color:#0288D1;text-decoration:none">'
-                + '&#8594; ' + esc(tid) + ' <span style="color:#90A4AE">(' + h + ' hop' + (h !== 1 ? 's' : '') + ')</span></a></div>';
+                + '&#8594; ' + esc(tid) + ' <span style="color:#90A4AE">(' + h + '&nbsp;&#1087;&#1077;&#1088;&#1077;&#1093;.' + ')</span></a></div>';
         });
         area.innerHTML = html;
         document.querySelectorAll('.enemy-path-link').forEach(a =>
@@ -600,7 +640,7 @@ function highlightPath(pathIds) {
     focusedId = null; focusNeigh = new Set();
     matchedIds = pathIds; visibleIds = pathIds;
     d3.select('#search').property('value', '');
-    d3.select('#search-count').text(pathIds.size + ' on path');
+    d3.select('#search-count').text(pathIds.size + '&#160;&#1085;&#1072; &#1096;&#1083;&#1103;&#1093;&#1091;');
     applyVisibility();
     zoomToFit(pathIds);
 }
