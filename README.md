@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.7.4**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.7.5**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.7.4-<buildNumber>.jar
+target/ASBlockWar-3.7.5-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.7.5-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -228,7 +228,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.7.5-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -266,7 +266,7 @@ java -jar target/ASBlockWar-3.7.4-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar --gui
+java -jar target/ASBlockWar-3.7.5-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -738,7 +738,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.7.4-00000001.jar --batch
+java -jar target/ASBlockWar-3.7.5-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).

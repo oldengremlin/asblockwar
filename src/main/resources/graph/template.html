@@ -454,7 +454,7 @@ function showInfo(n, connCount) {
         + (n.label && n.label !== n.id ? '<div class="info-label">' + esc(n.label) + '</div>' : '')
         + (n.details ? '<pre class="info-details">' + esc(n.details) + '</pre>' : '')
         + '<div class="info-neighbors">' + '&#1055;&#1088;&#1103;&#1084;&#1080;&#1093; &#1079;&#1074;\'&#1103;&#1079;&#1082;&#1110;&#1074;: ' + connCount + '</div>';
-    if (PRIMARY_ENEMY_IDS.size > 0 && !PRIMARY_ENEMY_IDS.has(n.id)) {
+    if (PRIMARY_ENEMY_IDS.size > 0) {
         html += '<div id="enemy-search-area" style="margin-top:8px;border-top:1px solid #CFD8DC;padding-top:6px">'
             + '<a href="#" id="btn-find-enemy" style="font-size:10px;color:#0288D1;text-decoration:none">'
             + '&#128269; &#1055;&#1086;&#1096;&#1091;&#1082; &#1096;&#1083;&#1103;&#1093;&#1091; &#1076;&#1086; &#1087;&#1077;&#1088;&#1074;&#1080;&#1085;&#1085;&#1086;&#1075;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;</a></div>';
