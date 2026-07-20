@@ -150,6 +150,7 @@ const svg = d3.select('#graph').attr('width', W).attr('height', H);
 const zoomLayer = d3.select('#zoom-layer');
 
 const nodeMap = new Map(DATA.nodes.map(n => [n.id, n]));
+const PRIMARY_ENEMY_IDS = new Set((DATA.primaryEnemyIds || []).map(id => id.toUpperCase()));
 
 // ── Стан взаємодії ────────────────────────────────────────────────────────
 let hiddenStats = new Set();
@@ -447,14 +448,21 @@ function resetFocus() {
 // ── Info panel ────────────────────────────────────────────────────────────
 function showInfo(n, connCount) {
     d3.select('#info-title').text(n.id.length > 22 ? n.id.slice(0, 20) + '…' : n.id);
-    d3.select('#info-body').html(
-        '<div class="info-id">'   + esc(n.id)   + '</div>'
-      + '<div class="info-meta">' + n.type + ' &middot; '
-          + '<span class="status-' + n.status + '">' + n.status + '</span></div>'
-      + (n.label && n.label !== n.id ? '<div class="info-label">' + esc(n.label) + '</div>' : '')
-      + (n.details ? '<pre class="info-details">' + esc(n.details) + '</pre>' : '')
-      + '<div class="info-neighbors">Прямих зв\'язків: ' + connCount + '</div>');
+    let html = '<div class="info-id">'   + esc(n.id)   + '</div>'
+        + '<div class="info-meta">' + n.type + ' &middot; '
+            + '<span class="status-' + n.status + '">' + n.status + '</span></div>'
+        + (n.label && n.label !== n.id ? '<div class="info-label">' + esc(n.label) + '</div>' : '')
+        + (n.details ? '<pre class="info-details">' + esc(n.details) + '</pre>' : '')
+        + '<div class="info-neighbors">' + '&#1055;&#1088;&#1103;&#1084;&#1080;&#1093; &#1079;&#1074;\'&#1103;&#1079;&#1082;&#1110;&#1074;: ' + connCount + '</div>';
+    if (PRIMARY_ENEMY_IDS.size > 0 && !PRIMARY_ENEMY_IDS.has(n.id)) {
+        html += '<div id="enemy-search-area" style="margin-top:8px;border-top:1px solid #CFD8DC;padding-top:6px">'
+            + '<a href="#" id="btn-find-enemy" style="font-size:10px;color:#0288D1;text-decoration:none">'
+            + '&#128269; Search for primary enemy resource</a></div>';
+    }
+    d3.select('#info-body').html(html);
     d3.select('#info-panel').style('display', 'block');
+    const btn = document.getElementById('btn-find-enemy');
+    if (btn) btn.addEventListener('click', e => { e.preventDefault(); runEnemySearch(n); });
 }
 
 document.getElementById('info-close').onclick = () => {
@@ -519,6 +527,82 @@ applyVisibility();
 // ── Утиліти ───────────────────────────────────────────────────────────────
 function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Primary enemy BFS ─────────────────────────────────────────────────────
+// Undirected adjacency list built lazily on first BFS call.
+let _adjList = null;
+function getAdjList() {
+    if (_adjList) return _adjList;
+    _adjList = new Map();
+    DATA.nodes.forEach(n => _adjList.set(n.id, []));
+    DATA.links.forEach(l => {
+        const s = l.source.id || l.source, t = l.target.id || l.target;
+        if (_adjList.has(s) && _adjList.has(t)) {
+            _adjList.get(s).push(t);
+            _adjList.get(t).push(s);
+        }
+    });
+    return _adjList;
+}
+
+// BFS from startId (undirected); returns Map of targetId → path array for each
+// reachable primary enemy resource.
+function findPrimaryEnemyPaths(startId) {
+    const adj = getAdjList();
+    const visited = new Set([startId]);
+    const prev = new Map();
+    const queue = [startId];
+    const found = new Map();
+    while (queue.length > 0) {
+        const cur = queue.shift();
+        if (cur !== startId && PRIMARY_ENEMY_IDS.has(cur)) {
+            const path = [];
+            let node = cur;
+            while (node !== undefined) { path.unshift(node); node = prev.get(node); }
+            found.set(cur, path);
+        }
+        for (const nb of (adj.get(cur) || [])) {
+            if (!visited.has(nb)) { visited.add(nb); prev.set(nb, cur); queue.push(nb); }
+        }
+    }
+    return found;
+}
+
+function runEnemySearch(n) {
+    const area = document.getElementById('enemy-search-area');
+    if (!area) return;
+    area.innerHTML = '<span style="font-size:10px;color:#78909C">Searching…</span>';
+    setTimeout(() => {
+        const paths = findPrimaryEnemyPaths(n.id);
+        if (paths.size === 0) {
+            area.innerHTML = '<div style="font-size:10px;color:#78909C;font-style:italic">No connection to primary enemy resources found.</div>';
+            return;
+        }
+        let html = '<div style="font-size:10px;font-weight:600;color:#263238;margin-bottom:4px">Paths to primary enemy:</div>';
+        paths.forEach((path, tid) => {
+            const h = path.length - 1;
+            html += '<div style="margin:2px 0"><a href="#" class="enemy-path-link" data-path="'
+                + path.join(',') + '" style="font-size:10px;color:#0288D1;text-decoration:none">'
+                + '&#8594; ' + esc(tid) + ' <span style="color:#90A4AE">(' + h + ' hop' + (h !== 1 ? 's' : '') + ')</span></a></div>';
+        });
+        area.innerHTML = html;
+        document.querySelectorAll('.enemy-path-link').forEach(a =>
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                highlightPath(new Set(e.currentTarget.dataset.path.split(',')));
+            })
+        );
+    }, 0);
+}
+
+function highlightPath(pathIds) {
+    focusedId = null; focusNeigh = new Set();
+    matchedIds = pathIds; visibleIds = pathIds;
+    d3.select('#search').property('value', '');
+    d3.select('#search-count').text(pathIds.size + ' on path');
+    applyVisibility();
+    zoomToFit(pathIds);
 }
 </script>
 </body>

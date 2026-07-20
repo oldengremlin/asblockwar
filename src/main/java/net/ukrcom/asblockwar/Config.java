@@ -197,12 +197,18 @@ public class Config {
             + "  (default: dependency-graph.html; empty string disables)")
     private String dependencyGraphPath;
 
+    @Option(names = "--primary-enemy", paramLabel = "<items,...>",
+            defaultValue = "",
+            description = "AS-SETs to ADD to PrimaryEnemyResources (additive, does not replace config file value)")
+    private String primaryEnemyOverride;
+
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
     // -----------------------------------------------------------------------
     private List<String> blockCountry;
     private List<String> forceAsBlock;
     private List<String> forceNetBlock;
+    private List<String> primaryEnemyResources;
     private boolean blackbgpIpv6 = true;
     private boolean blackbgpIpv6Explicit = false;
     // -1 = flag absent (no recursion into sub-AS-SETs); >=0 = recursion depth
@@ -257,6 +263,17 @@ public class Config {
                 })
                 .collect(Collectors.toCollection(ArrayList::new));
         this.forceNetBlock = parseList(forceNetBlockOverride);
+
+        // PrimaryEnemyResources: load from property, then ADD items from CLI (add semantics)
+        this.primaryEnemyResources = parseList(
+                properties.getProperty("PrimaryEnemyResources",
+                        "AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100")).stream()
+                .map(String::toUpperCase)
+                .collect(Collectors.toCollection(ArrayList::new));
+        parseList(primaryEnemyOverride).stream()
+                .map(String::toUpperCase)
+                .filter(item -> !this.primaryEnemyResources.contains(item))
+                .forEach(this.primaryEnemyResources::add);
 
         // Resolve ipv6: CLI flags override the BlackbgpIpv6 property
         if (Boolean.TRUE.equals(ipv6Flag)) {
@@ -338,6 +355,7 @@ public class Config {
                 this.dependencyGraphPath != null ? this.dependencyGraphPath : "");
         p.setProperty("UseSfdp", String.valueOf(this.useSfdp));
         p.setProperty("DependencyWithUnknown", String.valueOf(this.dependencyWithUnknown));
+        p.setProperty("PrimaryEnemyResources", joinList(this.primaryEnemyResources));
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");
