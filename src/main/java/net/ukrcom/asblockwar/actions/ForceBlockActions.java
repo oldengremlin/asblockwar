@@ -75,8 +75,17 @@ public class ForceBlockActions {
                         return;
                     }
                     aggressorAsnResources.put(asn, block);
-                    ASBlockWar.resourcesForVerification.put(asn, new ASN(Action.add, asn, block));
-                    log.warn("applyForceAsBlock: {} примусово додано до списку блокування", asn);
+                    // Якщо country-фільтр вже видалив цей ASN (Action.remove), а ми повертаємо
+                    // його примусово — це стабільний ForceASBlock-стан, а не нова зміна.
+                    // Прибираємо запис з журналу, щоб він не потрапляв у звіт як «Додано».
+                    ASN existing = ASBlockWar.resourcesForVerification.get(asn);
+                    if (existing != null && existing.action() == Action.remove) {
+                        ASBlockWar.resourcesForVerification.remove(asn);
+                        log.warn("applyForceAsBlock: {} примусово відновлено (було у списку, вилучено фільтром)", asn);
+                    } else if (existing == null) {
+                        ASBlockWar.resourcesForVerification.put(asn, new ASN(Action.add, asn, block));
+                        log.warn("applyForceAsBlock: {} примусово додано до списку блокування (новий)", asn);
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
