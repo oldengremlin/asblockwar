@@ -70,6 +70,10 @@ public class ForceBlockActions {
                     } finally {
                         dbLimit.release();
                     }
+                    if (block.isBlank()) {
+                        log.warn("applyForceAsBlock: {} відсутня у базі whois-lite-local — пропускаємо", asn);
+                        return;
+                    }
                     aggressorAsnResources.put(asn, block);
                     ASBlockWar.resourcesForVerification.put(asn, new ASN(Action.add, asn, block));
                     log.warn("applyForceAsBlock: {} примусово додано до списку блокування", asn);

@@ -457,7 +457,7 @@ function showInfo(n, connCount) {
     if (PRIMARY_ENEMY_IDS.size > 0 && !PRIMARY_ENEMY_IDS.has(n.id)) {
         html += '<div id="enemy-search-area" style="margin-top:8px;border-top:1px solid #CFD8DC;padding-top:6px">'
             + '<a href="#" id="btn-find-enemy" style="font-size:10px;color:#0288D1;text-decoration:none">'
-            + '&#128269; &#1055;&#1086;&#1096;&#1091;&#1082; &#1096;&#1083;&#1103;&#1093;&#1091; &#1076;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;</a></div>';
+            + '&#128269; &#1055;&#1086;&#1096;&#1091;&#1082; &#1096;&#1083;&#1103;&#1093;&#1091; &#1076;&#1086; &#1087;&#1077;&#1088;&#1074;&#1080;&#1085;&#1085;&#1086;&#1075;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;</a></div>';
     }
     d3.select('#info-body').html(html);
     d3.select('#info-panel').style('display', 'block');
@@ -618,8 +618,14 @@ function runEnemySearch(n) {
             area.innerHTML = '<div style="font-size:10px;color:#78909C;font-style:italic">&#1064;&#1083;&#1103;&#1093;&#1110;&#1074; &#1076;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1080;&#1093; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1110;&#1074; &#1085;&#1077; &#1079;&#1085;&#1072;&#1081;&#1076;&#1077;&#1085;&#1086;.</div>';
             return;
         }
-        const sorted = [...paths.entries()].sort((a, b) => a[1].cost - b[1].cost);
-        let html = '<div style="font-size:10px;font-weight:600;color:#263238;margin-bottom:4px">&#1064;&#1083;&#1103;&#1093;&#1080; &#1076;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;:</div>';
+        // AS-SET (містить '-') — за алфавітом першими; ASN (AS\d+) — за номером після
+        const sorted = [...paths.entries()].sort(([tidA], [tidB]) => {
+            const aIsAsn = /^AS\d+$/.test(tidA), bIsAsn = /^AS\d+$/.test(tidB);
+            if (aIsAsn !== bIsAsn) return aIsAsn ? 1 : -1;
+            if (aIsAsn) return parseInt(tidA.slice(2)) - parseInt(tidB.slice(2));
+            return tidA.localeCompare(tidB);
+        });
+        let html = '<div style="font-size:10px;font-weight:600;color:#263238;margin-bottom:4px">&#1064;&#1083;&#1103;&#1093;&#1080; &#1076;&#1086; &#1087;&#1077;&#1088;&#1074;&#1080;&#1085;&#1085;&#1086;&#1075;&#1086; &#1074;&#1086;&#1088;&#1086;&#1078;&#1086;&#1075;&#1086; &#1088;&#1077;&#1089;&#1091;&#1088;&#1089;&#1091;:</div>';
         sorted.forEach(([tid, {path}]) => {
             const h = path.length - 1;
             html += '<div style="margin:2px 0"><a href="#" class="enemy-path-link" data-path="'
