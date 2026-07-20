@@ -648,7 +648,7 @@ function highlightPath(pathIds) {
     focusedId = null; focusNeigh = new Set();
     matchedIds = pathIds; visibleIds = pathIds;
     d3.select('#search').property('value', '');
-    d3.select('#search-count').text(pathIds.size + '&#160;&#1085;&#1072; &#1096;&#1083;&#1103;&#1093;&#1091;');
+    d3.select('#search-count').text(pathIds.size + ' на шляху');
     applyVisibility();
     zoomToFit(pathIds);
 }
