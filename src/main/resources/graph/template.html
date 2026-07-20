@@ -442,19 +442,22 @@ function applyVisibility() {
         .attr('stroke-opacity', d => {
             const s = d.source.id || d.source, t = d.target.id || d.target;
             if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return 1;
+            if (inFocus && (s === focusedId || t === focusedId)) return 1;
             if (inFocus  && s !== focusedId && t !== focusedId) return 0.04;
             if (inSearch && !visibleIds.has(s) && !visibleIds.has(t)) return 0.04;
             return 0.5;
         })
         .attr('stroke', d => {
             const s = d.source.id || d.source, t = d.target.id || d.target;
-            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
-                ? '#FFFFFF' : (EDGE_COLOR[d.relation] || '#aaa');
+            if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return '#FFFFFF';
+            if (inFocus && (s === focusedId || t === focusedId)) return '#FF1744';
+            return EDGE_COLOR[d.relation] || '#aaa';
         })
         .attr('stroke-width', d => {
             const s = d.source.id || d.source, t = d.target.id || d.target;
-            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
-                ? 3.5 : (EDGE_W[d.relation] || 1);
+            if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return 3.5;
+            if (inFocus && (s === focusedId || t === focusedId)) return 3.5;
+            return EDGE_W[d.relation] || 1;
         })
         .attr('stroke-dasharray', d => {
             const s = d.source.id || d.source, t = d.target.id || d.target;
@@ -466,6 +469,13 @@ function applyVisibility() {
             return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
                 ? 'dash-flow 0.4s linear infinite' : null;
         });
+    // Ребра фокусованого вузла — піднімаємо першими, path-ребра поверх них
+    if (inFocus) {
+        linkSel.filter(d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            return s === focusedId || t === focusedId;
+        }).raise();
+    }
     if (pathEdgeKeys.size > 0) {
         linkSel.filter(d => {
             const s = d.source.id || d.source, t = d.target.id || d.target;
