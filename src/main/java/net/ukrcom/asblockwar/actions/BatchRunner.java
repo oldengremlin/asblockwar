@@ -47,6 +47,10 @@ public class BatchRunner {
         if (!ASBlockWar.config.isBatchMode()) {
             return;
         }
+        if (ASBlockWar.config.isDryRun()) {
+            log.info("DRY-RUN: AfterCommand не запускається");
+            return;
+        }
         String cmd = ASBlockWar.config.getAfterCommand();
         File scriptFile = new File(cmd);
         if (!scriptFile.exists()) {

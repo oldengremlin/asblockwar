@@ -81,6 +81,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
   <label class="filter-row"><input type="checkbox" class="status-filter" data-status="SUSPICIOUS" checked> <span style="color:#E65100">● Suspicious</span></label>
   <label class="filter-row"><input type="checkbox" class="status-filter" data-status="CLEAR" checked> <span style="color:#2E7D32">● Clear</span></label>
   <label class="filter-row"><input type="checkbox" class="status-filter" data-status="UNKNOWN" checked> <span style="color:#01579B">● Unknown</span></label>
+  <b style="margin-top:5px">Тип вузла</b>
+  <label class="filter-row"><input type="checkbox" class="type-filter" data-type="ASN" checked> ASN</label>
+  <label class="filter-row"><input type="checkbox" class="type-filter" data-type="AS_SET" checked> AS-SET</label>
+  <label class="filter-row"><input type="checkbox" class="type-filter" data-type="MNTNER" checked> MNTNER</label>
+  <label class="filter-row"><input type="checkbox" class="type-filter" data-type="ORGANISATION" checked> ORG</label>
 </div>
 
 <svg id="graph">
@@ -154,6 +159,7 @@ const PRIMARY_ENEMY_IDS = new Set((DATA.primaryEnemyIds || []).map(id => id.toUp
 
 // ── Стан взаємодії ────────────────────────────────────────────────────────
 let hiddenStats = new Set();
+let hiddenTypes = new Set();
 let focusedId   = null;
 let focusNeigh  = new Set();
 let matchedIds  = new Set();
@@ -408,9 +414,9 @@ function applyVisibility() {
 
     STATUS_ORDER.forEach(st => {
         nodeGroups[st]
-            .attr('display', d => hiddenStats.has(d.status) ? 'none' : null)
+            .attr('display', d => (hiddenStats.has(d.status) || hiddenTypes.has(d.type)) ? 'none' : null)
             .attr('opacity', d => {
-                if (hiddenStats.has(d.status)) return null;
+                if (hiddenStats.has(d.status) || hiddenTypes.has(d.type)) return null;
                 if (inFocus  && !focusNeigh.has(d.id)) return 0.1;
                 if (inSearch && !visibleIds.has(d.id))  return 0.1;
                 return null;
@@ -426,7 +432,8 @@ function applyVisibility() {
         .attr('display', d => {
             const sn = nodeMap.get(d.source.id || d.source);
             const tn = nodeMap.get(d.target.id || d.target);
-            if (!sn || !tn || hiddenStats.has(sn.status) || hiddenStats.has(tn.status)) return 'none';
+            if (!sn || !tn || hiddenStats.has(sn.status) || hiddenStats.has(tn.status)
+                || hiddenTypes.has(sn.type) || hiddenTypes.has(tn.type)) return 'none';
             return null;
         })
         .attr('stroke-opacity', d => {
@@ -477,7 +484,8 @@ d3.select('#search').on('input', function() {
     matchedIds = new Set();
     DATA.nodes.forEach(n => {
         if (n.id.toLowerCase().includes(term) ||
-            (n.label && n.label.toLowerCase().includes(term)))
+            (n.label   && n.label.toLowerCase().includes(term)) ||
+            (n.details && n.details.toLowerCase().includes(term)))
             matchedIds.add(n.id);
     });
     visibleIds = new Set(matchedIds);
@@ -503,12 +511,25 @@ document.querySelectorAll('.status-filter').forEach(cb =>
     })
 );
 
+// ── Фільтр типів вузлів ───────────────────────────────────────────────────
+document.querySelectorAll('.type-filter').forEach(cb =>
+    cb.addEventListener('change', () => {
+        hiddenTypes = new Set();
+        document.querySelectorAll('.type-filter').forEach(c => {
+            if (!c.checked) hiddenTypes.add(c.dataset.type);
+        });
+        applyVisibility();
+    })
+);
+
 // ── Кнопка Reset ─────────────────────────────────────────────────────────
 document.getElementById('btn-reset').onclick = () => {
     resetFocus();
     d3.select('#info-panel').style('display', 'none');
     document.querySelectorAll('.status-filter').forEach(c => c.checked = true);
+    document.querySelectorAll('.type-filter').forEach(c => c.checked = true);
     hiddenStats = new Set();
+    hiddenTypes = new Set();
     applyVisibility();
     fitDone = false;
     fitAll();
@@ -692,10 +713,34 @@ function showPathModal(pathArr) {
     header.innerHTML = 'Шлях: ' + esc(fromId) + ' → ' + esc(toId) +
         ' <span style="color:#90A4AE;font-size:10px;font-weight:400">(' + (pathArr.length - 1) + ' перех.)</span>';
 
+    // Кнопка копіювання шляху в буфер обміну
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '⎘';
+    copyBtn.title = 'Копіювати шлях';
+    copyBtn.style.cssText = 'background:none;border:none;color:#90A4AE;cursor:pointer;' +
+        'font-size:14px;line-height:1;padding:0 4px;flex-shrink:0';
+    copyBtn.addEventListener('click', () => {
+        const text = pathArr.join(' → ');
+        const doFallback = () => {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); ta.remove();
+        };
+        (navigator.clipboard
+            ? navigator.clipboard.writeText(text).catch(doFallback)
+            : Promise.resolve(doFallback())
+        ).then(() => {
+            copyBtn.textContent = '✓';
+            setTimeout(() => { copyBtn.textContent = '⎘'; }, 1500);
+        });
+    });
+    header.appendChild(copyBtn);
+
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
     closeBtn.style.cssText = 'background:none;border:none;color:#90A4AE;cursor:pointer;' +
-        'font-size:18px;line-height:1;padding:0 0 0 8px;flex-shrink:0';
+        'font-size:18px;line-height:1;padding:0 0 0 4px;flex-shrink:0';
     closeBtn.title = 'Закрити';
     closeBtn.addEventListener('click', () => panel.remove());
     header.appendChild(closeBtn);

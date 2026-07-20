@@ -202,6 +202,10 @@ public class Config {
             description = "AS-SETs to ADD to PrimaryEnemyResources (additive, does not replace config file value)")
     private String primaryEnemyOverride;
 
+    @Option(names = {"-n", "--dry-run"},
+            description = "Simulate processing without writing any files or running AfterCommand")
+    private boolean dryRun;
+
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
     // -----------------------------------------------------------------------

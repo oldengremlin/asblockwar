@@ -227,7 +227,7 @@ public class ASBlockWar {
 
         lastAggressorAsnResources = aggressorAsnResources;
 
-        if (config.isDependencyGraph()) {
+        if (config.isDependencyGraph() && !config.isDryRun()) {
             // Об'єднуємо RPSL з поточного запуску з іменами з файлу (RPSL може бути порожнім)
             Map<String, String> allAsSetMap = new ConcurrentHashMap<>(asSetResources);
             allAsSets.forEach(name -> allAsSetMap.putIfAbsent(name, ""));

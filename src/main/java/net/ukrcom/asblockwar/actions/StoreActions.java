@@ -133,6 +133,10 @@ public class StoreActions {
      * @throws IOException якщо виникла помилка запису або блокування файлу
      */
     public static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
+        if (ASBlockWar.config.isDryRun()) {
+            log.info("DRY-RUN: skip backup + skip write → {}", ASBlockWar.listFile);
+            return;
+        }
         Path source = Path.of(ASBlockWar.listFile);
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
