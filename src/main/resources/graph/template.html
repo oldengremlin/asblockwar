@@ -63,6 +63,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
 #filters b{display:block;color:#263238;margin-bottom:3px}
 .filter-row{display:flex;align-items:center;gap:4px;margin:1px 0;cursor:pointer}
 .filter-row input{cursor:pointer;accent-color:#546E7A}
+@keyframes dash-flow { to { stroke-dashoffset: -20; } }
 </style>
 </head>
 <body>
@@ -158,13 +159,14 @@ const nodeMap = new Map(DATA.nodes.map(n => [n.id, n]));
 const PRIMARY_ENEMY_IDS = new Set((DATA.primaryEnemyIds || []).map(id => id.toUpperCase()));
 
 // ── Стан взаємодії ────────────────────────────────────────────────────────
-let hiddenStats = new Set();
-let hiddenTypes = new Set();
-let focusedId   = null;
-let focusNeigh  = new Set();
-let matchedIds  = new Set();
-let visibleIds  = new Set();
-let curK        = 1;
+let hiddenStats   = new Set();
+let hiddenTypes   = new Set();
+let pathEdgeKeys  = new Set(); // ключі "A|B" та "B|A" для ребер активного шляху
+let focusedId     = null;
+let focusNeigh    = new Set();
+let matchedIds    = new Set();
+let visibleIds    = new Set();
+let curK          = 1;
 
 // ── Pre-computed layout (sfdp) ────────────────────────────────────────────
 // sfdp дає координати у просторі 72×дюйми → для великих графів (~20K×14K одиниць).
@@ -371,6 +373,7 @@ function onOut(event, n) {
 // ── Click / Focus ─────────────────────────────────────────────────────────
 function onClick(event, n) {
     event.stopPropagation();
+    pathEdgeKeys = new Set();
     focusedId  = n.id;
     focusNeigh = new Set([n.id]);
     DATA.links.forEach(l => {
@@ -438,13 +441,41 @@ function applyVisibility() {
         })
         .attr('stroke-opacity', d => {
             const s = d.source.id || d.source, t = d.target.id || d.target;
+            if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return 1;
             if (inFocus  && s !== focusedId && t !== focusedId) return 0.04;
             if (inSearch && !visibleIds.has(s) && !visibleIds.has(t)) return 0.04;
             return 0.5;
+        })
+        .attr('stroke', d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
+                ? '#FFFFFF' : (EDGE_COLOR[d.relation] || '#aaa');
+        })
+        .attr('stroke-width', d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
+                ? 3.5 : (EDGE_W[d.relation] || 1);
+        })
+        .attr('stroke-dasharray', d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
+                ? '10,5' : (EDGE_DASH[d.relation] || '');
+        })
+        .style('animation', d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
+                ? 'dash-flow 0.4s linear infinite' : null;
         });
+    if (pathEdgeKeys.size > 0) {
+        linkSel.filter(d => {
+            const s = d.source.id || d.source, t = d.target.id || d.target;
+            return pathEdgeKeys.has(s + '|' + t);
+        }).raise();
+    }
 }
 
 function resetFocus() {
+    pathEdgeKeys = new Set();
     focusedId = null; focusNeigh = new Set();
     matchedIds = new Set(); visibleIds = new Set();
     d3.select('#search').property('value', '');
@@ -481,6 +512,7 @@ document.getElementById('info-close').onclick = () => {
 d3.select('#search').on('input', function() {
     const term = this.value.trim().toLowerCase();
     if (!term) { resetFocus(); return; }
+    pathEdgeKeys = new Set();
     matchedIds = new Set();
     DATA.nodes.forEach(n => {
         if (n.id.toLowerCase().includes(term) ||
@@ -658,14 +690,22 @@ function runEnemySearch(n) {
             a.addEventListener('click', e => {
                 e.preventDefault();
                 const pathArr = e.currentTarget.dataset.path.split(',');
-                highlightPath(new Set(pathArr));
+                highlightPath(new Set(pathArr), pathArr);
                 showPathModal(pathArr);
             })
         );
     }, 0);
 }
 
-function highlightPath(pathIds) {
+function highlightPath(pathIds, pathArr) {
+    pathEdgeKeys = new Set();
+    if (pathArr && pathArr.length > 1) {
+        for (let i = 0; i < pathArr.length - 1; i++) {
+            const a = pathArr[i], b = pathArr[i + 1];
+            pathEdgeKeys.add(a + '|' + b);
+            pathEdgeKeys.add(b + '|' + a);
+        }
+    }
     focusedId = null; focusNeigh = new Set();
     matchedIds = pathIds; visibleIds = pathIds;
     d3.select('#search').property('value', '');
