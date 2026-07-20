@@ -5,6 +5,16 @@
 
 ---
 
+## [3.7.1] — 2026-07-20
+
+### Виправлено
+
+- **`ASBlockWar.java` рядок 182**: залишилось посилання на видалене поле
+  `MakeAggressor.blockedAsSet` — замінено на `config.getPrimaryEnemyResources().forEach(...)`.
+  Прибрано зайвий `import java.util.Arrays`.
+
+---
+
 ## [3.7.0] — 2026-07-20
 
 ### Додано
