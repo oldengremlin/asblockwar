@@ -131,7 +131,7 @@ net.ukrcom.asblockwar/
 | 6 | `ForceBlockActions.applyForceAsBlock()` | Додає ASN з `ForceASBlock` (обходять country + AggressorPattern; нові → `resourcesForVerification(add)`, вже наявні — не дублюються у звіт) |
 | 7 | `DiscoverAggressor.discoverCooperatingAsnResources()` | Розкриває import/export AS-SET та прямі ASN-посилання ворожих aut-num; нові знахідки (country ∈ BlockCountry) додаються до мапи |
 | 8 | `StoreActions.storeMntByResources()` + `storeListAsSet()` | Дописує нові мантейнери до `list.mnt-by.txt`; оновлює `list.as-set.txt` |
-| 9 | `StoreActions.storeResources()` | Бекап + запис `list.txt`; паралельно: `storeWarResources()` (Juniper WAR) та `storeBlackbgpResources()` (blackbgp diff) |
+| 9 | `StoreActions.storeResources()` | Якщо вміст нового `list.txt` ≠ поточного — бекап + запис; якщо однаковий — крок пропускається. Паралельно: `storeWarResources()` (Juniper WAR) та `storeBlackbgpResources()` (blackbgp diff) |
 | 10a | `StoreActions.storeDetails()` | STORE/AS/, STORE/MNT/, STORE/MNT-SET-AS/, STORE/AS-SET/, STORE/AS-NET/ |
 | 10b | `StoreActions.storeAsList()` | STORE/AS.list |
 | 10c | `StoreActions.storeMaintainersList()` | STORE/maintainers.list |
@@ -384,6 +384,14 @@ CLI-аргументи (--option=value)
 та resolved `List<String> newOpt`, яке заповнюється через `parseList(newOptOverride)` у конструкторі.
 
 Help генерується автоматично з анотацій — `printHelp()` більше не існує.
+
+> **Дублікати у списках Properties**: `PropertiesController.promptAdd()` після нормалізації
+> перевіряє, чи елемент вже є у `ListView`. Нова додана опція автоматично отримує цей захист —
+> нічого додаткового не потрібно.
+
+> **Сортування `PrimaryEnemyResources`**: виконується у `Config.sortedPrimaryEnemies()` —
+> приватний метод, що викликається лише з `save()`. AS-SET-и (не `AS\d+`) — за алфавітом
+> першими, AUT-NUM — за числовим номером другими. Інші списки не сортуються при збереженні.
 
 ### Config-only властивість (без CLI-опції)
 

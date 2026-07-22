@@ -140,29 +140,40 @@ public class StoreActions {
         Path source = Path.of(ASBlockWar.listFile);
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
+        // Обчислюємо новий вміст до входу в секцію з блокуванням
+        String newContent = aggressorAsnResources.keySet().stream()
+                .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
+                .map(asn -> asn.substring(2))
+                .collect(Collectors.joining("\n", "", "\n"));
+
         try {
             try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                  FileLock fl = lc.lock()) {
 
+                // Якщо вміст не змінився — бекап і перезапис не потрібні
+                if (Files.exists(source) && Files.readString(source).equals(newContent)) {
+                    log.info("list.txt не змінився ({} AS) — бекап і перезапис пропущено",
+                            aggressorAsnResources.size());
+                    return;
+                }
+
                 // Резервна копія: list.txt → list.2026-04-12T13:29:06+03:00.txt
-                String filename = source.getFileName().toString();
-                int dotIdx = filename.lastIndexOf('.');
-                String timestamp = ZonedDateTime.now()
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx"));
-                String backupFilename = dotIdx >= 0
-                                        ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
-                                        : filename + "." + timestamp;
-                Path backup = source.resolveSibling(backupFilename);
-                Files.move(source, backup);
-                log.info("Резервна копія: {}", backup);
+                if (Files.exists(source)) {
+                    String filename = source.getFileName().toString();
+                    int dotIdx = filename.lastIndexOf('.');
+                    String timestamp = ZonedDateTime.now()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx"));
+                    String backupFilename = dotIdx >= 0
+                                            ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
+                                            : filename + "." + timestamp;
+                    Path backup = source.resolveSibling(backupFilename);
+                    Files.move(source, backup);
+                    log.info("Резервна копія: {}", backup);
+                }
 
                 // Записуємо відсортований список (тільки числа, по одному на рядок)
-                String content = aggressorAsnResources.keySet().stream()
-                        .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
-                        .map(asn -> asn.substring(2))
-                        .collect(Collectors.joining("\n", "", "\n"));
                 Path tmp = source.resolveSibling(source.getFileName() + ".tmp");
-                Files.writeString(tmp, content);
+                Files.writeString(tmp, newContent);
                 try {
                     Files.move(tmp, source, StandardCopyOption.ATOMIC_MOVE,
                             StandardCopyOption.REPLACE_EXISTING);

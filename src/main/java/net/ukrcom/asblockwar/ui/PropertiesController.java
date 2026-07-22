@@ -245,6 +245,7 @@ public class PropertiesController implements Initializable {
         result.map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(normalize)
+                .filter(v -> !lv.getItems().contains(v))
                 .ifPresent(lv.getItems()::add);
     }
 

@@ -362,7 +362,7 @@ public class Config {
                 this.dependencyGraphPath != null ? this.dependencyGraphPath : "");
         p.setProperty("UseSfdp", String.valueOf(this.useSfdp));
         p.setProperty("DependencyWithUnknown", String.valueOf(this.dependencyWithUnknown));
-        p.setProperty("PrimaryEnemyResources", joinList(this.primaryEnemyResources));
+        p.setProperty("PrimaryEnemyResources", joinList(sortedPrimaryEnemies(this.primaryEnemyResources)));
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");
@@ -411,6 +411,17 @@ public class Config {
 
     private static String joinList(List<String> list) {
         return list == null ? "" : String.join(",", list);
+    }
+
+    /** AS-SET-и (не AS\d+) за алфавітом, потім AUT-NUM (AS\d+) за номером. */
+    private static List<String> sortedPrimaryEnemies(List<String> list) {
+        if (list == null || list.isEmpty()) return list;
+        List<String> result = new ArrayList<>();
+        list.stream().filter(s -> !s.matches("AS\\d+")).sorted().forEach(result::add);
+        list.stream().filter(s -> s.matches("AS\\d+"))
+                .sorted(Comparator.comparingLong(s -> Long.parseLong(s.substring(2))))
+                .forEach(result::add);
+        return result;
     }
 
     /** Повертає {@code true}, якщо генерація графа увімкнена (шлях не порожній). */
