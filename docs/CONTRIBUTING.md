@@ -131,7 +131,7 @@ net.ukrcom.asblockwar/
 | 6 | `ForceBlockActions.applyForceAsBlock()` | Додає ASN з `ForceASBlock` (обходять country + AggressorPattern; нові → `resourcesForVerification(add)`, вже наявні — не дублюються у звіт) |
 | 7 | `DiscoverAggressor.discoverCooperatingAsnResources()` | Розкриває import/export AS-SET та прямі ASN-посилання ворожих aut-num; нові знахідки (country ∈ BlockCountry) додаються до мапи |
 | 8 | `StoreActions.storeMntByResources()` + `storeListAsSet()` | Дописує нові мантейнери до `list.mnt-by.txt`; оновлює `list.as-set.txt` |
-| 9 | `StoreActions.storeResources()` | Якщо вміст нового `list.txt` ≠ поточного — бекап + запис; якщо однаковий — крок пропускається. Паралельно: `storeWarResources()` (Juniper WAR) та `storeBlackbgpResources()` (blackbgp diff) |
+| 9 | `StoreActions.storeResources()` | Порівнює новий вміст з останнім бекапом (`findLatestBackup()`); якщо бекапів ще немає — завжди створює. Якщо вміст збігається з останнім бекапом — крок пропускається. Бекапи зберігаються в `ListFileBackupDir` (або поруч з `list.txt` якщо порожньо). Паралельно: `storeWarResources()` (Juniper WAR) та `storeBlackbgpResources()` (blackbgp diff) |
 | 10a | `StoreActions.storeDetails()` | STORE/AS/, STORE/MNT/, STORE/MNT-SET-AS/, STORE/AS-SET/, STORE/AS-NET/ |
 | 10b | `StoreActions.storeAsList()` | STORE/AS.list |
 | 10c | `StoreActions.storeMaintainersList()` | STORE/maintainers.list |

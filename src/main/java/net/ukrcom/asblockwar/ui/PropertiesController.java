@@ -92,6 +92,8 @@ public class PropertiesController implements Initializable {
     private ListView<String> listForceNetBlock;
     @FXML
     private TextArea fieldAggressorPattern;
+    @FXML
+    private TextField fieldListFileBackupDir;
 
     private Stage stage;
 
@@ -127,6 +129,8 @@ public class PropertiesController implements Initializable {
         setupList(listForceAsBlock, ASBlockWar.config.getForceAsBlock());
         setupList(listForceNetBlock, ASBlockWar.config.getForceNetBlock());
         fieldAggressorPattern.setText(ASBlockWar.config.getAggressorPattern());
+        fieldListFileBackupDir.setText(ASBlockWar.config.getListFileBackupDir() != null
+                ? ASBlockWar.config.getListFileBackupDir() : "");
     }
 
     private static void setupList(ListView<String> lv, java.util.List<String> items) {
@@ -181,6 +185,11 @@ public class PropertiesController implements Initializable {
     @FXML
     private void browseDependencyGraph() {
         pick(false, fieldDependencyGraph, "Select dependency graph output file");
+    }
+
+    @FXML
+    private void browseListFileBackupDir() {
+        pick(true, fieldListFileBackupDir, "Select backup directory");
     }
 
     private void pick(boolean dirOnly, TextField field, String title) {
@@ -284,6 +293,7 @@ public class PropertiesController implements Initializable {
             ASBlockWar.config.setBlockCountry(new ArrayList<>(listBlockCountry.getItems()));
             ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
             ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));
+            ASBlockWar.config.setListFileBackupDir(fieldListFileBackupDir.getText().trim());
             String patternText = fieldAggressorPattern.getText().trim();
             try {
                 Pattern compiled = Pattern.compile(patternText);

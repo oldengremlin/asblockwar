@@ -105,6 +105,13 @@
                         <CheckBox fx:id="fieldUseSfdp" GridPane.rowIndex="14" GridPane.columnIndex="1" />
                         <Label text="Include unknown nodes:" GridPane.rowIndex="15" GridPane.columnIndex="0" />
                         <CheckBox fx:id="fieldDependencyWithUnknown" GridPane.rowIndex="15" GridPane.columnIndex="1" />
+
+                        <!-- Директорія резервних копій list.txt -->
+                        <Label text="List backup directory:" GridPane.rowIndex="16" GridPane.columnIndex="0" />
+                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="16" GridPane.columnIndex="1">
+                           <TextField fx:id="fieldListFileBackupDir" promptText="(empty = same as list.txt)" HBox.hgrow="ALWAYS" />
+                           <Button text="…" prefWidth="28.0" onAction="#browseListFileBackupDir" />
+                        </HBox>
                      </children>
                   </GridPane>
 

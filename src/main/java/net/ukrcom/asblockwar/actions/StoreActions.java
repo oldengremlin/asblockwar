@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -140,6 +141,12 @@ public class StoreActions {
         Path source = Path.of(ASBlockWar.listFile);
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
+        // Визначаємо директорію для резервних копій (з конфігурації або поруч із list.txt)
+        String backupDirStr = ASBlockWar.config.getListFileBackupDir();
+        Path backupDir = (backupDirStr != null && !backupDirStr.isBlank())
+                ? Path.of(backupDirStr)
+                : source.toAbsolutePath().getParent();
+
         // Обчислюємо новий вміст до входу в секцію з блокуванням
         String newContent = aggressorAsnResources.keySet().stream()
                 .sorted(Comparator.comparingLong(asn -> Long.parseLong(asn.substring(2))))
@@ -150,15 +157,17 @@ public class StoreActions {
             try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                  FileLock fl = lc.lock()) {
 
-                // Якщо вміст не змінився — бекап і перезапис не потрібні
-                if (Files.exists(source) && Files.readString(source).equals(newContent)) {
-                    log.info("list.txt не змінився ({} AS) — бекап і перезапис пропущено",
+                // Порівнюємо з останнім бекапом — пропускаємо якщо вміст не змінився
+                Optional<Path> latestBackup = findLatestBackup(source, backupDir);
+                if (latestBackup.isPresent() && Files.readString(latestBackup.get()).equals(newContent)) {
+                    log.info("list.txt не змінився ({} AS) — вміст збігається з останнім бекапом, пропущено",
                             aggressorAsnResources.size());
                     return;
                 }
 
                 // Резервна копія: list.txt → list.2026-04-12T13:29:06+03:00.txt
                 if (Files.exists(source)) {
+                    Files.createDirectories(backupDir);
                     String filename = source.getFileName().toString();
                     int dotIdx = filename.lastIndexOf('.');
                     String timestamp = ZonedDateTime.now()
@@ -166,8 +175,9 @@ public class StoreActions {
                     String backupFilename = dotIdx >= 0
                                             ? filename.substring(0, dotIdx) + "." + timestamp + filename.substring(dotIdx)
                                             : filename + "." + timestamp;
-                    Path backup = source.resolveSibling(backupFilename);
-                    Files.move(source, backup);
+                    Path backup = backupDir.resolve(backupFilename);
+                    // Files.copy замість move — безпечно між різними файловими системами
+                    Files.copy(source, backup);
                     log.info("Резервна копія: {}", backup);
                 }
 
@@ -184,6 +194,30 @@ public class StoreActions {
             }
         } finally {
             Files.deleteIfExists(lockPath);
+        }
+    }
+
+    /**
+     * Знаходить найновішу резервну копію файлу {@code source} у директорії {@code backupDir}.
+     * Шукає файли з іменем виду {@code base.TIMESTAMP.ext} (де {@code base.ext} — оригінальне ім'я).
+     *
+     * @return Optional з шляхом до останнього бекапу, або empty якщо бекапів немає
+     */
+    private static Optional<Path> findLatestBackup(Path source, Path backupDir) throws IOException {
+        String base = source.getFileName().toString();
+        int dot = base.lastIndexOf('.');
+        String prefix = dot >= 0 ? base.substring(0, dot) + "." : base + ".";
+        String suffix = dot >= 0 ? base.substring(dot) : "";
+        if (!Files.isDirectory(backupDir)) {
+            return Optional.empty();
+        }
+        try (var stream = Files.list(backupDir)) {
+            return stream
+                    .filter(p -> {
+                        String name = p.getFileName().toString();
+                        return name.startsWith(prefix) && name.endsWith(suffix) && !name.equals(base);
+                    })
+                    .max(Comparator.comparing(p -> p.getFileName().toString()));
         }
     }
 

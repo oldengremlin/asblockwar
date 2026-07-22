@@ -81,7 +81,8 @@ public class Config {
             Map.entry("--aggressor-pattern", "AggressorPattern"),
             Map.entry("--recursive-asset", "RecursiveAsset"),
             Map.entry("--batch", "BatchMode"),
-            Map.entry("--dependency-graph", "DependencyGraph")
+            Map.entry("--dependency-graph", "DependencyGraph"),
+            Map.entry("--list-file-backup-dir", "ListFileBackupDir")
     );
 
     // -----------------------------------------------------------------------
@@ -206,6 +207,11 @@ public class Config {
     @Option(names = {"-n", "--dry-run"},
             description = "Simulate processing without writing any files or running AfterCommand")
     private boolean dryRun;
+
+    @Option(names = "--list-file-backup-dir", paramLabel = "<path>",
+            defaultValue = "",
+            description = "Directory for list.txt backups (default: same directory as list.txt)")
+    private String listFileBackupDir;
 
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
@@ -353,7 +359,9 @@ public class Config {
         p.setProperty("BatchMode", String.valueOf(this.batchMode));
         p.setProperty("AfterCommand", this.afterCommand);
         p.setProperty("BlockCountry", joinList(this.blockCountry));
-        p.setProperty("ForceASBlock", joinList(this.forceAsBlock));
+        p.setProperty("ForceASBlock", joinList(this.forceAsBlock.stream()
+                .sorted(Comparator.comparingLong(s -> Long.parseLong(s.substring(2))))
+                .collect(Collectors.toList())));
         p.setProperty("ForceNETBlock", joinList(this.forceNetBlock));
         p.setProperty("AggressorPattern", this.aggressorPattern);
         if (this.recursiveAsset >= 0) {
@@ -364,6 +372,7 @@ public class Config {
         p.setProperty("UseSfdp", String.valueOf(this.useSfdp));
         p.setProperty("DependencyWithUnknown", String.valueOf(this.dependencyWithUnknown));
         p.setProperty("PrimaryEnemyResources", joinList(sortedPrimaryEnemies(this.primaryEnemyResources)));
+        p.setProperty("ListFileBackupDir", this.listFileBackupDir != null ? this.listFileBackupDir : "");
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");
