@@ -5,6 +5,19 @@
 
 ---
 
+## [3.9.4] — 2026-07-23
+
+### Покращено
+
+- **Логування dry-run — рівень INFO→DEBUG**: повідомлення «DRY-RUN: skip write»
+  (генерується у `FileUtils.writeStoreFile()` для кожного файлу — потенційно тисячі
+  записів для STORE/NET/) переведено з `log.info` на `log.debug`. Те саме для
+  «DRY-RUN: skip backup + skip write» (`StoreActions`) та «DRY-RUN: AfterCommand не
+  запускається» (`BatchRunner`). У GUI-лог-вікні (поріг INFO) ці повідомлення більше
+  не відображаються і не перевантажують екран під час Dry Run.
+
+---
+
 ## [3.9.3] — 2026-07-23
 
 ### Додано

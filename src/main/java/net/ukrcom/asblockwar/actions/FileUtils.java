@@ -94,7 +94,7 @@ public class FileUtils {
         }
         // У режимі dry-run жодних записів на диск не виконуємо
         if (ASBlockWar.config != null && ASBlockWar.config.isDryRun()) {
-            log.info("DRY-RUN: skip write → {}", file);
+            log.debug("DRY-RUN: skip write → {}", file);
             return;
         }
         Path lockPath = file.resolveSibling(file.getFileName() + ".lock");

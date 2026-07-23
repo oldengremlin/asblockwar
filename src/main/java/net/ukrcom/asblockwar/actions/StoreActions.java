@@ -135,7 +135,7 @@ public class StoreActions {
      */
     public static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
         if (ASBlockWar.config.isDryRun()) {
-            log.info("DRY-RUN: skip backup + skip write → {}", ASBlockWar.listFile);
+            log.debug("DRY-RUN: skip backup + skip write → {}", ASBlockWar.listFile);
             return;
         }
         Path source = Path.of(ASBlockWar.listFile);
