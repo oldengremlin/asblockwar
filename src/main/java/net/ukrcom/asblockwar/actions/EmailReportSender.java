@@ -340,15 +340,20 @@ public class EmailReportSender {
             boolean useAuth = smtpUser != null && !smtpUser.isBlank();
             props.put("mail.smtp.auth", String.valueOf(useAuth));
 
+            String sslTrust = ASBlockWar.config.getEmailSmtpSslTrust();
             if (portNum == 465) {
                 // SMTPS — одразу SSL/TLS
-                props.put("mail.smtp.ssl.enable",  "true");
-                props.put("mail.smtp.ssl.trust",    smtpHost);
+                props.put("mail.smtp.ssl.enable", "true");
+                if (sslTrust != null && !sslTrust.isBlank()) {
+                    props.put("mail.smtp.ssl.trust", sslTrust);
+                }
             } else if (portNum == 587 || portNum == 2587) {
                 // STARTTLS (submission)
                 props.put("mail.smtp.starttls.enable",   "true");
                 props.put("mail.smtp.starttls.required", "true");
-                props.put("mail.smtp.ssl.trust",         smtpHost);
+                if (sslTrust != null && !sslTrust.isBlank()) {
+                    props.put("mail.smtp.ssl.trust", sslTrust);
+                }
             }
 
             if (useAuth) {
