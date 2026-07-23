@@ -18,160 +18,160 @@
       stylesheets="@../styles/mainwindows.css"
       xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ukrcom.asblockwar.ui.PropertiesController">
-   <children>
-      <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" prefHeight="560.0">
-         <content>
-            <VBox spacing="10.0" style="-fx-padding: 0 6 0 0;">
-               <children>
-                  <GridPane hgap="8.0" vgap="6.0">
-                     <columnConstraints>
-                        <ColumnConstraints halignment="RIGHT" hgrow="NEVER" minWidth="190.0" />
-                        <ColumnConstraints hgrow="ALWAYS" minWidth="340.0" />
-                     </columnConstraints>
-                     <children>
-                        <!-- Input files -->
-                        <Label text="List file:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldListFile" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseListFile" />
+    <children>
+        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" prefHeight="560.0">
+            <content>
+                <VBox spacing="10.0" style="-fx-padding: 0 6 0 0;">
+                    <children>
+                        <GridPane hgap="8.0" vgap="6.0">
+                            <columnConstraints>
+                                <ColumnConstraints halignment="RIGHT" hgrow="NEVER" minWidth="190.0" />
+                                <ColumnConstraints hgrow="ALWAYS" minWidth="340.0" />
+                            </columnConstraints>
+                            <children>
+                                <!-- Input files -->
+                                <Label text="List file:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="0" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldListFile" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseListFile" />
+                                </HBox>
+
+                                <!-- Директорія резервних копій list.txt -->
+                                <Label text="List backup directory:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldListFileBackupDir" promptText="(empty = same as list.txt)" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseListFileBackupDir" />
+                                </HBox>
+
+                                <Label text="MNT-BY file:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldListMntby" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseListMntby" />
+                                </HBox>
+
+                                <Label text="AS-SET file:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="3" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldListAsset" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseListAsset" />
+                                </HBox>
+
+                                <!-- Database (no browse — JDBC URI) -->
+                                <Label text="DB URI (JDBC):" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldWhoisUri" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+                                <!-- Output -->
+                                <Label text="Store directory:" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="5" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldStoreDir" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseStoreDir" />
+                                </HBox>
+
+                                <Label text="WAR file (JunOS):" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="6" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldWarFile" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseWarFile" />
+                                </HBox>
+
+                                <Label text="Blackbgp file:" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="7" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldBlackbgpFile" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseBlackbgpFile" />
+                                </HBox>
+
+                                <!-- Commands (no browse — shell commands) -->
+                                <Label text="Get blackhole (IPv4):" GridPane.rowIndex="8" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldGetBlackhole" maxWidth="Infinity" GridPane.rowIndex="8" GridPane.columnIndex="1" />
+
+                                <Label text="Get blackhole (IPv6):" GridPane.rowIndex="9" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldGetBlackholeIpv6" maxWidth="Infinity" GridPane.rowIndex="9" GridPane.columnIndex="1" />
+
+                                <!-- Flags -->
+                                <Label text="Enable IPv6:" GridPane.rowIndex="10" GridPane.columnIndex="0" />
+                                <CheckBox fx:id="fieldIpv6" GridPane.rowIndex="10" GridPane.columnIndex="1" />
+
+                                <Label text="Recursive AS-SET depth:" GridPane.rowIndex="11" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldRecursiveAsset" promptText="-1 = disabled" maxWidth="100.0" GridPane.rowIndex="11" GridPane.columnIndex="1" />
+
+                                <!-- Batch mode -->
+                                <Label text="Batch mode (-b):" GridPane.rowIndex="12" GridPane.columnIndex="0" />
+                                <CheckBox fx:id="fieldBatch" GridPane.rowIndex="12" GridPane.columnIndex="1" />
+
+                                <Label text="After command:" GridPane.rowIndex="13" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="13" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldAfterCommand" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseAfterCommand" />
+                                </HBox>
+
+                                <!-- Dependency graph -->
+                                <Label text="Dependency graph:" GridPane.rowIndex="14" GridPane.columnIndex="0" />
+                                <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="14" GridPane.columnIndex="1">
+                                    <TextField fx:id="fieldDependencyGraph" promptText="(empty = disabled)" HBox.hgrow="ALWAYS" />
+                                    <Button text="…" prefWidth="28.0" onAction="#browseDependencyGraph" />
+                                </HBox>
+                                <Label text="Use sfdp layout:" GridPane.rowIndex="15" GridPane.columnIndex="0" />
+                                <CheckBox fx:id="fieldUseSfdp" GridPane.rowIndex="15" GridPane.columnIndex="1" />
+                                <Label text="Include unknown nodes:" GridPane.rowIndex="16" GridPane.columnIndex="0" />
+                                <CheckBox fx:id="fieldDependencyWithUnknown" GridPane.rowIndex="16" GridPane.columnIndex="1" />
+                            </children>
+                        </GridPane>
+
+                        <Separator />
+
+                        <!-- Block countries list -->
+                        <Label text="Block countries (country: code, e.g. RU):" />
+                        <HBox spacing="6.0">
+                            <ListView fx:id="listBlockCountry" HBox.hgrow="ALWAYS" prefHeight="90.0" />
+                            <VBox spacing="4.0" alignment="TOP_CENTER">
+                                <Button text="+" prefWidth="28.0" onAction="#addBlockCountry" />
+                                <Button text="−" prefWidth="28.0" onAction="#removeBlockCountry" />
+                            </VBox>
                         </HBox>
 
-                        <Label text="MNT-BY file:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldListMntby" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseListMntby" />
+                        <!-- Force block ASNs -->
+                        <Label text="Force block ASNs (bypass country filter, e.g. AS209671):" />
+                        <HBox spacing="6.0">
+                            <ListView fx:id="listForceAsBlock" HBox.hgrow="ALWAYS" prefHeight="90.0" />
+                            <VBox spacing="4.0" alignment="TOP_CENTER">
+                                <Button text="+" prefWidth="28.0" onAction="#addForceAsBlock" />
+                                <Button text="−" prefWidth="28.0" onAction="#removeForceAsBlock" />
+                            </VBox>
                         </HBox>
 
-                        <Label text="AS-SET file:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldListAsset" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseListAsset" />
+                        <!-- Force block networks (blackbgp only) -->
+                        <Label text="Force blackhole networks (blackbgp only, e.g. 52.29.77.149/32):" />
+                        <HBox spacing="6.0">
+                            <ListView fx:id="listForceNetBlock" HBox.hgrow="ALWAYS" prefHeight="90.0" />
+                            <VBox spacing="4.0" alignment="TOP_CENTER">
+                                <Button text="+" prefWidth="28.0" onAction="#addForceNetBlock" />
+                                <Button text="−" prefWidth="28.0" onAction="#removeForceNetBlock" />
+                            </VBox>
                         </HBox>
 
-                        <!-- Database (no browse — JDBC URI) -->
-                        <Label text="DB URI (JDBC):" GridPane.rowIndex="3" GridPane.columnIndex="0" />
-                        <TextField fx:id="fieldWhoisUri" maxWidth="Infinity" GridPane.rowIndex="3" GridPane.columnIndex="1" />
-
-                        <!-- Output -->
-                        <Label text="Store directory:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldStoreDir" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseStoreDir" />
+                        <!-- Primary enemy resources (Dijkstra targets) -->
+                        <Label text="Primary enemy resources (AS-SETs — targets for dependency graph path search):" />
+                        <HBox spacing="6.0">
+                            <ListView fx:id="listPrimaryEnemyResources" HBox.hgrow="ALWAYS" prefHeight="90.0" />
+                            <VBox spacing="4.0" alignment="TOP_CENTER">
+                                <Button text="+" prefWidth="28.0" onAction="#addPrimaryEnemyResource" />
+                                <Button text="−" prefWidth="28.0" onAction="#removePrimaryEnemyResource" />
+                            </VBox>
                         </HBox>
 
-                        <Label text="WAR file (JunOS):" GridPane.rowIndex="5" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="5" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldWarFile" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseWarFile" />
-                        </HBox>
+                        <!-- Aggressor pattern -->
+                        <Label text="Aggressor pattern (Java regex; broad check — country filter applied after to exclude false positives):" />
+                        <TextArea fx:id="fieldAggressorPattern" wrapText="true" prefHeight="80.0"
+                                  style="-fx-font-family: monospace; -fx-font-size: 11;" />
 
-                        <Label text="Blackbgp file:" GridPane.rowIndex="6" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="6" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldBlackbgpFile" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseBlackbgpFile" />
-                        </HBox>
-
-                        <!-- Commands (no browse — shell commands) -->
-                        <Label text="Get blackhole (IPv4):" GridPane.rowIndex="7" GridPane.columnIndex="0" />
-                        <TextField fx:id="fieldGetBlackhole" maxWidth="Infinity" GridPane.rowIndex="7" GridPane.columnIndex="1" />
-
-                        <Label text="Get blackhole (IPv6):" GridPane.rowIndex="8" GridPane.columnIndex="0" />
-                        <TextField fx:id="fieldGetBlackholeIpv6" maxWidth="Infinity" GridPane.rowIndex="8" GridPane.columnIndex="1" />
-
-                        <!-- Flags -->
-                        <Label text="Enable IPv6:" GridPane.rowIndex="9" GridPane.columnIndex="0" />
-                        <CheckBox fx:id="fieldIpv6" GridPane.rowIndex="9" GridPane.columnIndex="1" />
-
-                        <Label text="Recursive AS-SET depth:" GridPane.rowIndex="10" GridPane.columnIndex="0" />
-                        <TextField fx:id="fieldRecursiveAsset" promptText="-1 = disabled" maxWidth="100.0" GridPane.rowIndex="10" GridPane.columnIndex="1" />
-
-                        <!-- Batch mode -->
-                        <Label text="Batch mode (-b):" GridPane.rowIndex="11" GridPane.columnIndex="0" />
-                        <CheckBox fx:id="fieldBatch" GridPane.rowIndex="11" GridPane.columnIndex="1" />
-
-                        <Label text="After command:" GridPane.rowIndex="12" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="12" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldAfterCommand" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseAfterCommand" />
-                        </HBox>
-
-                        <!-- Dependency graph -->
-                        <Label text="Dependency graph:" GridPane.rowIndex="13" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="13" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldDependencyGraph" promptText="(empty = disabled)" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseDependencyGraph" />
-                        </HBox>
-                        <Label text="Use sfdp layout:" GridPane.rowIndex="14" GridPane.columnIndex="0" />
-                        <CheckBox fx:id="fieldUseSfdp" GridPane.rowIndex="14" GridPane.columnIndex="1" />
-                        <Label text="Include unknown nodes:" GridPane.rowIndex="15" GridPane.columnIndex="0" />
-                        <CheckBox fx:id="fieldDependencyWithUnknown" GridPane.rowIndex="15" GridPane.columnIndex="1" />
-
-                        <!-- Директорія резервних копій list.txt -->
-                        <Label text="List backup directory:" GridPane.rowIndex="16" GridPane.columnIndex="0" />
-                        <HBox spacing="4.0" maxWidth="Infinity" GridPane.rowIndex="16" GridPane.columnIndex="1">
-                           <TextField fx:id="fieldListFileBackupDir" promptText="(empty = same as list.txt)" HBox.hgrow="ALWAYS" />
-                           <Button text="…" prefWidth="28.0" onAction="#browseListFileBackupDir" />
-                        </HBox>
-                     </children>
-                  </GridPane>
-
-                  <Separator />
-
-                  <!-- Block countries list -->
-                  <Label text="Block countries (country: code, e.g. RU):" />
-                  <HBox spacing="6.0">
-                     <ListView fx:id="listBlockCountry" HBox.hgrow="ALWAYS" prefHeight="90.0" />
-                     <VBox spacing="4.0" alignment="TOP_CENTER">
-                        <Button text="+" prefWidth="28.0" onAction="#addBlockCountry" />
-                        <Button text="−" prefWidth="28.0" onAction="#removeBlockCountry" />
-                     </VBox>
-                  </HBox>
-
-                  <!-- Force block ASNs -->
-                  <Label text="Force block ASNs (bypass country filter, e.g. AS209671):" />
-                  <HBox spacing="6.0">
-                     <ListView fx:id="listForceAsBlock" HBox.hgrow="ALWAYS" prefHeight="90.0" />
-                     <VBox spacing="4.0" alignment="TOP_CENTER">
-                        <Button text="+" prefWidth="28.0" onAction="#addForceAsBlock" />
-                        <Button text="−" prefWidth="28.0" onAction="#removeForceAsBlock" />
-                     </VBox>
-                  </HBox>
-
-                  <!-- Force block networks (blackbgp only) -->
-                  <Label text="Force blackhole networks (blackbgp only, e.g. 52.29.77.149/32):" />
-                  <HBox spacing="6.0">
-                     <ListView fx:id="listForceNetBlock" HBox.hgrow="ALWAYS" prefHeight="90.0" />
-                     <VBox spacing="4.0" alignment="TOP_CENTER">
-                        <Button text="+" prefWidth="28.0" onAction="#addForceNetBlock" />
-                        <Button text="−" prefWidth="28.0" onAction="#removeForceNetBlock" />
-                     </VBox>
-                  </HBox>
-
-                  <!-- Primary enemy resources (Dijkstra targets) -->
-                  <Label text="Primary enemy resources (AS-SETs — targets for dependency graph path search):" />
-                  <HBox spacing="6.0">
-                     <ListView fx:id="listPrimaryEnemyResources" HBox.hgrow="ALWAYS" prefHeight="90.0" />
-                     <VBox spacing="4.0" alignment="TOP_CENTER">
-                        <Button text="+" prefWidth="28.0" onAction="#addPrimaryEnemyResource" />
-                        <Button text="−" prefWidth="28.0" onAction="#removePrimaryEnemyResource" />
-                     </VBox>
-                  </HBox>
-
-                  <!-- Aggressor pattern -->
-                  <Label text="Aggressor pattern (Java regex; broad check — country filter applied after to exclude false positives):" />
-                  <TextArea fx:id="fieldAggressorPattern" wrapText="true" prefHeight="80.0"
-                            style="-fx-font-family: monospace; -fx-font-size: 11;" />
-
-               </children>
-            </VBox>
-         </content>
-      </ScrollPane>
-      <Separator />
-      <ButtonBar>
-         <buttons>
-            <Button text="Save" onAction="#doSave" defaultButton="true" />
-            <Button text="Cancel" onAction="#doCancel" cancelButton="true" />
-         </buttons>
-      </ButtonBar>
-   </children>
+                    </children>
+                </VBox>
+            </content>
+        </ScrollPane>
+        <Separator />
+        <ButtonBar>
+            <buttons>
+                <Button text="Save" onAction="#doSave" defaultButton="true" />
+                <Button text="Cancel" onAction="#doCancel" cancelButton="true" />
+            </buttons>
+        </ButtonBar>
+    </children>
 </VBox>
