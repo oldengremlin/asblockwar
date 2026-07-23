@@ -142,25 +142,31 @@ public class RunProgressController implements Initializable {
         };
 
         task.setOnSucceeded(e -> {
-            ASBlockWar.uiCallback = null;
-            mainCtrl.clearHighlight();
-            detachAppender();
-            progressBar.setProgress(1.0);
-            appendLine("--- Done ---");
-            closeButton.setDisable(false);
-            stage.setTitle("ASBlockWar — Done");
+            try {
+                ASBlockWar.uiCallback = null;
+                mainCtrl.clearHighlight();
+                detachAppender();
+                progressBar.setProgress(1.0);
+                appendLine("--- Done ---");
+                stage.setTitle("ASBlockWar — Done");
+            } finally {
+                closeButton.setDisable(false);
+            }
         });
 
         task.setOnFailed(e -> {
-            ASBlockWar.uiCallback = null;
-            mainCtrl.clearHighlight();
-            Throwable ex = task.getException();
-            detachAppender();
-            progressBar.setProgress(0.0);
-            appendLine("--- Error: " + (ex != null ? ex.getMessage() : "unknown") + " ---");
-            log.error("GUI: runProcessing failed", ex);
-            closeButton.setDisable(false);
-            stage.setTitle("ASBlockWar — Error");
+            try {
+                ASBlockWar.uiCallback = null;
+                mainCtrl.clearHighlight();
+                Throwable ex = task.getException();
+                detachAppender();
+                progressBar.setProgress(0.0);
+                appendLine("--- Error: " + (ex != null ? ex.getMessage() : "unknown") + " ---");
+                log.error("GUI: runProcessing failed", ex);
+                stage.setTitle("ASBlockWar — Error");
+            } finally {
+                closeButton.setDisable(false);
+            }
         });
 
         Thread thread = new Thread(task, "asblockwar-run");
