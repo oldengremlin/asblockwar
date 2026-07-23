@@ -5,6 +5,36 @@
 
 ---
 
+## [3.10.0] — 2026-07-23
+
+### Додано
+
+- **HTML email-звіт після обробки**: новий клас `EmailReportSender` формує і відправляє
+  HTML-листа з підсумками кожного запуску. Звіт містить чотири секції:
+  — зміни ASN (додані / вилучені / змінені) з таблицею country та org-name;
+  — підозрілі AS (збіг з AggressorPattern, але поза BlockCountry);
+  — маршрути, вилучені з blackbgp (`ip r d`) — таблиця prefix / aut-num / country / descr;
+  — маршрути, додані/оновлені в blackbgp (`ip r r`) — аналогічна таблиця.
+  Таблиці оформлені з `border="1"` і `box-shadow` для зручного читання. ASN-номери
+  форматуються як `AS<b>12345</b>`. У темі листа вказуються дата/час і короткий підсумок
+  змін; в режимі dry-run додається позначка `[DRY RUN]`.
+- **Нові параметри конфігурації** (Properties / CLI / GUI-діалог):
+  `SendEmailReport` / `--send-report`,
+  `EmailFrom` / `--email-from`,
+  `EmailReplyTo` / `--email-reply-to`,
+  `EmailTo` / `--email-to`,
+  `EmailSmtpHost` / `--email-smtp-host`,
+  `EmailSmtpPort` / `--email-smtp-port`,
+  `EmailSmtpUser` / `--email-smtp-user`,
+  `EmailSmtpPassword` / `--email-smtp-password`.
+  Якщо `EmailSmtpHost` не вказано — використовується `/usr/sbin/sendmail -t` (Unix-only);
+  якщо вказано — відправлення через SMTP з опційною автентифікацією.
+- **Розділ «Email Report» у діалозі Properties**: нова секція в `PropertiesDialog.fxml`
+  із CheckBox, TextField і PasswordField для всіх восьми нових параметрів.
+- **Dependency**: додано `com.sun.mail:jakarta.mail:2.0.2` для формування MIME-повідомлень.
+
+---
+
 ## [3.9.5] — 2026-07-23
 
 ### Виправлено

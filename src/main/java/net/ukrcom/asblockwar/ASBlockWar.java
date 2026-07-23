@@ -35,8 +35,10 @@ import net.ukrcom.asblockwar.ui.ASBlockWarApp;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
 import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 import net.ukrcom.asblockwar.actions.BatchRunner;
+import net.ukrcom.asblockwar.actions.BlackbgpChanges;
 import net.ukrcom.asblockwar.actions.DiscoverAggressor;
 import net.ukrcom.asblockwar.actions.DiscoveryResult;
+import net.ukrcom.asblockwar.actions.EmailReportSender;
 import net.ukrcom.asblockwar.actions.FileUtils;
 import net.ukrcom.asblockwar.actions.FilterAggressor;
 import net.ukrcom.asblockwar.actions.ForceBlockActions;
@@ -81,6 +83,12 @@ public class ASBlockWar {
 
     // Mntner RPSL-блоки (reverse-lookup -rmb), зібрані під час makeAggressorAssetAndMntbyResources()
     public static volatile Map<String, String> mntnerResources = new ConcurrentHashMap<>();
+
+    // Зміни blackbgp (toDelete/toReplace/newEnemies), доступні для EmailReportSender
+    public static volatile BlackbgpChanges lastBlackbgpChanges;
+
+    // prefix → список origin ASN; зчитується bulk-запитом у storeNetworkFiles(), доступний для EmailReportSender
+    public static volatile Map<String, List<String>> lastRouteOrigins;
 
     /**
      * Точка входу програми.
@@ -224,6 +232,10 @@ public class ASBlockWar {
         }
 
         Reporter.report(aggressorAsnResources);
+
+        if (config.isSendEmailReport()) {
+            EmailReportSender.sendIfEnabled(aggressorAsnResources);
+        }
 
         lastAggressorAsnResources = aggressorAsnResources;
 

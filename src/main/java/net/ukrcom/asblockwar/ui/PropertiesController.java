@@ -31,6 +31,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextField;
@@ -94,6 +95,22 @@ public class PropertiesController implements Initializable {
     private TextArea fieldAggressorPattern;
     @FXML
     private TextField fieldListFileBackupDir;
+    @FXML
+    private CheckBox fieldSendEmailReport;
+    @FXML
+    private TextField fieldEmailFrom;
+    @FXML
+    private TextField fieldEmailReplyTo;
+    @FXML
+    private TextField fieldEmailTo;
+    @FXML
+    private TextField fieldEmailSmtpHost;
+    @FXML
+    private TextField fieldEmailSmtpPort;
+    @FXML
+    private TextField fieldEmailSmtpUser;
+    @FXML
+    private PasswordField fieldEmailSmtpPassword;
 
     private Stage stage;
 
@@ -131,6 +148,14 @@ public class PropertiesController implements Initializable {
         fieldAggressorPattern.setText(ASBlockWar.config.getAggressorPattern());
         fieldListFileBackupDir.setText(ASBlockWar.config.getListFileBackupDir() != null
                 ? ASBlockWar.config.getListFileBackupDir() : "");
+        fieldSendEmailReport.setSelected(ASBlockWar.config.isSendEmailReport());
+        fieldEmailFrom.setText(ASBlockWar.config.getEmailFrom() != null ? ASBlockWar.config.getEmailFrom() : "");
+        fieldEmailReplyTo.setText(ASBlockWar.config.getEmailReplyTo() != null ? ASBlockWar.config.getEmailReplyTo() : "");
+        fieldEmailTo.setText(ASBlockWar.config.getEmailTo() != null ? ASBlockWar.config.getEmailTo() : "");
+        fieldEmailSmtpHost.setText(ASBlockWar.config.getEmailSmtpHost() != null ? ASBlockWar.config.getEmailSmtpHost() : "");
+        fieldEmailSmtpPort.setText(ASBlockWar.config.getEmailSmtpPort() != null ? ASBlockWar.config.getEmailSmtpPort() : "25");
+        fieldEmailSmtpUser.setText(ASBlockWar.config.getEmailSmtpUser() != null ? ASBlockWar.config.getEmailSmtpUser() : "");
+        fieldEmailSmtpPassword.setText(ASBlockWar.config.getEmailSmtpPassword() != null ? ASBlockWar.config.getEmailSmtpPassword() : "");
     }
 
     private static void setupList(ListView<String> lv, java.util.List<String> items) {
@@ -294,6 +319,14 @@ public class PropertiesController implements Initializable {
             ASBlockWar.config.setForceAsBlock(new ArrayList<>(listForceAsBlock.getItems()));
             ASBlockWar.config.setForceNetBlock(new ArrayList<>(listForceNetBlock.getItems()));
             ASBlockWar.config.setListFileBackupDir(fieldListFileBackupDir.getText().trim());
+            ASBlockWar.config.setSendEmailReport(fieldSendEmailReport.isSelected());
+            ASBlockWar.config.setEmailFrom(fieldEmailFrom.getText().trim());
+            ASBlockWar.config.setEmailReplyTo(fieldEmailReplyTo.getText().trim());
+            ASBlockWar.config.setEmailTo(fieldEmailTo.getText().trim());
+            ASBlockWar.config.setEmailSmtpHost(fieldEmailSmtpHost.getText().trim());
+            ASBlockWar.config.setEmailSmtpPort(fieldEmailSmtpPort.getText().trim());
+            ASBlockWar.config.setEmailSmtpUser(fieldEmailSmtpUser.getText().trim());
+            ASBlockWar.config.setEmailSmtpPassword(fieldEmailSmtpPassword.getText());
             String patternText = fieldAggressorPattern.getText().trim();
             try {
                 Pattern compiled = Pattern.compile(patternText);
