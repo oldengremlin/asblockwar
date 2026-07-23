@@ -3,6 +3,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Accordion?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SplitMenuButton?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.DialogPane?>
@@ -133,7 +135,12 @@
    <header>
       <ButtonBar prefHeight="40.0" prefWidth="200.0">
         <buttons>
-            <Button fx:id="runButton" mnemonicParsing="false" onAction="#doRun" text="Run" />
+            <SplitMenuButton fx:id="runButton" mnemonicParsing="false" onAction="#doRun" text="Run">
+               <items>
+                  <MenuItem text="Dry Run" onAction="#doDryRun" />
+                  <MenuItem text="Dry Run + Graph" onAction="#doDryRunWithGraph" />
+               </items>
+            </SplitMenuButton>
           <Button fx:id="dependencyButton" disable="true" mnemonicParsing="false" onAction="#doDependencyGraph" text="Dependency" />
           <Button fx:id="propertiesButton" mnemonicParsing="false" onAction="#doPropertiesDialog" text="Properties" />
         </buttons>

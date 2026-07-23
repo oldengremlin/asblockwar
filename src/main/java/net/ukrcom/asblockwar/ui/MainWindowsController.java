@@ -36,6 +36,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
@@ -62,7 +63,7 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteFull;
 public class MainWindowsController implements Initializable {
 
     @FXML
-    private Button runButton;
+    private SplitMenuButton runButton;
     @FXML
     private Button propertiesButton;
     @FXML
@@ -267,10 +268,36 @@ public class MainWindowsController implements Initializable {
 
     @FXML
     private void doRun() {
+        launchRun(false, false);
+    }
+
+    @FXML
+    private void doDryRun() {
+        launchRun(true, false);
+    }
+
+    @FXML
+    private void doDryRunWithGraph() {
+        launchRun(true, true);
+    }
+
+    /**
+     * Відкриває RunProgressDialog і запускає обробку.
+     * Тимчасово виставляє прапори dryRun і dryRunWithGraph,
+     * відновлюючи початкові значення після закриття діалогу.
+     */
+    private void launchRun(boolean dryRun, boolean withGraph) {
+        boolean wasDryRun = ASBlockWar.config.isDryRun();
+        boolean wasWithGraph = ASBlockWar.config.isDryRunWithGraph();
+        ASBlockWar.config.setDryRun(dryRun);
+        ASBlockWar.config.setDryRunWithGraph(withGraph);
         runButton.setDisable(true);
         propertiesButton.setDisable(true);
         dependencyButton.setDisable(true);
-        statusLabel.setText("Running...");
+        String statusRunning = !dryRun ? "Running..."
+                : withGraph ? "Running (dry run + graph)..."
+                : "Running (dry run)...";
+        statusLabel.setText(statusRunning);
         try {
             URL fxmlUrl = getClass().getResource("/fxml/RunProgressDialog.fxml");
             FXMLLoader loader = new FXMLLoader(fxmlUrl);
@@ -280,22 +307,35 @@ public class MainWindowsController implements Initializable {
             Stage dialog = new Stage();
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.initOwner(runButton.getScene().getWindow());
-            dialog.setTitle("ASBlockWar — Processing");
+            dialog.setTitle(!dryRun ? "ASBlockWar — Processing"
+                    : withGraph ? "ASBlockWar — Dry Run + Graph"
+                    : "ASBlockWar — Dry Run");
             dialog.setScene(new Scene(root));
 
             ctrl.startProcessing(dialog, this);
             dialog.showAndWait();
 
             refreshUi();
-            statusLabel.setText("Done.");
-            dependencyButton.setDisable(!ASBlockWar.config.isDependencyGraph());
+            statusLabel.setText(!dryRun ? "Done."
+                    : withGraph ? "Dry run + graph complete."
+                    : "Dry run complete (no files written).");
+            refreshDependencyButton();
         } catch (IOException e) {
             log.error("GUI: cannot open progress dialog", e);
             statusLabel.setText("Error: " + e.getMessage());
         } finally {
+            ASBlockWar.config.setDryRun(wasDryRun);
+            ASBlockWar.config.setDryRunWithGraph(wasWithGraph);
             runButton.setDisable(false);
             propertiesButton.setDisable(false);
         }
+    }
+
+    /** Вмикає кнопку Dependency лише якщо шлях до графа налаштовано і файл існує. */
+    private void refreshDependencyButton() {
+        boolean canOpen = ASBlockWar.config.isDependencyGraph()
+                && Files.exists(Path.of(ASBlockWar.config.getDependencyGraphPath()));
+        dependencyButton.setDisable(!canOpen);
     }
 
     @FXML
