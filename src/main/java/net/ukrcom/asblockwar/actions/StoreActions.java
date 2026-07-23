@@ -241,6 +241,7 @@ public class StoreActions {
     public static Set<String> storeResources(Map<String, String> aggressorAsnResources) throws IOException {
         // аналіз: виявляємо зміни у blackbgp і можливі нові ворожі AS
         BlackbgpChanges changes = DiscoverAggressor.discoverBlackbgpChanges(aggressorAsnResources);
+        ASBlockWar.lastBlackbgpChanges = changes;
 
         Map<String, String> newEnemies = changes.newEnemies();
         if (!newEnemies.isEmpty()) {
@@ -448,6 +449,7 @@ public class StoreActions {
         // 1. Один bulk-запит замість N індивідуальних з'єднань
         log.info("storeNetworkFiles: читаємо origins з БД (bulk)...");
         Map<String, List<String>> allOrigins = new retrieveAllRouteOrigins().get();
+        ASBlockWar.lastRouteOrigins = allOrigins;
         log.info("storeNetworkFiles: отримано origins для {} маршрутів з БД", allOrigins.size());
 
         // 2. Відбираємо тільки ті префікси, що є в effectivePrefixes

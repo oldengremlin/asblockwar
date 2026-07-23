@@ -82,7 +82,15 @@ public class Config {
             Map.entry("--recursive-asset", "RecursiveAsset"),
             Map.entry("--batch", "BatchMode"),
             Map.entry("--dependency-graph", "DependencyGraph"),
-            Map.entry("--list-file-backup-dir", "ListFileBackupDir")
+            Map.entry("--list-file-backup-dir", "ListFileBackupDir"),
+            Map.entry("--send-report", "SendEmailReport"),
+            Map.entry("--email-from", "EmailFrom"),
+            Map.entry("--email-reply-to", "EmailReplyTo"),
+            Map.entry("--email-to", "EmailTo"),
+            Map.entry("--email-smtp-host", "EmailSmtpHost"),
+            Map.entry("--email-smtp-port", "EmailSmtpPort"),
+            Map.entry("--email-smtp-user", "EmailSmtpUser"),
+            Map.entry("--email-smtp-password", "EmailSmtpPassword")
     );
 
     // -----------------------------------------------------------------------
@@ -216,6 +224,45 @@ public class Config {
             defaultValue = "",
             description = "Directory for list.txt backups (default: same directory as list.txt)")
     private String listFileBackupDir;
+
+    @Option(names = "--send-report",
+            description = "Send HTML email report after processing")
+    private boolean sendEmailReport;
+
+    @Option(names = "--email-from", paramLabel = "<addr>",
+            defaultValue = "",
+            description = "From address for the email report")
+    private String emailFrom;
+
+    @Option(names = "--email-reply-to", paramLabel = "<addr>",
+            defaultValue = "",
+            description = "Reply-To address for the email report")
+    private String emailReplyTo;
+
+    @Option(names = "--email-to", paramLabel = "<addr,...>",
+            defaultValue = "",
+            description = "Comma-separated recipient addresses for the email report")
+    private String emailTo;
+
+    @Option(names = "--email-smtp-host", paramLabel = "<host>",
+            defaultValue = "",
+            description = "SMTP server host (empty = use sendmail)")
+    private String emailSmtpHost;
+
+    @Option(names = "--email-smtp-port", paramLabel = "<port>",
+            defaultValue = "25",
+            description = "SMTP server port (default: 25)")
+    private String emailSmtpPort;
+
+    @Option(names = "--email-smtp-user", paramLabel = "<user>",
+            defaultValue = "",
+            description = "SMTP authentication username")
+    private String emailSmtpUser;
+
+    @Option(names = "--email-smtp-password", paramLabel = "<pass>",
+            defaultValue = "",
+            description = "SMTP authentication password")
+    private String emailSmtpPassword;
 
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
@@ -377,6 +424,14 @@ public class Config {
         p.setProperty("DependencyWithUnknown", String.valueOf(this.dependencyWithUnknown));
         p.setProperty("PrimaryEnemyResources", joinList(sortedPrimaryEnemies(this.primaryEnemyResources)));
         p.setProperty("ListFileBackupDir", this.listFileBackupDir != null ? this.listFileBackupDir : "");
+        p.setProperty("SendEmailReport", String.valueOf(this.sendEmailReport));
+        p.setProperty("EmailFrom", this.emailFrom != null ? this.emailFrom : "");
+        p.setProperty("EmailReplyTo", this.emailReplyTo != null ? this.emailReplyTo : "");
+        p.setProperty("EmailTo", this.emailTo != null ? this.emailTo : "");
+        p.setProperty("EmailSmtpHost", this.emailSmtpHost != null ? this.emailSmtpHost : "");
+        p.setProperty("EmailSmtpPort", this.emailSmtpPort != null ? this.emailSmtpPort : "25");
+        p.setProperty("EmailSmtpUser", this.emailSmtpUser != null ? this.emailSmtpUser : "");
+        p.setProperty("EmailSmtpPassword", this.emailSmtpPassword != null ? this.emailSmtpPassword : "");
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");

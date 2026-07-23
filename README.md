@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout. Поточна версія — **3.9.5**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.10.0**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.9.5-<buildNumber>.jar
+target/ASBlockWar-3.10.0-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.9.5-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.10.0-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -174,7 +174,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.9.4-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.10.0-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -228,7 +228,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.9.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.10.0-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -381,10 +381,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.9.4-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.10.0-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.9.4-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.10.0-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -468,6 +468,52 @@ java -jar ASBlockWar-3.9.4-00000001.jar -dg /tmp/asblockwar-graph.html
 - **🔍 Пошук шляху до первинного ворожого ресурсу** — з'являється в інфо-панелі при кліку на будь-який вузол. По кліку запускається зважений алгоритм Дейкстри від поточного вузла до всіх досяжних вузлів `PrimaryEnemyResources`. Пріоритет ребер: `ASN`→1, `AS_SET`→2, `MNTNER`→10, `ORGANISATION`→100 (маршрути через AS-простір пріоритетніші за організаційні зв'язки). Результати відсортовано: AS-SET — за алфавітом першими, ASN — за номером після них. Клік по маршруту підсвічує всі вузли на ньому та відображає ребра між ними білим анімованим
   пунктиром («marching ants», 3.5px, CSS `dash-flow`) — поверх усіх інших ребер. Також відкриває **плаваюче вікно** з покроковим переліком вузлів (ID з кольором статусу, тип, назва) — вікно можна перетягувати, закривати кнопкою ×, і таких вікон можна тримати відкритими декілька одночасно. Кнопка ⎘ у заголовку вікна копіює шлях у буфер обміну у вигляді `A → B → C`.
 - **Пошук по полю details** — поле пошуку вгорі збігається не лише з id вузла, а й з його полем `details` (org-name, country, as-name тощо).
+
+---
+
+## HTML email-звіт
+
+Починаючи з версії 3.10.0, після кожного запуску ASBlockWar може надіслати HTML-листа
+з підсумковим звітом. Звіт містить чотири секції:
+
+- **Зміни ASN** — таблиця доданих, вилучених і змінених автономних систем з country і org-name;
+- **Підозрілі AS поза BlockCountry** — AS, що збіглись з AggressorPattern, але не підпадають під блокування за країною;
+- **Маршрути вилучені з blackbgp** (`ip r d`) — prefix / origin ASN / country / descr;
+- **Маршрути додані/оновлені в blackbgp** (`ip r r`) — аналогічна таблиця.
+
+Таблиці оформлені з тінню (`box-shadow`), рядки пофарбовані за типом зміни. ASN-номери
+форматуються як `AS<b>12345</b>`. У темі листа — дата/час і короткий підсумок змін;
+у dry-run режимі додається `[DRY RUN]`.
+
+### Параметри
+
+| Параметр CLI | Properties | Опис |
+|---|---|---|
+| `--send-report` | `SendEmailReport=true` | Вмикає відправлення звіту |
+| `--email-from=<addr>` | `EmailFrom=` | Адреса відправника |
+| `--email-reply-to=<addr>` | `EmailReplyTo=` | Reply-To адреса (необов'язково) |
+| `--email-to=<addr,...>` | `EmailTo=` | Отримувачі (через кому) |
+| `--email-smtp-host=<host>` | `EmailSmtpHost=` | SMTP-сервер (порожньо = sendmail) |
+| `--email-smtp-port=<port>` | `EmailSmtpPort=25` | SMTP-порт (за замовчуванням: 25) |
+| `--email-smtp-user=<user>` | `EmailSmtpUser=` | Логін SMTP (необов'язково) |
+| `--email-smtp-password=<pass>` | `EmailSmtpPassword=` | Пароль SMTP (необов'язково) |
+
+Якщо `EmailSmtpHost` не вказано, відправлення відбувається через `/usr/sbin/sendmail -t`
+(тільки Linux/Unix). Якщо вказано SMTP-хост — використовується Jakarta Mail `Transport.send()`.
+
+```bash
+# Запуск із відправленням звіту через sendmail
+java -jar ASBlockWar-3.10.0-00000001.jar --send-report \
+     --email-from=asblockwar@example.com --email-to=noc@example.com
+
+# Через SMTP з автентифікацією
+java -jar ASBlockWar-3.10.0-00000001.jar --send-report \
+     --email-from=asblockwar@example.com --email-to=noc@example.com \
+     --email-smtp-host=mail.example.com --email-smtp-port=587 \
+     --email-smtp-user=user --email-smtp-password=secret
+```
+
+У GUI: поля налаштовуються в розділі **Email Report** діалогу **Properties**.
 
 ---
 

@@ -8,6 +8,7 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -161,6 +162,35 @@
                         <Label text="Aggressor pattern (Java regex; broad check — country filter applied after to exclude false positives):" />
                         <TextArea fx:id="fieldAggressorPattern" wrapText="true" prefHeight="80.0"
                                   style="-fx-font-family: monospace; -fx-font-size: 11;" />
+
+                        <Separator />
+
+                        <!-- Email Report -->
+                        <Label text="Email Report:" style="-fx-font-weight: bold;" />
+                        <GridPane hgap="8.0" vgap="6.0">
+                            <columnConstraints>
+                                <ColumnConstraints halignment="RIGHT" hgrow="NEVER" minWidth="190.0" />
+                                <ColumnConstraints hgrow="ALWAYS" minWidth="340.0" />
+                            </columnConstraints>
+                            <children>
+                                <Label text="Send email report:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                                <CheckBox fx:id="fieldSendEmailReport" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+                                <Label text="From:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailFrom" promptText="sender@example.com" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+                                <Label text="Reply-To:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailReplyTo" promptText="replyto@example.com" maxWidth="Infinity" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                                <Label text="To (comma-separated):" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailTo" promptText="a@example.com, b@example.com" maxWidth="Infinity" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+                                <Label text="SMTP host:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailSmtpHost" promptText="(empty = use sendmail)" maxWidth="Infinity" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+                                <Label text="SMTP port:" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailSmtpPort" promptText="25" maxWidth="80.0" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+                                <Label text="SMTP user:" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailSmtpUser" maxWidth="Infinity" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+                                <Label text="SMTP password:" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+                                <PasswordField fx:id="fieldEmailSmtpPassword" maxWidth="Infinity" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+                            </children>
+                        </GridPane>
 
                     </children>
                 </VBox>
