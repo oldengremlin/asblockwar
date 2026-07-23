@@ -441,6 +441,13 @@ Help генерується автоматично з анотацій — `prin
 | `ASBlockWar.runProcessing()` | умова `isDependencyGraph() && !isDryRun()` |
 | `BatchRunner.runBatchCommand()` | AfterCommand-скрипт |
 
+**GUI Dry Run (з v3.9.2)**: `MainWindowsController.launchRun(true)` тимчасово виставляє
+`config.setDryRun(true)` і відновлює попереднє значення у `finally` після закриття
+діалогу. Таким чином один і той самий `runProcessing()` обслуговує і CLI, і GUI без
+дублювання логіки. Граф залежностей у Dry Run **не генерується** — це задокументована
+поведінка ядра. Кнопка «Dependency» після Dry Run активується, лише якщо файл вже існує
+(від попереднього звичайного Run).
+
 ---
 
 ## GUI-архітектура (JavaFX / FXML)
