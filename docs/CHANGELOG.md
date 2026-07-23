@@ -5,6 +5,22 @@
 
 ---
 
+## [3.9.3] — 2026-07-23
+
+### Додано
+
+- **GUI — «Dry Run + Graph»**: третій пункт у меню `SplitMenuButton`. Запускає всю
+  обробку в режимі dry-run (жодних файлів не записується, `AfterCommand` не виконується),
+  але **перезаписує граф залежностей** (`dependency-graph.html`). Реалізовано через
+  транзитивний прапорець `Config.dryRunWithGraph`, що тимчасово виставляється з GUI
+  і відновлюється у `finally`. В `runProcessing()` умова генерації графа змінена на
+  `isDependencyGraph() && (!isDryRun() || isDryRunWithGraph())`.
+  - Заголовок діалогу: «ASBlockWar — Dry Run + Graph»
+  - Статус: «Running (dry run + graph)...» → «Dry run + graph complete.»
+  - Після завершення кнопка «Dependency» активується (файл графа щойно оновлено).
+
+---
+
 ## [3.9.2] — 2026-07-23
 
 ### Додано

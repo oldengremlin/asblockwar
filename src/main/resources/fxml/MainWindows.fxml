@@ -138,6 +138,7 @@
             <SplitMenuButton fx:id="runButton" mnemonicParsing="false" onAction="#doRun" text="Run">
                <items>
                   <MenuItem text="Dry Run" onAction="#doDryRun" />
+                  <MenuItem text="Dry Run + Graph" onAction="#doDryRunWithGraph" />
                </items>
             </SplitMenuButton>
           <Button fx:id="dependencyButton" disable="true" mnemonicParsing="false" onAction="#doDependencyGraph" text="Dependency" />

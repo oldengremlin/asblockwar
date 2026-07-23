@@ -208,6 +208,10 @@ public class Config {
             description = "Simulate processing without writing any files or running AfterCommand")
     private boolean dryRun;
 
+    // Транзитивний GUI-прапорець: перезаписати граф залежностей навіть у dry-run режимі
+    // Не зберігається у Properties, не виставляється через CLI
+    private boolean dryRunWithGraph = false;
+
     @Option(names = "--list-file-backup-dir", paramLabel = "<path>",
             defaultValue = "",
             description = "Directory for list.txt backups (default: same directory as list.txt)")

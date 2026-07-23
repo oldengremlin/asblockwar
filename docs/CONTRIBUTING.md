@@ -441,12 +441,19 @@ Help генерується автоматично з анотацій — `prin
 | `ASBlockWar.runProcessing()` | умова `isDependencyGraph() && !isDryRun()` |
 | `BatchRunner.runBatchCommand()` | AfterCommand-скрипт |
 
-**GUI Dry Run (з v3.9.2)**: `MainWindowsController.launchRun(true)` тимчасово виставляє
-`config.setDryRun(true)` і відновлює попереднє значення у `finally` після закриття
-діалогу. Таким чином один і той самий `runProcessing()` обслуговує і CLI, і GUI без
-дублювання логіки. Граф залежностей у Dry Run **не генерується** — це задокументована
-поведінка ядра. Кнопка «Dependency» після Dry Run активується, лише якщо файл вже існує
-(від попереднього звичайного Run).
+**GUI Dry Run (з v3.9.2)**: `MainWindowsController.launchRun(dryRun, withGraph)` тимчасово
+виставляє прапори `config.setDryRun()` / `config.setDryRunWithGraph()` і відновлює їх
+у `finally` після закриття діалогу. Три режими:
+
+| Пункт меню | dryRun | withGraph | Що пишеться |
+|---|---|---|---|
+| Run (лівий клік) | false | false | всі файли + граф |
+| Dry Run | true | false | нічого |
+| Dry Run + Graph | true | true | тільки граф |
+
+`dryRunWithGraph` — транзитивний GUI-прапорець у Config: не в `OPT_TO_PROP`, не в `save()`,
+не в CLI. Умова генерації графа в `runProcessing()`:
+`isDependencyGraph() && (!isDryRun() || isDryRunWithGraph())`.
 
 ---
 
