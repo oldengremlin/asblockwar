@@ -48,7 +48,7 @@ public class BatchRunner {
             return;
         }
         if (ASBlockWar.config.isDryRun()) {
-            log.info("DRY-RUN: AfterCommand не запускається");
+            log.debug("DRY-RUN: AfterCommand не запускається");
             return;
         }
         String cmd = ASBlockWar.config.getAfterCommand();
