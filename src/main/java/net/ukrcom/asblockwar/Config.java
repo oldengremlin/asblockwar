@@ -90,7 +90,8 @@ public class Config {
             Map.entry("--email-smtp-host", "EmailSmtpHost"),
             Map.entry("--email-smtp-port", "EmailSmtpPort"),
             Map.entry("--email-smtp-user", "EmailSmtpUser"),
-            Map.entry("--email-smtp-password", "EmailSmtpPassword")
+            Map.entry("--email-smtp-password", "EmailSmtpPassword"),
+            Map.entry("--email-smtp-ssl-trust", "EmailSmtpSslTrust")
     );
 
     // -----------------------------------------------------------------------
@@ -264,6 +265,12 @@ public class Config {
             description = "SMTP authentication password")
     private String emailSmtpPassword;
 
+    @Option(names = "--email-smtp-ssl-trust", paramLabel = "<host|*>",
+            defaultValue = "",
+            description = "Хост, якому довіряти при STARTTLS/SSL (= EmailSmtpHost для LetsEncrypt/самопідписаного); "
+                        + "* — відключити перевірку сертифіката повністю (небезпечно)")
+    private String emailSmtpSslTrust;
+
     // -----------------------------------------------------------------------
     // Resolved list fields and special-case values — set in the constructor
     // -----------------------------------------------------------------------
@@ -432,6 +439,7 @@ public class Config {
         p.setProperty("EmailSmtpPort", this.emailSmtpPort != null ? this.emailSmtpPort : "25");
         p.setProperty("EmailSmtpUser", this.emailSmtpUser != null ? this.emailSmtpUser : "");
         p.setProperty("EmailSmtpPassword", this.emailSmtpPassword != null ? this.emailSmtpPassword : "");
+        p.setProperty("EmailSmtpSslTrust", this.emailSmtpSslTrust != null ? this.emailSmtpSslTrust : "");
 
         try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
             p.store(out, "ASBlockWar configuration");

@@ -189,6 +189,8 @@
                                 <TextField fx:id="fieldEmailSmtpUser" maxWidth="Infinity" GridPane.rowIndex="6" GridPane.columnIndex="1" />
                                 <Label text="SMTP password:" GridPane.rowIndex="7" GridPane.columnIndex="0" />
                                 <PasswordField fx:id="fieldEmailSmtpPassword" maxWidth="Infinity" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+                                <Label text="SSL trust (host or *):" GridPane.rowIndex="8" GridPane.columnIndex="0" />
+                                <TextField fx:id="fieldEmailSmtpSslTrust" promptText="mail.example.com  або  *" maxWidth="Infinity" GridPane.rowIndex="8" GridPane.columnIndex="1" />
                             </children>
                         </GridPane>
 

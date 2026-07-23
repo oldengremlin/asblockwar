@@ -329,11 +329,33 @@ public class EmailReportSender {
             String smtpPort = ASBlockWar.config.getEmailSmtpPort();
             String smtpUser = ASBlockWar.config.getEmailSmtpUser();
             String smtpPass = ASBlockWar.config.getEmailSmtpPassword();
+            String portStr  = smtpPort != null && !smtpPort.isBlank() ? smtpPort : "25";
+            int    portNum  = 25;
+            try { portNum = Integer.parseInt(portStr); } catch (NumberFormatException ignored) {}
+
             Properties props = new Properties();
             props.put("mail.smtp.host", smtpHost);
-            props.put("mail.smtp.port", smtpPort != null && !smtpPort.isBlank() ? smtpPort : "25");
+            props.put("mail.smtp.port", portStr);
+
             boolean useAuth = smtpUser != null && !smtpUser.isBlank();
             props.put("mail.smtp.auth", String.valueOf(useAuth));
+
+            String sslTrust = ASBlockWar.config.getEmailSmtpSslTrust();
+            if (portNum == 465) {
+                // SMTPS — одразу SSL/TLS
+                props.put("mail.smtp.ssl.enable", "true");
+                if (sslTrust != null && !sslTrust.isBlank()) {
+                    props.put("mail.smtp.ssl.trust", sslTrust);
+                }
+            } else if (portNum == 587 || portNum == 2587) {
+                // STARTTLS (submission)
+                props.put("mail.smtp.starttls.enable",   "true");
+                props.put("mail.smtp.starttls.required", "true");
+                if (sslTrust != null && !sslTrust.isBlank()) {
+                    props.put("mail.smtp.ssl.trust", sslTrust);
+                }
+            }
+
             if (useAuth) {
                 final String u = smtpUser;
                 final String p = smtpPass != null ? smtpPass : "";

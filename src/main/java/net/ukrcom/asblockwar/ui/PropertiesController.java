@@ -111,6 +111,8 @@ public class PropertiesController implements Initializable {
     private TextField fieldEmailSmtpUser;
     @FXML
     private PasswordField fieldEmailSmtpPassword;
+    @FXML
+    private TextField fieldEmailSmtpSslTrust;
 
     private Stage stage;
 
@@ -156,6 +158,7 @@ public class PropertiesController implements Initializable {
         fieldEmailSmtpPort.setText(ASBlockWar.config.getEmailSmtpPort() != null ? ASBlockWar.config.getEmailSmtpPort() : "25");
         fieldEmailSmtpUser.setText(ASBlockWar.config.getEmailSmtpUser() != null ? ASBlockWar.config.getEmailSmtpUser() : "");
         fieldEmailSmtpPassword.setText(ASBlockWar.config.getEmailSmtpPassword() != null ? ASBlockWar.config.getEmailSmtpPassword() : "");
+        fieldEmailSmtpSslTrust.setText(ASBlockWar.config.getEmailSmtpSslTrust() != null ? ASBlockWar.config.getEmailSmtpSslTrust() : "");
     }
 
     private static void setupList(ListView<String> lv, java.util.List<String> items) {
@@ -327,6 +330,7 @@ public class PropertiesController implements Initializable {
             ASBlockWar.config.setEmailSmtpPort(fieldEmailSmtpPort.getText().trim());
             ASBlockWar.config.setEmailSmtpUser(fieldEmailSmtpUser.getText().trim());
             ASBlockWar.config.setEmailSmtpPassword(fieldEmailSmtpPassword.getText());
+            ASBlockWar.config.setEmailSmtpSslTrust(fieldEmailSmtpSslTrust.getText().trim());
             String patternText = fieldAggressorPattern.getText().trim();
             try {
                 Pattern compiled = Pattern.compile(patternText);
