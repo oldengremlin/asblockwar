@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -278,6 +280,11 @@ public class EmailReportSender {
                     ? origins.getOrDefault(prefix, Collections.emptyList())
                     : Collections.emptyList();
 
+            // Якщо БД вже не містить запису (маршрут видалений) — беремо з STORE/NET/
+            if (asnList.isEmpty()) {
+                asnList = readOriginsFromStoreNet(prefix);
+            }
+
             if (asnList.isEmpty()) {
                 sb.append("<tr class=\"").append(rowCls).append("\">")
                   .append("<td valign=\"top\">").append(esc(prefix)).append("</td>")
@@ -442,7 +449,12 @@ public class EmailReportSender {
                 .collect(Collectors.toList());
     }
 
-    /** Шукає RPSL для ASN: спочатку в поточній карті ворогів, потім у resourcesForVerification (для видалених). */
+    /**
+     * Шукає RPSL для ASN у трьох джерелах по черзі:
+     * 1. поточна карта ворогів (aggressorAsnResources)
+     * 2. resourcesForVerification (зміни поточного запуску, включно з action=remove)
+     * 3. STORE/AS/<number>.txt — файл зберігається навіть після видалення AS
+     */
     private static String lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
         String rpsl = aggressorAsnResources.get(asn);
         if (rpsl != null && !rpsl.isBlank()) {
@@ -452,7 +464,49 @@ public class EmailReportSender {
         if (entry != null && entry.data() != null && !entry.data().isBlank()) {
             return entry.data();
         }
+        return readRpslFromStoreAs(asn);
+    }
+
+    /** Читає RPSL-блок з {@code STORE/AS/<number>.txt}; зберігається навіть після видалення AS. */
+    private static String readRpslFromStoreAs(String asn) {
+        if (asn == null) return "";
+        String storeDir = ASBlockWar.config.getStoreDir();
+        if (storeDir == null || storeDir.isBlank()) return "";
+        String number = asn.toUpperCase().startsWith("AS") ? asn.substring(2) : asn;
+        Path path = Path.of(storeDir, "AS", number + ".txt");
+        try {
+            if (Files.exists(path)) {
+                return Files.readString(path);
+            }
+        } catch (IOException e) {
+            log.debug("EmailReport: STORE/AS/{}.txt: {}", number, e.getMessage());
+        }
         return "";
+    }
+
+    /**
+     * Читає список origin-ASN з {@code STORE/NET/<prefix_normalized>.txt}.
+     * Файл містить рядки виду {@code origin:         as44811}.
+     */
+    private static List<String> readOriginsFromStoreNet(String prefix) {
+        if (prefix == null) return Collections.emptyList();
+        String storeDir = ASBlockWar.config.getStoreDir();
+        if (storeDir == null || storeDir.isBlank()) return Collections.emptyList();
+        Path path = Path.of(storeDir, "NET", prefix.replace('/', '.') + ".txt");
+        try {
+            if (Files.exists(path)) {
+                return Files.readAllLines(path).stream()
+                        .map(String::trim)
+                        .filter(line -> line.toLowerCase().startsWith("origin:"))
+                        .map(line -> line.substring("origin:".length()).trim().toUpperCase())
+                        .filter(s -> !s.isEmpty())
+                        .distinct()
+                        .collect(Collectors.toList());
+            }
+        } catch (IOException e) {
+            log.debug("EmailReport: STORE/NET/{}: {}", prefix.replace('/', '.') + ".txt", e.getMessage());
+        }
+        return Collections.emptyList();
     }
 
     /** Форматує ASN як HTML: {@code AS<b>12345</b>}. */
