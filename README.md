@@ -174,7 +174,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.10.5-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.11.0-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -228,7 +228,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.10.5-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.11.0-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -276,7 +276,7 @@ java -jar target/ASBlockWar-3.10.5-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.10.5-00000001.jar --gui
+java -jar target/ASBlockWar-3.11.0-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -400,10 +400,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.10.5-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.11.0-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.10.5-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.11.0-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -523,11 +523,11 @@ java -jar ASBlockWar-3.10.5-00000001.jar -dg /tmp/asblockwar-graph.html
 
 ```bash
 # Запуск із відправленням звіту через sendmail
-java -jar ASBlockWar-3.10.5-00000001.jar --send-report \
+java -jar ASBlockWar-3.11.0-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com
 
 # Через SMTP з автентифікацією
-java -jar ASBlockWar-3.10.5-00000001.jar --send-report \
+java -jar ASBlockWar-3.11.0-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com \
      --email-smtp-host=mail.example.com --email-smtp-port=587 \
      --email-smtp-user=user --email-smtp-password=secret
@@ -812,7 +812,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.10.5-00000001.jar --batch
+java -jar target/ASBlockWar-3.11.0-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -910,7 +910,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.10.5-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.11.0-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD
