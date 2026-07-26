@@ -63,6 +63,19 @@ public class EmailReportSender {
     private EmailReportSender() {
     }
 
+    private static final String APP_VERSION;
+    static {
+        String v = "";
+        try (java.io.InputStream is = EmailReportSender.class.getResourceAsStream("/asblockwar.properties")) {
+            if (is != null) {
+                java.util.Properties p = new java.util.Properties();
+                p.load(is);
+                v = p.getProperty("version", "");
+            }
+        } catch (IOException ignored) {}
+        APP_VERSION = v;
+    }
+
     /**
      * Відправляє HTML-звіт, якщо email.from і email.to налаштовано.
      * У режимі dry-run у темі листа з'являється позначка "[DRY RUN]".
@@ -160,7 +173,7 @@ public class EmailReportSender {
                 + "<thead><tr>"
                 + "<th valign=\"top\">ASN</th>"
                 + "<th valign=\"top\">&#1044;&#1110;&#1103;</th>"
-                + "<th valign=\"top\">Country</th>"
+                + "<th valign=\"top\">&#1050;&#1088;&#1072;&#1111;&#1085;&#1072;</th>"
                 + "<th valign=\"top\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
                 + "</tr></thead><tbody>");
 
@@ -214,7 +227,7 @@ public class EmailReportSender {
         sb.append("<table cellspacing=\"0\" cellpadding=\"5\" border=\"1\" class=\"shadow-table\">"
                 + "<thead><tr>"
                 + "<th valign=\"top\">ASN</th>"
-                + "<th valign=\"top\">Country</th>"
+                + "<th valign=\"top\">&#1050;&#1088;&#1072;&#1111;&#1085;&#1072;</th>"
                 + "<th valign=\"top\">&#1047;&#1073;&#1110;&#1075; &#1079; AggressorPattern</th>"
                 + "</tr></thead><tbody>");
 
@@ -267,10 +280,10 @@ public class EmailReportSender {
 
         sb.append("<table cellspacing=\"0\" cellpadding=\"5\" border=\"1\" class=\"shadow-table\">"
                 + "<thead><tr>"
-                + "<th valign=\"top\">IPv4/IPv6</th>"
-                + "<th valign=\"top\">Origin</th>"
-                + "<th valign=\"top\">Country</th>"
-                + "<th valign=\"top\">Descr</th>"
+                + "<th valign=\"top\" style=\"width:30%\">IPv4/IPv6</th>"
+                + "<th valign=\"top\" style=\"width:10%\">ASN</th>"
+                + "<th valign=\"top\" style=\"width:10%\">&#1050;&#1088;&#1072;&#1111;&#1085;&#1072;</th>"
+                + "<th valign=\"top\" style=\"width:50%\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
                 + "</tr></thead><tbody>");
 
         Map<String, List<String>> origins = ASBlockWar.lastRouteOrigins;
@@ -393,7 +406,7 @@ public class EmailReportSender {
         }
 
         message.setSubject(subject, "UTF-8");
-        message.setHeader("X-Mailer", "ASBlockWar");
+        message.setHeader("X-Mailer", "ASBlockWar/" + APP_VERSION);
 
         MimeBodyPart htmlPart = new MimeBodyPart();
         htmlPart.setContent(html, "text/html; charset=UTF-8");
