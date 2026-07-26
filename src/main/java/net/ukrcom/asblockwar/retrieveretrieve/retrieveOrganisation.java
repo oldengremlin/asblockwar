@@ -74,6 +74,11 @@ public class retrieveOrganisation {
         cache.put(autNum, this.sb.toString());
     }
 
+    /** Очищає статичний кеш між запусками обробки. */
+    public static void clearCache() {
+        cache.clear();
+    }
+
     /**
      * Повертає закешований текст RPSL для вказаного aut-num (ASN-резюме + org-блок).
      *

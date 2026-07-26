@@ -23,9 +23,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Одним запитом повертає всю таблицю route→origins з rpsl_origin
@@ -47,7 +47,7 @@ public class retrieveAllRouteOrigins {
             + " )"
             + " ORDER BY o.route, o.origin";
 
-    private final Map<String, List<String>> origins = new HashMap<>();
+    private final Map<String, List<String>> origins = new ConcurrentHashMap<>();
 
     /**
      * Виконує SQL-запит до бази whois-lite-local і завантажує відображення

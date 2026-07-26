@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.10.5**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.11.0**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.10.5-<buildNumber>.jar
+target/ASBlockWar-3.11.0-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.10.5-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.11.0-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -966,6 +966,16 @@ AS2345       │ AS6789      │
 
 Утиліта використовує Java 25 Virtual Threads (`Executors.newVirtualThreadPerTaskExecutor()`) для паралельних запитів до БД. Кількість одночасних з'єднань обмежена семафором (`MAX_CONCURRENT_DB_QUERIES = 20`).
 
+**Архітектура паралелізму (з версії 3.11.0):**
+
+- Кожен `forEach` подає завдання до executor-а послідовно — паралелізм виходить від executor-а з virtual threads, а не від `.parallelStream()`. Комбінування `.parallelStream() + executor.submit()` усунено — воно створювало зайвий рівень конкуренції без користі.
+- `FilterAggressor.enrichForSuspiciousCheck()` отримала `Semaphore`-параметр: у паралельному `parallelStream()`, де вона викликається, кожен виклик `retrieveMntnerFull` тепер обмежений семафором.
+- `makeAggressorAssetAndMntbyResources()` використовує **один** executor для завантаження AS-SET і MNT-BY одночасно (замість двох послідовних блоків).
+- `expandAsSetMap()` (BFS-розгортання AS-SET) повторно використовує **один** executor для всіх хвиль BFS; синхронізація між ітераціями через `Future.get()`.
+- `storeDetails()`: пари DB-запитів (AS + AS-NET, MNT + MNT-SET-AS) захоплюють семафор **один раз** на пару замість двох окремих acquire/release.
+- `storeNetworkFiles()`: запис 60 K+ файлів NET/ **паралелізовано** — virtual thread executor замість послідовного `for`-циклу.
+- `FileUtils.writeStoreFile()`: **FileLock** видалено — кожен STORE/ файл записується рівно одним потоком; атомарний запис через `.tmp` + `Files.move()` збережено.
+
 Незалежні етапи виводу (`storeWarResources` / `storeBlackbgpResources`, а також
 `storeDetails` / `storeAsList` / `storeMaintainersList` / `storeNetworkFiles`)
 запускаються одночасно окремими задачами executor-а, а не послідовно.
@@ -980,7 +990,8 @@ AS2345       │ AS6789      │
 
 Кешування в `retrieve*`-класах: `retrieveOrganisation`, `retrieveAsSet` та `retrieveMntBy`
 мають статичний `ConcurrentHashMap`-кеш — повторне звернення до одного об'єкта
-повертає збережений RPSL без SQL-запиту (кеш живе весь час процесу).
+повертає збережений RPSL без SQL-запиту. З версії 3.11.0 кеш очищується на початку
+кожного виклику `runProcessing()` — важливо для GUI-режиму з кількома запусками.
 
 ---
 

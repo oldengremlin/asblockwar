@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.ukrcom.asblockwar.ASBlockWar;
@@ -71,7 +72,7 @@ public class StoreActions {
     public static void storeMntByResources(Set<String> discovered) throws IOException {
         log.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
 
-        Path path = Path.of(ASBlockWar.listMntbyFile);
+        Path path = Path.of(ASBlockWar.config.getListMntbyFile());
         Set<String> existing = FileUtils.readFileEntries(path);
 
         List<String> merged = Stream.concat(existing.stream(), discovered.stream())
@@ -87,7 +88,7 @@ public class StoreActions {
         }
 
         FileUtils.writeStoreFile(path, String.join("\n", merged) + "\n");
-        log.info("storeMntByResources: записано {} мантейнерів до {}", merged.size(), ASBlockWar.listMntbyFile);
+        log.info("storeMntByResources: записано {} мантейнерів до {}", merged.size(), ASBlockWar.config.getListMntbyFile());
     }
 
     /**
@@ -135,10 +136,10 @@ public class StoreActions {
      */
     public static void storeAggressorAsnResources(Map<String, String> aggressorAsnResources) throws IOException {
         if (ASBlockWar.config.isDryRun()) {
-            log.debug("DRY-RUN: skip backup + skip write → {}", ASBlockWar.listFile);
+            log.debug("DRY-RUN: skip backup + skip write → {}", ASBlockWar.config.getListFile());
             return;
         }
-        Path source = Path.of(ASBlockWar.listFile);
+        Path source = Path.of(ASBlockWar.config.getListFile());
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
         // Визначаємо директорію для резервних копій (з конфігурації або поруч із list.txt)
@@ -190,7 +191,7 @@ public class StoreActions {
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(tmp, source, StandardCopyOption.REPLACE_EXISTING);
                 }
-                log.info("Збережено {} AS у {}", aggressorAsnResources.size(), source);
+                log.info("Збережено {} AS у {}", aggressorAsnResources.size(), ASBlockWar.config.getListFile());
             }
         } finally {
             Files.deleteIfExists(lockPath);
@@ -470,20 +471,27 @@ public class StoreActions {
         FileUtils.writeStoreFile(base.resolve("networks.list"), networksList);
         log.info("storeNetworkFiles: networks.list записано ({} рядків)", sorted.size());
 
-        // 4. Записуємо STORE/NET/{addr.prefix}.txt
-        int count = 0;
-        for (Map.Entry<String, List<String>> e : sorted) {
-            String filename = e.getKey().replace('/', '.') + ".txt";
-            String content = e.getValue().stream()
-                    .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
-                    .collect(Collectors.joining("\n", "", "\n"));
-            FileUtils.writeStoreFile(dirNet.resolve(filename), content);
-            if (++count % 10000 == 0) {
-                log.info("storeNetworkFiles: NET/ {}/{}", count, sorted.size());
-            }
+        // 4. Записуємо STORE/NET/{addr.prefix}.txt паралельно (virtual threads)
+        AtomicInteger count = new AtomicInteger(0);
+        try (ExecutorService netExec = Executors.newVirtualThreadPerTaskExecutor()) {
+            sorted.forEach(e -> netExec.submit(() -> {
+                try {
+                    String filename = e.getKey().replace('/', '.') + ".txt";
+                    String content = e.getValue().stream()
+                            .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
+                            .collect(Collectors.joining("\n", "", "\n"));
+                    FileUtils.writeStoreFile(dirNet.resolve(filename), content);
+                    int c = count.incrementAndGet();
+                    if (c % 10000 == 0) {
+                        log.info("storeNetworkFiles: NET/ {}/{}", c, sorted.size());
+                    }
+                } catch (IOException ex) {
+                    log.error("storeNetworkFiles: помилка запису {}", e.getKey(), ex);
+                }
+            }));
         }
 
-        log.info("storeNetworkFiles: завершено — {} файлів у NET/", count);
+        log.info("storeNetworkFiles: завершено — {} файлів у NET/", count.get());
     }
 
     /**
@@ -520,17 +528,12 @@ public class StoreActions {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
-            // STORE/AS/{asn}.txt and STORE/AS-NET/{asn}.txt
+            // STORE/AS/{asn}.txt and STORE/AS-NET/{asn}.txt (один acquire на два послідовних DB-запити)
             aggressorAsnResources.keySet().forEach(asn -> executor.submit(() -> {
                 try {
                     dbLimit.acquire();
                     try {
                         FileUtils.writeStoreFile(dirAS.resolve(asn.substring(2) + ".txt"), new retrieveAutNumFull(asn).get());
-                    } finally {
-                        dbLimit.release();
-                    }
-                    dbLimit.acquire();
-                    try {
                         // AS-BLOCK-WAR reads cache as {number}.txt (without "AS" prefix)
                         FileUtils.writeStoreFile(dirASNet.resolve(asn.substring(2) + ".txt"), new retrieveRouteOriginFull(asn).get());
                     } finally {
@@ -543,17 +546,12 @@ public class StoreActions {
                 }
             }));
 
-            // STORE/MNT/{mnt}.txt and STORE/MNT-SET-AS/{mnt}.txt
+            // STORE/MNT/{mnt}.txt and STORE/MNT-SET-AS/{mnt}.txt (один acquire на два послідовних DB-запити)
             allMntBy.forEach(mnt -> executor.submit(() -> {
                 try {
                     dbLimit.acquire();
                     try {
                         FileUtils.writeStoreFile(dirMNT.resolve(mnt + ".txt"), new retrieveMntnerFull(mnt).get());
-                    } finally {
-                        dbLimit.release();
-                    }
-                    dbLimit.acquire();
-                    try {
                         FileUtils.writeStoreFile(dirMNTSETAS.resolve(mnt + ".txt"), new retrieveMntBy(mnt).get());
                     } finally {
                         dbLimit.release();

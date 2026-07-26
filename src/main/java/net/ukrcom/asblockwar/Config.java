@@ -60,6 +60,9 @@ public class Config {
     public static final String DEFAULT_AGGRESSOR_PATTERN
             = "(?im)^(org-name:.*(Kaspersky|Qrator).*|country:.*ru|phone:[^+]*\\+7.*|address:.*(mos[ck]ow|russ?ia).*|abuse-mailbox:.*\\.ru)$";
 
+    /** Стандартний SMTP-порт — єдине джерело істини для @Option та save(). */
+    public static final String DEFAULT_SMTP_PORT = "25";
+
     /**
      * Відповідність між іменем CLI-опції та ключем у {@code asblockwar.properties}.
      * Використовується в {@link #propertyDefault} для реалізації {@code IDefaultProvider}.
@@ -251,8 +254,8 @@ public class Config {
     private String emailSmtpHost;
 
     @Option(names = "--email-smtp-port", paramLabel = "<port>",
-            defaultValue = "25",
-            description = "SMTP server port (default: 25)")
+            defaultValue = DEFAULT_SMTP_PORT,
+            description = "SMTP server port (default: " + DEFAULT_SMTP_PORT + ")")
     private String emailSmtpPort;
 
     @Option(names = "--email-smtp-user", paramLabel = "<user>",
@@ -415,10 +418,16 @@ public class Config {
         p.setProperty("GetBlackholeIpv6", this.getBlackholeIpv6);
         p.setProperty("BlackbgpIpv6", String.valueOf(this.blackbgpIpv6));
         p.setProperty("BatchMode", String.valueOf(this.batchMode));
-        p.setProperty("AfterCommand", this.afterCommand);
+        p.setProperty("AfterCommand", this.afterCommand != null ? this.afterCommand : defaultAfterCommand());
         p.setProperty("BlockCountry", joinList(this.blockCountry));
         p.setProperty("ForceASBlock", joinList(this.forceAsBlock.stream()
-                .sorted(Comparator.comparingLong(s -> Long.parseLong(s.substring(2))))
+                .sorted(Comparator.comparingLong(s -> {
+                    try {
+                        return Long.parseLong(s.substring(2));
+                    } catch (NumberFormatException e) {
+                        return Long.MAX_VALUE;
+                    }
+                }))
                 .collect(Collectors.toList())));
         p.setProperty("ForceNETBlock", joinList(this.forceNetBlock));
         p.setProperty("AggressorPattern", this.aggressorPattern);
@@ -436,7 +445,7 @@ public class Config {
         p.setProperty("EmailReplyTo", this.emailReplyTo != null ? this.emailReplyTo : "");
         p.setProperty("EmailTo", this.emailTo != null ? this.emailTo : "");
         p.setProperty("EmailSmtpHost", this.emailSmtpHost != null ? this.emailSmtpHost : "");
-        p.setProperty("EmailSmtpPort", this.emailSmtpPort != null ? this.emailSmtpPort : "25");
+        p.setProperty("EmailSmtpPort", this.emailSmtpPort != null ? this.emailSmtpPort : DEFAULT_SMTP_PORT);
         p.setProperty("EmailSmtpUser", this.emailSmtpUser != null ? this.emailSmtpUser : "");
         p.setProperty("EmailSmtpPassword", this.emailSmtpPassword != null ? this.emailSmtpPassword : "");
         p.setProperty("EmailSmtpSslTrust", this.emailSmtpSslTrust != null ? this.emailSmtpSslTrust : "");

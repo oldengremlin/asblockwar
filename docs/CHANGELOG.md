@@ -5,6 +5,78 @@
 
 ---
 
+## [3.11.0] — 2026-07-26
+
+### Виправлено (критично)
+
+- **`FilterAggressor.enrichForSuspiciousCheck()` — неконтрольовані DB-запити** (#4 HIGH):
+  у паралельному потоці (`parallelStream`) метод без обмежень відкривав з'єднання до SQLite
+  для кожного mnt-by/mnt-ref запису. Додано `Semaphore(MAX_CONCURRENT_DB_QUERIES)`, що
+  передається в метод як параметр і огортає кожен виклик `retrieveMntnerFull`.
+
+### Виправлено (паралелізм / concurrency)
+
+- **Подвійний паралелізм `.parallelStream()` + executor** (#1): прибрано `.parallel()` з
+  `Files.lines()` у `makeAggressorAsnResources()` і `makeAggressorAssetAndMntbyResources()`,
+  `.parallelStream()` замінено на `.stream()` у `makeAggressorResources()` і
+  `discoverCooperatingAsnResources()` — executor сам забезпечує паралельне виконання.
+- **Два `ExecutorService` в `makeAggressorAssetAndMntbyResources()`** (#2): об'єднано в один
+  спільний executor з одним Semaphore — AS-SET і MNT-BY завдання виконуються паралельно.
+- **Новий `ExecutorService` на кожну BFS-ітерацію в `expandAsSetMap()`** (#3): executor
+  винесено за межі циклу `do { } while (found)`. Для синхронізації між хвилями BFS
+  використовуються `Future.get()` на futures поточної хвилі.
+- **Подвійний `Semaphore.acquire/release` в `storeDetails()`** (#5): для кожного ASN і
+  кожного MNT-BY два окремих acquire/release зведено в один — обидва DB-запити виконуються
+  з одним захопленням семафора.
+
+### Виправлено (пам'ять)
+
+- **Статичні кеші без інвалідації між запусками** (#6): на початку `runProcessing()` додано
+  виклики `retrieveOrganisation.clearCache()`, `retrieveAsSet.clearCache()`,
+  `retrieveMntBy.clearCache()`. Кожен retrieve-клас отримав `public static void clearCache()`.
+- **`retrieveAllRouteOrigins` використовує `HashMap`** (#8): змінено на `ConcurrentHashMap`
+  для узгодженості з рештою concurrent-структур.
+- **Несиметрична логіка скидання стану** (#9/#16): `asSetResources.clear()` і
+  `mntnerResources.clear()` перенесено з `makeAggressorAssetAndMntbyResources()` до
+  `runProcessing()` разом з повним ре-ініціалізуванням `asSetResources`, `mntnerResources`,
+  `lastBlackbgpChanges`, `lastRouteOrigins`.
+
+### Виправлено (I/O)
+
+- **FileLock для унікальних STORE/ файлів** (#10): `FileUtils.writeStoreFile()` більше не
+  створює `.lock`-файл і не використовує `FileLock` — кожен файл у STORE/ записується рівно
+  одним потоком, тому блокування зайве. Атомарний запис через `.tmp` + `Files.move()` збережено.
+- **Послідовний запис у `storeNetworkFiles()`** (#11): цикл `for` по 60 K+ файлів замінено
+  на паралельний executor (`Executors.newVirtualThreadPerTaskExecutor()`).
+- **`Files.readAllLines()` у `EmailReportSender.readOriginsFromStoreNet()`** (#13): замінено
+  на `Files.lines()` з `try-with-resources` — ліниве читання, потік закривається гарантовано.
+
+### Покращено (архітектура / дизайн)
+
+- **Дублювання `SERVICE_MNT` Pattern** (#15): приватне поле `FilterAggressor.SERVICE_MNT`
+  видалено — метод `enrichForSuspiciousCheck()` тепер посилається на вже публічне
+  `DiscoverAggressor.SERVICE_MNT`.
+- **Зайві статичні поля `listFile` і `listMntbyFile` в `ASBlockWar`** (#17): поля видалено;
+  всі звернення замінено на `config.getListFile()` / `config.getListMntbyFile()`.
+
+### Покращено (EmailReportSender)
+
+- **Фрагментована HTML-генерація в `buildHtml()`** (#18): конкатенацію рядків замінено на
+  `StringBuilder` з початковим розміром 64 KiB.
+- **Захисна перевірка в `sendIfEnabled()`** (#20): якщо `lastRouteOrigins == null` і
+  `aggressorAsnResources` порожній — звіт не формується (обробку ще не виконано).
+
+### Покращено (Config)
+
+- **Константа `DEFAULT_SMTP_PORT = "25"`** (#22): єдине джерело значення — використовується
+  і в `@Option(defaultValue=...)`, і в `save()`.
+- **Null guard для `afterCommand` у `save()`** (#23): якщо значення не встановлено,
+  підставляється платформозалежний дефолт (`after.sh` / `after.cmd`).
+- **`NumberFormatException` у сортуванні `ForceASBlock` в `save()`** (#24): некоректний
+  рядок більше не кидає виняток — такий елемент сортується останнім.
+
+---
+
 ## [3.10.5] — 2026-07-26
 
 ### Виправлено (документація)

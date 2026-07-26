@@ -69,6 +69,11 @@ public class retrieveAsSet {
         cache.put(asSet, this.sb.toString());
     }
 
+    /** Очищає статичний кеш між запусками обробки. */
+    public static void clearCache() {
+        cache.clear();
+    }
+
     /**
      * Повертає RPSL-блок as-set у вигляді рядка.
      *

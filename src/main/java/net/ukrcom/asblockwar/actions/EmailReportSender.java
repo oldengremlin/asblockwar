@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.ASBlockWar;
 import net.ukrcom.asblockwar.serviceStructures.Action;
@@ -78,6 +79,12 @@ public class EmailReportSender {
      * @param aggressorAsnResources фінальна карта {@code ASN → RPSL-блок}
      */
     public static void sendIfEnabled(Map<String, String> aggressorAsnResources) {
+        // Захист від виклику до завершення runProcessing()
+        if (ASBlockWar.lastRouteOrigins == null && aggressorAsnResources.isEmpty()) {
+            log.warn("EmailReport: обробку ще не виконано — звіт не формується");
+            return;
+        }
+
         String emailFrom = ASBlockWar.config.getEmailFrom();
         String emailTo   = ASBlockWar.config.getEmailTo();
 
@@ -131,19 +138,21 @@ public class EmailReportSender {
                   + "&#9888; <b>DRY RUN — файли не записувались, фактичних змін не внесено</b></div>"
                 : "";
 
-        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
-                + CSS + "</style></head><body>"
-                + "<h1>ASBlockWar &#8212; Run Report</h1>"
-                + "<p style=\"color:#666;margin-top:-8px;\">" + esc(ts)
-                + " &nbsp;|&nbsp; Всього заблоковано: <b>"
-                + aggressorAsnResources.size() + "</b> ASN</p>"
-                + dryBanner
-                + buildAsnSection()
-                + buildSuspiciousSection()
-                + buildRouteSection(false, aggressorAsnResources)
-                + buildRouteSection(true,  aggressorAsnResources)
-                + "<div class=\"footer\">Згенеровано ASBlockWar</div>"
-                + "</body></html>";
+        return new StringBuilder(1 << 16)
+                .append("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>")
+                .append(CSS).append("</style></head><body>")
+                .append("<h1>ASBlockWar &#8212; Run Report</h1>")
+                .append("<p style=\"color:#666;margin-top:-8px;\">").append(esc(ts))
+                .append(" &nbsp;|&nbsp; Всього заблоковано: <b>")
+                .append(aggressorAsnResources.size()).append("</b> ASN</p>")
+                .append(dryBanner)
+                .append(buildAsnSection())
+                .append(buildSuspiciousSection())
+                .append(buildRouteSection(false, aggressorAsnResources))
+                .append(buildRouteSection(true,  aggressorAsnResources))
+                .append("<div class=\"footer\">Згенеровано ASBlockWar</div>")
+                .append("</body></html>")
+                .toString();
     }
 
     /** Зведена таблиця змін ASN (вилучені / додані / змінені). */
@@ -503,13 +512,15 @@ public class EmailReportSender {
         Path path = Path.of(storeDir, "NET", prefix.replace('/', '.') + ".txt");
         try {
             if (Files.exists(path)) {
-                return Files.readAllLines(path).stream()
-                        .map(String::trim)
-                        .filter(line -> line.toLowerCase().startsWith("origin:"))
-                        .map(line -> line.substring("origin:".length()).trim().toUpperCase())
-                        .filter(s -> !s.isEmpty())
-                        .distinct()
-                        .collect(Collectors.toList());
+                try (Stream<String> lines = Files.lines(path)) {
+                    return lines
+                            .map(String::trim)
+                            .filter(line -> line.toLowerCase().startsWith("origin:"))
+                            .map(line -> line.substring("origin:".length()).trim().toUpperCase())
+                            .filter(s -> !s.isEmpty())
+                            .distinct()
+                            .collect(Collectors.toList());
+                }
             }
         } catch (IOException e) {
             log.debug("EmailReport: STORE/NET/{}: {}", prefix.replace('/', '.') + ".txt", e.getMessage());

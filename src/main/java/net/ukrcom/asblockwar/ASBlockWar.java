@@ -47,6 +47,9 @@ import net.ukrcom.asblockwar.actions.Reporter;
 import net.ukrcom.asblockwar.actions.StoreActions;
 import net.ukrcom.asblockwar.graph.GraphBuilder;
 import net.ukrcom.asblockwar.graph.GraphExporter;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntBy;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
 
 /**
  * Головна точка входу та ядро обробки ASBlockWar.
@@ -62,8 +65,6 @@ public class ASBlockWar {
     public static final Logger LOGGER = LoggerFactory.getLogger(ASBlockWar.class);
     public static final int MAX_CONCURRENT_DB_QUERIES = 20;
     public static Config config;
-    public static String listFile;
-    public static String listMntbyFile;
 
     public static volatile UIProgressCallback uiCallback;
 
@@ -158,13 +159,22 @@ public class ASBlockWar {
 
     public static void runProcessing() throws IOException, InterruptedException {
         long t0 = System.nanoTime();
-        listFile = config.getListFile();
-        listMntbyFile = config.getListMntbyFile();
-        resourcesForVerification = new ConcurrentHashMap<>();
-        suspiciousAsnResources = new ConcurrentHashMap<>();
 
-        LOGGER.info("listFile: " + listFile);
-        LOGGER.info("listMntbyFile: " + listMntbyFile);
+        // Скидання стану між запусками (критично для GUI-режиму з кількома запусками)
+        resourcesForVerification = new ConcurrentHashMap<>();
+        suspiciousAsnResources   = new ConcurrentHashMap<>();
+        asSetResources           = new ConcurrentHashMap<>();
+        mntnerResources          = new ConcurrentHashMap<>();
+        lastBlackbgpChanges      = null;
+        lastRouteOrigins         = null;
+
+        // Очищення статичних кешів retrieve-класів між запусками
+        retrieveOrganisation.clearCache();
+        retrieveAsSet.clearCache();
+        retrieveMntBy.clearCache();
+
+        LOGGER.info("listFile: " + config.getListFile());
+        LOGGER.info("listMntbyFile: " + config.getListMntbyFile());
 
         Map<String, String> aggressorAsnResources = MakeAggressor.makeAggressorAsnResources();
         Map<String, String> aggressorMntbyResources = MakeAggressor.makeAggressorAssetAndMntbyResources();
@@ -194,7 +204,7 @@ public class ASBlockWar {
 
         Set<String> effectivePrefixes = StoreActions.storeResources(aggressorAsnResources);
 
-        Set<String> allMntBy = FileUtils.readFileEntries(Path.of(listMntbyFile));
+        Set<String> allMntBy = FileUtils.readFileEntries(Path.of(config.getListMntbyFile()));
         Set<String> allAsSets = FileUtils.readFileEntries(Path.of(config.getListAssetFile()));
 
         try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
