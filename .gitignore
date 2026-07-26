@@ -1,5 +1,4 @@
 *.properties
-!src/main/resources/asblockwar.properties
 *.txt
 *.gz
 *.sh

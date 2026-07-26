@@ -65,15 +65,10 @@ public class EmailReportSender {
 
     private static final String APP_VERSION;
     static {
-        String v = "";
-        try (java.io.InputStream is = EmailReportSender.class.getResourceAsStream("/asblockwar.properties")) {
-            if (is != null) {
-                java.util.Properties p = new java.util.Properties();
-                p.load(is);
-                v = p.getProperty("version", "");
-            }
-        } catch (IOException ignored) {}
-        APP_VERSION = v;
+        // Implementation-Version прописується shade-плагіном у MANIFEST.MF
+        Package pkg = EmailReportSender.class.getPackage();
+        String v = pkg != null ? pkg.getImplementationVersion() : null;
+        APP_VERSION = v != null ? v : "";
     }
 
     /**
