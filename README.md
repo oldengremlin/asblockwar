@@ -260,6 +260,15 @@ java -jar target/ASBlockWar-3.10.4-00000001.jar [параметри]
 | `-dg=<шлях>`, `--dependency-graph=<шлях>` | Задати власний шлях для HTML-файлу графа |
 | `--primary-enemy=<items,...>` | AS-SET-и через кому, що **додаються** до `PrimaryEnemyResources` (адитивно, не замінює значення з файлу конфігурації) |
 | `-n`, `--dry-run` | Симулювати обробку без запису файлів та без запуску `AfterCommand` — всі кроки виконуються, але диск не змінюється |
+| `--send-report` | Надіслати HTML email-звіт після завершення обробки |
+| `--email-from=<addr>` | Адреса відправника звіту |
+| `--email-reply-to=<addr>` | Reply-To адреса (необов'язково) |
+| `--email-to=<addr,...>` | Отримувачі звіту (через кому) |
+| `--email-smtp-host=<host>` | SMTP-сервер (порожньо = `/usr/sbin/sendmail`) |
+| `--email-smtp-port=<port>` | SMTP-порт (за замовчуванням: `25`) |
+| `--email-smtp-user=<user>` | Логін SMTP-автентифікації |
+| `--email-smtp-password=<pass>` | Пароль SMTP-автентифікації |
+| `--email-smtp-ssl-trust=<host\|*>` | Хост для SSL-довіри (STARTTLS/SMTPS); `*` = без перевірки сертифіката |
 | `-h`, `--help` | Вивести довідку та вийти |
 
 ---
@@ -267,7 +276,7 @@ java -jar target/ASBlockWar-3.10.4-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.7.8-00000001.jar --gui
+java -jar target/ASBlockWar-3.10.4-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -343,6 +352,16 @@ java -jar target/ASBlockWar-3.7.8-00000001.jar --gui
 | Force block ASNs | редагований список ASN, що блокуються незалежно від country/pattern (напр. `AS209671`); `+` / `−` |
 | Force blackhole networks | редагований список мереж/хостів, що примусово додаються до blackbgp (напр. `185.104.208.34/32`); `+` / `−` |
 | Aggressor pattern | текстове поле з regex; перевіряється компіляцією перед збереженням — невалідний regex блокує Save |
+| **Email Report** | |
+| Send email report | прапорець — вмикає відправлення HTML-звіту після кожного запуску |
+| From | адреса відправника |
+| Reply-To | Reply-To адреса (необов'язково) |
+| To (comma-separated) | отримувачі через кому |
+| SMTP host | SMTP-сервер; порожньо = `/usr/sbin/sendmail -t` |
+| SMTP port | SMTP-порт (за замовчуванням: `25`; для STARTTLS — `587`, для SMTPS — `465`) |
+| SMTP user | логін SMTP-автентифікації (необов'язково) |
+| SMTP password | пароль SMTP-автентифікації (необов'язково) |
+| SSL trust (host or *) | хост для SSL-довіри при STARTTLS/SMTPS; `*` = без перевірки сертифіката |
 
 Записи у списках можна редагувати inline (подвійний клік) або через кнопку `+` (текстовий діалог). Для ASN будь-який формат (`209671`, `as209671`, `AS209671`) нормалізується до `AS209671` автоматично.
 
@@ -578,10 +597,13 @@ flowchart TD
 
     RP["[13] report\nВилучено / Додано / Модифіковано\n+ підозрілі AS поза BlockCountry зі збігом AggressorPattern"]
 
-    RP --> DG{"[14] --dependency-graph?"}
+    RP --> EM{"[14] --send-report?"}
+    EM -- так --> ERS["EmailReportSender.sendIfEnabled()\nHTML: зміни ASN / підозрілі AS / маршрути ip r d / ip r r\nfallback: STORE/AS/ та STORE/NET/\nsendmail або SMTP (STARTTLS/SMTPS)"]
+    EM -- ні --> DG
+    ERS --> DG{"[15] --dependency-graph?"}
     DG -- так --> GR["fetchMissingAsSetRpsl → expandAsSetMap (BFS) → fetchMemberAsnRpsl\nGraphBuilder.build() [parallelStream: blocked, suspicious, cleared, allAsSets, memberAsns]\nGraphExporter.export()\nsfdp layout або D3 force-simulation\ndependency-graph.html"]
     DG -- ні --> BC
-    GR --> BC["[15] BatchRunner\nAfterCommand-скрипт (якщо -b)\nstdout/stderr → лог"]
+    GR --> BC["[16] BatchRunner\nAfterCommand-скрипт (якщо -b)\nstdout/stderr → лог"]
 
     BC --> End([Кінець])
 
@@ -591,9 +613,9 @@ flowchart TD
     classDef output  fill:#f3e8ff,stroke:#a855f7,color:#581c87
 
     class M1,M2 input
-    class F1,F2,NE,DG filter
+    class F1,F2,NE,DG,EM filter
     class MR,DC,FA process
-    class SM,WR,BG,WR2,ST,SD,AL,ML,NF,RP,GR,BC output
+    class SM,WR,BG,WR2,ST,SD,AL,ML,NF,RP,ERS,GR,BC output
 ```
 
 **Легенда:**
@@ -602,7 +624,7 @@ flowchart TD
 🟢 зелений — обробка (MR, DC) &nbsp;
 🟣 фіолетовий — вивід (SM, WR, BG, WR2, ST, SD, AL, ML, NF, RP)
 
-Кроки `[1]` і `[2]` виконуються послідовно. Кроки `[9a]`/`[9b]` та `[12a]`–`[12d]` виконуються паралельно (virtual threads). Крок `[14]` виконується лише за наявності `-dg` / `--dependency-graph`; у `GraphBuilder.build()` всі CPU-важкі мапи (`blocked`, `suspicious`, `cleared`, `allAsSets`, `memberAsns`) обробляються через `parallelStream()`, поширення статусу — теж. Крок `[15]` виконується тільки у пакетному режимі (`-b` / `--batch`).
+Кроки `[1]` і `[2]` виконуються послідовно. Кроки `[9a]`/`[9b]` та `[12a]`–`[12d]` виконуються паралельно (virtual threads). Крок `[14]` виконується лише якщо увімкнено `--send-report`. Крок `[15]` виконується лише за наявності `-dg` / `--dependency-graph`; у `GraphBuilder.build()` всі CPU-важкі мапи (`blocked`, `suspicious`, `cleared`, `allAsSets`, `memberAsns`) обробляються через `parallelStream()`, поширення статусу — теж. Крок `[16]` виконується тільки у пакетному режимі (`-b` / `--batch`).
 
 ### Критерій блокування та AggressorPattern
 
