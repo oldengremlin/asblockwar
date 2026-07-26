@@ -71,6 +71,11 @@ public class retrieveMntBy {
         cache.put(mntBy, this.sb.toString());
     }
 
+    /** Очищає статичний кеш між запусками обробки. */
+    public static void clearCache() {
+        cache.clear();
+    }
+
     /**
      * Повертає конкатенований текст усіх RPSL-блоків, обслуговуваних вказаним мантейнером.
      *

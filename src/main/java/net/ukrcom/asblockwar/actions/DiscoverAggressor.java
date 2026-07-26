@@ -89,7 +89,7 @@ public class DiscoverAggressor {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
-            aggressorAsnResources.keySet().parallelStream()
+            aggressorAsnResources.keySet().stream()
                     .forEach(asn -> executor.submit(() -> {
                 try {
                     retrieveImportExportAsSets retriever;

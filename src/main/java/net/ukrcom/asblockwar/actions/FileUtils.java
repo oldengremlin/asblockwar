@@ -16,13 +16,10 @@
 package net.ukrcom.asblockwar.actions;
 
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -78,11 +75,11 @@ public class FileUtils {
     }
 
     /**
-     * Атомарно записує вміст у файл через тимчасовий файл і файлове блокування.
+     * Атомарно записує вміст у файл через тимчасовий файл.
      * <p>
      * Якщо {@code content} порожній або {@code null} — нічого не робить.
-     * Використовує {@link FileLock} для захисту від паралельного запису та
-     * {@link StandardCopyOption#ATOMIC_MOVE} для безпечної заміни файлу.
+     * Кожен файл у STORE/ записується рівно одним потоком, тому FileLock не потрібен;
+     * {@link StandardCopyOption#ATOMIC_MOVE} забезпечує безпечну заміну файлу.
      *
      * @param file шлях до цільового файлу
      * @param content вміст для запису
@@ -97,22 +94,16 @@ public class FileUtils {
             log.debug("DRY-RUN: skip write → {}", file);
             return;
         }
-        Path lockPath = file.resolveSibling(file.getFileName() + ".lock");
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         try {
-            try (FileChannel lc = FileChannel.open(lockPath,
-                    StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                 FileLock fl = lc.lock()) {
-                Files.writeString(tmp, content);
-                try {
-                    Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE,
-                            StandardCopyOption.REPLACE_EXISTING);
-                } catch (AtomicMoveNotSupportedException e) {
-                    Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-                }
+            Files.writeString(tmp, content);
+            try {
+                Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
             }
         } finally {
-            Files.deleteIfExists(lockPath);
             Files.deleteIfExists(tmp);
         }
     }

@@ -17,6 +17,7 @@ package net.ukrcom.asblockwar.actions;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,9 +36,6 @@ public class FilterAggressor {
 
     private static final Pattern COUNTRY_PATTERN
             = Pattern.compile("(?im)^country:\\s*([A-Z]{2,3})\\b");
-
-    private static final Pattern SERVICE_MNT
-            = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
 
     private FilterAggressor() {
     }
@@ -98,21 +96,34 @@ public class FilterAggressor {
      * Це дозволяє {@link #matchedAggressorLine} знаходити збіги AggressorPattern
      * у даних mntner (адреса, телефон, назва організації), які відсутні в
      * GDPR-санованих RPSL-об'єктах.
+     * Семафор {@code dbLimit} захищає від неконтрольованого паралельного доступу до БД,
+     * оскільки цей метод викликається з паралельного потоку.
      *
      * @param rpsl вихідний RPSL-блок (synthetic header + aut-num + org)
+     * @param dbLimit семафор для обмеження паралельних запитів до БД
      * @return розширений блок з доданими mntner/role-блоками
      */
-    private static String enrichForSuspiciousCheck(String rpsl) {
+    private static String enrichForSuspiciousCheck(String rpsl, Semaphore dbLimit) {
         StringBuilder enriched = new StringBuilder(rpsl);
         rpsl.lines()
                 .filter(l -> l.matches("(?i)^mnt-(by|ref):\\s*\\S+"))
                 .map(l -> l.replaceFirst("(?i)^mnt-(?:by|ref):\\s*", "").trim())
-                .filter(v -> !v.isEmpty() && !SERVICE_MNT.matcher(v).matches())
+                .filter(v -> !v.isEmpty() && !DiscoverAggressor.SERVICE_MNT.matcher(v).matches())
                 .distinct()
                 .forEach(mnt -> {
-                    String block = new retrieveMntnerFull(mnt).get();
-                    if (!block.isEmpty()) {
-                        enriched.append("\n").append(block);
+                    try {
+                        dbLimit.acquire();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                    try {
+                        String block = new retrieveMntnerFull(mnt).get();
+                        if (!block.isEmpty()) {
+                            enriched.append("\n").append(block);
+                        }
+                    } finally {
+                        dbLimit.release();
                     }
                 });
         return enriched.toString();
@@ -134,6 +145,7 @@ public class FilterAggressor {
      */
     public static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
         Set<String> blocked = blockedCountries();
+        Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
         return aggressorAsnResources.entrySet().parallelStream()
                 .filter(entry -> {
@@ -141,7 +153,7 @@ public class FilterAggressor {
                     if (isAggressor(rpsl, blocked)) {
                         return true;
                     }
-                    String matched = matchedAggressorLine(enrichForSuspiciousCheck(rpsl));
+                    String matched = matchedAggressorLine(enrichForSuspiciousCheck(rpsl, dbLimit));
                     if (matched != null) {
                         log.warn("Не в BlockCountry, але AggressorPattern збігається: {}", entry.getKey());
                         ASBlockWar.suspiciousAsnResources.put(
