@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.10.4**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.10.5**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.10.4-<buildNumber>.jar
+target/ASBlockWar-3.10.5-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.10.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.10.5-00000001.jar [параметри]
 ```
 
 ### Варіант 2: native app image (`mvn clean verify`)
@@ -174,7 +174,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.10.4-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.10.5-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -228,7 +228,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.10.4-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.10.5-00000001.jar [параметри]
 ```
 
 ### Параметри командного рядка
@@ -276,7 +276,7 @@ java -jar target/ASBlockWar-3.10.4-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.10.4-00000001.jar --gui
+java -jar target/ASBlockWar-3.10.5-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -400,10 +400,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.10.4-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.10.5-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.10.4-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.10.5-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -523,11 +523,11 @@ java -jar ASBlockWar-3.10.4-00000001.jar -dg /tmp/asblockwar-graph.html
 
 ```bash
 # Запуск із відправленням звіту через sendmail
-java -jar ASBlockWar-3.10.4-00000001.jar --send-report \
+java -jar ASBlockWar-3.10.5-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com
 
 # Через SMTP з автентифікацією
-java -jar ASBlockWar-3.10.4-00000001.jar --send-report \
+java -jar ASBlockWar-3.10.5-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com \
      --email-smtp-host=mail.example.com --email-smtp-port=587 \
      --email-smtp-user=user --email-smtp-password=secret
@@ -812,7 +812,7 @@ IPv6-маршрути враховуються за замовчуванням (
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.7.8-00000001.jar --batch
+java -jar target/ASBlockWar-3.10.5-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -910,13 +910,13 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.7.8-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.10.5-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD
     AW["ASBlockWar --batch"]
-    PR["[1–12] обробка ASN\nwar.juniper.txt · war.blackbgp.txt"]
-    AF["[13] after.sh"]
+    PR["[1–15] обробка ASN\nwar.juniper.txt · war.blackbgp.txt"]
+    AF["[16] after.sh"]
     JT["after.juniper.tcl\nSSH → Juniper"]
     JC["configure private\ncommit synchronize and-quit"]
     BB["scp war.blackbgp.txt\n→ blackbgp-сервер"]
@@ -970,7 +970,7 @@ AS2345       │ AS6789      │
 `storeDetails` / `storeAsList` / `storeMaintainersList` / `storeNetworkFiles`)
 запускаються одночасно окремими задачами executor-а, а не послідовно.
 
-Побудова графа залежностей у `GraphBuilder.build()` (крок `[14]`) застосовує
+Побудова графа залежностей у `GraphBuilder.build()` (крок `[15]`) застосовує
 `parallelStream()` для всіх CPU-важких кроків: мапи `blocked`, `suspicious`, `cleared`,
 `allAsSets` та `memberAsns` обробляються паралельно — regex-парсинг RPSL-блоків
 масштабується до кількості ядер. `allMntBy` залишається sequential (лише `addNode()`,
