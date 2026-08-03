@@ -139,6 +139,12 @@ public class StoreActions {
             log.debug("DRY-RUN: skip backup + skip write → {}", ASBlockWar.config.getListFile());
             return;
         }
+        // Запобіжник: порожній набір означає збій вище за течією (недоступна БД,
+        // помилка читання), а не «ворогів немає». Запис стер би весь список.
+        if (aggressorAsnResources.isEmpty()) {
+            throw new IOException("storeAggressorAsnResources: набір ворожих ASN порожній — "
+                    + "запис " + ASBlockWar.config.getListFile() + " скасовано");
+        }
         Path source = Path.of(ASBlockWar.config.getListFile());
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
@@ -158,10 +164,11 @@ public class StoreActions {
             try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                  FileLock fl = lc.lock()) {
 
-                // Порівнюємо з останнім бекапом — пропускаємо якщо вміст не змінився
-                Optional<Path> latestBackup = findLatestBackup(source, backupDir);
-                if (latestBackup.isPresent() && Files.readString(latestBackup.get()).equals(newContent)) {
-                    log.info("list.txt не змінився ({} AS) — вміст збігається з останнім бекапом, пропущено",
+                // Порівнюємо з самим list.txt, а не з бекапом: бекап містить стан
+                // ДО попереднього запису, тож порівняння з ним відставало на покоління
+                // і при «осциляції» списку блокувало запис назавжди.
+                if (Files.exists(source) && Files.readString(source).equals(newContent)) {
+                    log.info("list.txt не змінився ({} AS) — запис пропущено",
                             aggressorAsnResources.size());
                     return;
                 }

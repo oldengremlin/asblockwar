@@ -15,6 +15,7 @@
  */
 package net.ukrcom.asblockwar.actions;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -176,7 +177,8 @@ public class DiscoverAggressor {
      * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
      * @return обчислені зміни разом з набором нових ворожих ASN
      */
-    public static BlackbgpChanges discoverBlackbgpChanges(Map<String, String> aggressorAsnResources) {
+    public static BlackbgpChanges discoverBlackbgpChanges(Map<String, String> aggressorAsnResources)
+            throws IOException {
         boolean ipv6 = ASBlockWar.config.isBlackbgpIpv6();
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
@@ -211,6 +213,16 @@ public class DiscoverAggressor {
                 .map(p -> p.contains("/") ? p : (p.contains(":") ? p + "/128" : p + "/32"))
                 .filter(p -> ipv6 || !p.contains(":"))
                 .forEach(targetPrefixes::add);
+
+        // Запобіжник: порожня ціль при непорожньому поточному стані означає збій БД
+        // (retrieveRouteOriginPrefixes ковтає SQLException і повертає порожній список),
+        // а не «ворожих маршрутів немає». Без цієї перевірки згенерувався б diff,
+        // що знімає ВЕСЬ blackhole.
+        if (targetPrefixes.isEmpty() && !currentPrefixes.isEmpty()) {
+            throw new IOException("discoverBlackbgpChanges: цільовий набір префіксів порожній "
+                    + "при " + currentPrefixes.size() + " поточних у blackbgp — ймовірно недоступна БД; "
+                    + "генерацію diff скасовано, щоб не зняти блокування");
+        }
 
         // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні
         Set<String> toDelete = ConcurrentHashMap.newKeySet();

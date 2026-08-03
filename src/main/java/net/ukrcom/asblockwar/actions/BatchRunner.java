@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.ASBlockWar;
 import net.ukrcom.asblockwar.UIProgressCallback;
@@ -31,6 +33,9 @@ import net.ukrcom.asblockwar.UIProgressCallback;
  */
 @Slf4j
 public class BatchRunner {
+
+    /** Ліміт очікування AfterCommand-скрипта (він може робити ssh/scp до зовнішніх вузлів). */
+    private static final long PROCESS_TIMEOUT_SECONDS = 3600;
 
     private BatchRunner() {
     }
@@ -68,26 +73,39 @@ public class BatchRunner {
                             : new ProcessBuilder(scriptFile.getAbsolutePath());
         pb.directory(new File(System.getProperty("user.dir")));
         UIProgressCallback cb = ASBlockWar.uiCallback;
+        Process proc = null;
         try {
             long t0 = System.nanoTime();
             if (cb == null) {
                 // CLI-режим: вивід успадковується консоллю
                 pb.inheritIO();
-                int code = pb.start().waitFor();
-                log.info("AfterCommand: завершено з кодом {} за {}.", code, formatDuration(System.nanoTime() - t0));
+                proc = pb.start();
             } else {
                 // GUI-режим: потоковий вивід рядок за рядком з розрізненням stdout/stderr
                 pb.redirectErrorStream(false);
-                Process proc = pb.start();
-                Thread stdoutThread = pipeStream(proc.getInputStream(), cb, false);
-                Thread stderrThread = pipeStream(proc.getErrorStream(), cb, true);
-                int code = proc.waitFor();
-                stdoutThread.join();
-                stderrThread.join();
-                log.info("AfterCommand: завершено з кодом {} за {}.", code, formatDuration(System.nanoTime() - t0));
+                proc = pb.start();
+                pipeStream(proc.getInputStream(), cb, false);
+                pipeStream(proc.getErrorStream(), cb, true);
             }
+            // Скрипт не читає stdin — закриваємо, інакше він міг би чекати на ввід вічно
+            proc.getOutputStream().close();
+
+            if (!proc.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                proc.destroy();
+                if (!proc.waitFor(10, TimeUnit.SECONDS)) {
+                    proc.destroyForcibly();
+                }
+                log.error("AfterCommand: {} не завершився за {} с — процес знищено",
+                        cmd, PROCESS_TIMEOUT_SECONDS);
+                return;
+            }
+            log.info("AfterCommand: завершено з кодом {} за {}.",
+                    proc.exitValue(), formatDuration(System.nanoTime() - t0));
         } catch (IOException | InterruptedException e) {
-            log.error("AfterCommand: помилка виконання: {}", e.getMessage());
+            log.error("AfterCommand: помилка виконання {}", cmd, e);
+            if (proc != null) {
+                proc.destroyForcibly();
+            }
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
@@ -105,10 +123,17 @@ public class BatchRunner {
 
     private static Thread pipeStream(InputStream stream, UIProgressCallback cb, boolean isStderr) {
         return Thread.ofVirtual().start(() -> {
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(stream))) {
+            try (BufferedReader r = new BufferedReader(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = r.readLine()) != null) {
-                    cb.onBatchOutputLine(line, isStderr);
+                    try {
+                        cb.onBatchOutputLine(line, isStderr);
+                    } catch (RuntimeException ex) {
+                        // Колбек GUI не має права зупинити дренаж: інакше труба
+                        // переповниться і скрипт заблокується на write() назавжди
+                        log.warn("AfterCommand: колбек виводу впав: {}", ex.toString());
+                    }
                 }
             } catch (IOException ignored) {
             }

@@ -64,11 +64,11 @@ public class retrieveMntBy {
         try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             this.conn = connection;
             this.loadMntBy();
+            // Кешуємо ЛИШЕ успішний результат — див. retrieveAsSet
+            cache.put(mntBy, this.sb.toString());
         } catch (SQLException ex) {
-            log.error("Помилка при отриманні MntBy", ex);
+            log.error("Помилка при отриманні MntBy {}", mntBy, ex);
         }
-
-        cache.put(mntBy, this.sb.toString());
     }
 
     /** Очищає статичний кеш між запусками обробки. */

@@ -69,7 +69,8 @@ public class ASBlockWar {
     public static volatile UIProgressCallback uiCallback;
 
     // Скомпільований патерн для використання з find() — ініціалізується у main() з config.getAggressorPattern()
-    public static Pattern AGGRESSOR_COMPILED;
+    // volatile: записується з FX-потоку (діалог Properties), читається з робочих потоків
+    public static volatile Pattern AGGRESSOR_COMPILED;
 
     public static Map<String, ASN> resourcesForVerification = new ConcurrentHashMap<>();
 
@@ -167,6 +168,8 @@ public class ASBlockWar {
         mntnerResources          = new ConcurrentHashMap<>();
         lastBlackbgpChanges      = null;
         lastRouteOrigins         = null;
+        // Інакше після невдалого запуску GUI показував би дані попереднього
+        lastAggressorAsnResources = new ConcurrentHashMap<>();
 
         // Очищення статичних кешів retrieve-класів між запусками
         retrieveOrganisation.clearCache();
@@ -231,7 +234,10 @@ public class ASBlockWar {
                 try {
                     task.get();
                 } catch (InterruptedException e) {
+                    // Продовжувати після переривання не можна: решта записів у STORE/
+                    // була б мовчки покинута, а звіт відрапортував би успіх
                     Thread.currentThread().interrupt();
+                    throw new InterruptedException("Запис STORE/ перервано");
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof IOException ioe) {
                         throw ioe;

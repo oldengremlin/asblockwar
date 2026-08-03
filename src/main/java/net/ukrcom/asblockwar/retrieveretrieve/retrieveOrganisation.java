@@ -68,10 +68,11 @@ public class retrieveOrganisation {
             this.conn = connection;
             this.loadAsn();
             this.loadOrg();
+            // Кешуємо ЛИШЕ успішний результат — див. retrieveAsSet
+            cache.put(autNum, this.sb.toString());
         } catch (SQLException ex) {
-            log.error("Помилка при отриманні Organisation", ex);
+            log.error("Помилка при отриманні Organisation {}", autNum, ex);
         }
-        cache.put(autNum, this.sb.toString());
     }
 
     /** Очищає статичний кеш між запусками обробки. */
@@ -90,9 +91,9 @@ public class retrieveOrganisation {
             log.debug("retrieveOrganisation({}).get(): [cache]", this.autNum);
             return cached;
         }
-        // fallback: значення не потрапило в cache (наприклад, помилка SQL)
+        // fallback: значення не потрапило в cache (наприклад, помилка SQL).
+        // Кеш тут НЕ оновлюємо — інакше збій зафіксувався б назавжди.
         String result = this.sb != null ? this.sb.toString() : "";
-        cache.put(this.autNum, result);
         log.debug("retrieveOrganisation({}).get(): {}", this.autNum, result);
         return result;
     }

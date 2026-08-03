@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.stream.Stream;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -231,12 +232,14 @@ public class FilePickerController implements Initializable {
     private void populateFileList(Path dir) {
         fileList.getItems().clear();
         try {
-            Files.list(dir)
-                    .filter(Files::isRegularFile)
-                    .filter(p -> !hidden(p))
-                    .sorted()
-                    .forEach(fileList.getItems()::add);
-        } catch (IOException ignored) {
+            try (Stream<Path> entries = Files.list(dir)) {
+                entries.filter(Files::isRegularFile)
+                        .filter(p -> !hidden(p))
+                        .sorted()
+                        .forEach(fileList.getItems()::add);
+            }
+        } catch (IOException e) {
+            log.debug("FilePicker: не вдалося прочитати {}: {}", dir, e.getMessage());
         }
     }
 
@@ -249,14 +252,14 @@ public class FilePickerController implements Initializable {
             if (is && !item.getChildren().isEmpty()
                     && item.getChildren().get(0).getValue() == null) {
                 item.getChildren().clear();
-                try {
-                    Files.list(path)
-                            .filter(Files::isDirectory)
+                try (Stream<Path> entries = Files.list(path)) {
+                    entries.filter(Files::isDirectory)
                             .filter(p -> !hidden(p))
                             .sorted()
                             .map(this::createDirItem)
                             .forEach(item.getChildren()::add);
-                } catch (IOException ignored) {
+                } catch (IOException e) {
+                    log.debug("FilePicker: не вдалося прочитати {}: {}", path, e.getMessage());
                 }
             }
         });

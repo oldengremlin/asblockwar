@@ -313,8 +313,18 @@ public class GraphExporter {
                     sb.append("\\r");
                 case '\t' ->
                     sb.append("\\t");
+                // Дані вставляються всередину <script>, а HTML-парсер обриває блок
+                // на "</script" навіть усередині JS-рядка. Поля descr/remarks пише
+                // оператор ворожої AS, тож екрануємо їх unicode-escape (валідно і в JSON, і в JS).
+                case '<' ->
+                    sb.append("\\u003c");
+                case '>' ->
+                    sb.append("\\u003e");
+                case '&' ->
+                    sb.append("\\u0026");
                 default -> {
-                    if (c < 0x20) {
+                    // c < 0x20 — керуючі; 0x2028/0x2029 — термінатори рядка в JS-літералах
+                    if (c < 0x20 || c == 0x2028 || c == 0x2029) {
                         sb.append(String.format("\\u%04x", (int) c));
                     } else {
                         sb.append(c);

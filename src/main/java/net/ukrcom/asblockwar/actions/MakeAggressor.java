@@ -16,6 +16,7 @@
 package net.ukrcom.asblockwar.actions;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -82,20 +83,28 @@ public class MakeAggressor {
                     if (cb != null) {
                         cb.onAsnProcessing(asNumber);
                     }
+                    // Чекаємо дозволу на вхід до БД. acquire() поза try-finally:
+                    // якщо він перерветься, дозволу не отримано — і звільняти нічого
                     try {
-                        // Чекаємо дозволу на вхід до БД
                         dbLimit.acquire();
-                        String result = new retrieveOrganisation(asNumber).get();
-                        aggressorAsnResources.put(asNumber, result);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
+                        return;
+                    }
+                    try {
+                        String result = new retrieveOrganisation(asNumber).get();
+                        aggressorAsnResources.put(asNumber, result);
                     } finally {
                         // Обов'язково звільняємо місце для наступного потоку
                         dbLimit.release();
                     }
                 }));
             } catch (IOException e) {
-                log.error("Помилка читання файлу", e);
+                // Порожній результат тут невідрізнимий від «у списку немає ворогів»,
+                // а далі він призвів би до перезапису list.txt і зняття блокувань.
+                throw new UncheckedIOException(
+                        "Не вдалося прочитати " + ASBlockWar.config.getListFile()
+                        + " — обробку припинено, щоб не перезаписати списки порожніми даними", e);
             }
 
             // В try-with-resources executor.close() викличеться автоматично,
@@ -141,13 +150,16 @@ public class MakeAggressor {
                 }
                 try {
                     dbLimit.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
                     String result = new retrieveAsSet(asSet).get();
                     if (!result.isBlank()) {
                         aggressorMntbyResources.put(asSet, result);
                         ASBlockWar.asSetResources.put(asSet, result);
                     }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
                 } finally {
                     dbLimit.release();
                 }
@@ -164,17 +176,22 @@ public class MakeAggressor {
                     }
                     try {
                         dbLimit.acquire();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                    try {
                         String result = new retrieveMntBy(mntBy).get();
                         aggressorMntbyResources.put(mntBy, result);
                         ASBlockWar.mntnerResources.put(mntBy, result);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
                     } finally {
                         dbLimit.release();
                     }
                 }));
             } catch (IOException e) {
-                log.error("Помилка читання файлу", e);
+                throw new UncheckedIOException(
+                        "Не вдалося прочитати " + ASBlockWar.config.getListMntbyFile()
+                        + " — обробку припинено, щоб не перезаписати списки порожніми даними", e);
             }
 
             // executor.close() (try-with-resources) чекає завершення ВСІХ завдань
@@ -212,6 +229,11 @@ public class MakeAggressor {
                     .forEach(asn -> executor.submit(() -> {
                 try {
                     dbLimit.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
                     String block = new retrieveOrganisation(asn).get();
                     if (FilterAggressor.isAggressor(block, blocked)) {
                         if (aggressorAsnResources.containsKey(asn)) {
@@ -243,8 +265,6 @@ public class MakeAggressor {
                             log.debug("Знайдено ASN: {}", asn);
                         }
                     }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
                 } finally {
                     dbLimit.release();
                 }
@@ -271,13 +291,16 @@ public class MakeAggressor {
             toFetch.forEach(asSet -> executor.submit(() -> {
                 try {
                     dbLimit.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    asSetMap.putIfAbsent(asSet, "");
+                    return;
+                }
+                try {
                     String rpsl = new retrieveAsSet(asSet).get();
                     String r = rpsl != null ? rpsl : "";
                     asSetMap.put(asSet, r);
                     if (!r.isBlank()) ASBlockWar.asSetResources.put(asSet, r);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    asSetMap.putIfAbsent(asSet, "");
                 } finally {
                     dbLimit.release();
                 }
@@ -319,13 +342,16 @@ public class MakeAggressor {
                     toFetch.forEach(asSet -> futures.add(executor.submit(() -> {
                         try {
                             dbLimit.acquire();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            asSetMap.put(asSet, "");
+                            return;
+                        }
+                        try {
                             String rpsl = new retrieveAsSet(asSet).get();
                             String r = rpsl != null ? rpsl : "";
                             asSetMap.put(asSet, r);
                             if (!r.isBlank()) ASBlockWar.asSetResources.put(asSet, r);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            asSetMap.put(asSet, "");
                         } finally {
                             dbLimit.release();
                         }
@@ -372,10 +398,13 @@ public class MakeAggressor {
             toFetch.forEach(asn -> executor.submit(() -> {
                 try {
                     dbLimit.acquire();
-                    String rpsl = new retrieveOrganisation(asn).get();
-                    if (rpsl != null && !rpsl.isBlank()) result.put(asn, rpsl);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
+                    String rpsl = new retrieveOrganisation(asn).get();
+                    if (rpsl != null && !rpsl.isBlank()) result.put(asn, rpsl);
                 } finally {
                     dbLimit.release();
                 }

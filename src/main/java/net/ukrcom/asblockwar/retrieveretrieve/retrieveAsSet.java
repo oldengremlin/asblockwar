@@ -62,11 +62,12 @@ public class retrieveAsSet {
         try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
             this.conn = connection;
             this.loadAsSet();
+            // Кешуємо ЛИШЕ успішний результат: інакше одна транзієнтна помилка
+            // (SQLITE_BUSY, оновлення БД ззовні) назавжди зафіксувала б порожнє значення
+            cache.put(asSet, this.sb.toString());
         } catch (SQLException ex) {
-            log.error("Помилка при отриманні AsSet", ex);
+            log.error("Помилка при отриманні AsSet {}", asSet, ex);
         }
-
-        cache.put(asSet, this.sb.toString());
     }
 
     /** Очищає статичний кеш між запусками обробки. */

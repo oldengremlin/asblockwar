@@ -59,31 +59,26 @@ public class AsnRegexBuilder {
      * просто конкатенується.
      */
     private static String toRegex(TrieNode node) {
-        List<String> alts = new ArrayList<>();
-        if (node.isEnd) {
-            alts.add("");
-        }
+        List<String> childAlts = new ArrayList<>();
         for (var e : node.children.entrySet()) {
-            alts.add(e.getKey() + toRegex(e.getValue()));
+            childAlts.add(e.getKey() + toRegex(e.getValue()));
         }
-        if (alts.size() == 1) {
-            return alts.get(0);
+        if (childAlts.isEmpty()) {
+            return "";
         }
-        // Juniper rejects empty alternatives like (|x|y) — use (x|y)? instead
-        if (node.isEnd) {
-            List<String> childAlts = alts.subList(1, alts.size());
-            String suffix = allSingleChars(childAlts)
-                            ? "[" + String.join("", childAlts) + "]"
-                            : childAlts.size() == 1
-                              ? childAlts.get(0)
-                              : "(" + String.join("|", childAlts) + ")";
-            return suffix + "?";
+        // Спільний префікс без власного закінчення — просто конкатенація, без дужок
+        if (childAlts.size() == 1 && !node.isEnd) {
+            return childAlts.get(0);
         }
-        // Single-char alternatives collapse to a character class
-        if (allSingleChars(alts)) {
-            return "[" + String.join("", alts) + "]";
-        }
-        return "(" + String.join("|", alts) + ")";
+        // Juniper rejects empty alternatives like (|x|y) — use (x|y)? instead.
+        // Дужки обов'язкові навіть для однієї альтернативи: без них "?" прив'язався б
+        // лише до останнього символу (219|21907 → "21907?" замість "219(07)?").
+        String body = allSingleChars(childAlts)
+                      ? "[" + String.join("", childAlts) + "]"
+                      : childAlts.size() == 1
+                        ? "(" + childAlts.get(0) + ")"
+                        : "(" + String.join("|", childAlts) + ")";
+        return node.isEnd ? body + "?" : body;
     }
 
     private static boolean allSingleChars(List<String> alts) {
