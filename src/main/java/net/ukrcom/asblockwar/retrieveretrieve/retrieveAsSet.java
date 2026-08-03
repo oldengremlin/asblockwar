@@ -18,13 +18,7 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import net.ukrcom.asblockwar.Config;
 
 /**
  * Витягує повний RPSL-блок as-set для заданого імені AS-SET
@@ -35,14 +29,11 @@ import net.ukrcom.asblockwar.Config;
 @Slf4j
 public class retrieveAsSet {
 
-    private static final Map<String, String> cache = new ConcurrentHashMap<>();
+    private static final RpslCache cache = RpslCache.create();
 
-    private final Config config;
     private StringBuilder sb;
 
     private final String asSet;
-
-    private Connection conn;
 
     /**
      * Відкриває з'єднання з БД і завантажує RPSL-блок для вказаного AS-SET.
@@ -50,29 +41,23 @@ public class retrieveAsSet {
      * @param asSet назва AS-SET (наприклад, {@code "AS-EXAMPLE"})
      */
     public retrieveAsSet(String asSet) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.sb = new StringBuilder();
         this.asSet = asSet;
 
-        if (cache.containsKey(asSet)) {
-            this.sb.append(cache.get(asSet));
+        String cached = cache.get(asSet);
+        if (cached != null) {
+            this.sb.append(cached);
             return;
         }
 
-        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
-            this.conn = connection;
-            this.loadAsSet();
+        try (Connection conn = RpslDb.open()) {
+            this.sb.append(RpslDb.fetchBlocks(conn, asSet, "as-set"));
             // Кешуємо ЛИШЕ успішний результат: інакше одна транзієнтна помилка
             // (SQLITE_BUSY, оновлення БД ззовні) назавжди зафіксувала б порожнє значення
             cache.put(asSet, this.sb.toString());
         } catch (SQLException ex) {
             log.error("Помилка при отриманні AsSet {}", asSet, ex);
         }
-    }
-
-    /** Очищає статичний кеш між запусками обробки. */
-    public static void clearCache() {
-        cache.clear();
     }
 
     /**
@@ -85,21 +70,4 @@ public class retrieveAsSet {
         return this.sb.toString();
     }
 
-    private void loadAsSet() {
-        try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key=? AND value=?"
-        );) {
-
-            selectStmt.setString(1, "as-set");
-            selectStmt.setString(2, this.asSet);
-            ResultSet rs = selectStmt.executeQuery();
-            while (rs.next()) {
-                String asSetBlock = rs.getString("block");
-                this.sb.append(asSetBlock);
-            }
-
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні as-set для AsSet", ex);
-        }
-    }
 }

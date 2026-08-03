@@ -18,7 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -59,7 +58,7 @@ public class retrieveAsSetMembers {
         this.asSet = asSet;
         this.recursionDepth = recursionDepth;
 
-        try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
+        try (Connection conn = RpslDb.open()) {
             Set<String> visited = new HashSet<>();
             collect(conn, asSet, recursionDepth, visited);
         } catch (SQLException ex) {

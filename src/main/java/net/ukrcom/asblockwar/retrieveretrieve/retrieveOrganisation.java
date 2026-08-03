@@ -18,13 +18,9 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import net.ukrcom.asblockwar.Config;
 
 /**
  * Витягує синтетичне резюме ASN (з таблиці {@code asn}) та organisation-блок RPSL,
@@ -38,15 +34,11 @@ import net.ukrcom.asblockwar.Config;
 @Slf4j
 public class retrieveOrganisation {
 
-    private final static Map<String, String> cache = new ConcurrentHashMap<>();
+    private final static RpslCache cache = RpslCache.create();
 
-    private final Config config;
     private StringBuilder sb;
 
     private final String autNum;
-    private String autNumBlock;
-
-    private Connection conn;
 
     /**
      * Відкриває з'єднання з БД (якщо результат ще не закешовано) і завантажує
@@ -55,29 +47,26 @@ public class retrieveOrganisation {
      * @param autNum позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveOrganisation(String autNum) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.autNum = autNum;
 
-        if (cache.containsKey(autNum)) {
+        if (cache.get(autNum) != null) {
             log.debug("retrieveOrganisation({}) — cache hit", autNum);
             return;
         }
 
         this.sb = new StringBuilder();
-        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
-            this.conn = connection;
-            this.loadAsn();
-            this.loadOrg();
+        try (Connection conn = RpslDb.open()) {
+            String block = RpslDb.fetchBlocks(conn, autNum, "aut-num");
+            if (!block.isEmpty()) {
+                this.sb.append(asnSummary(conn, autNum));
+                this.sb.append(block).append("\n");
+                this.sb.append(orgBlocks(conn, block));
+            }
             // Кешуємо ЛИШЕ успішний результат — див. retrieveAsSet
             cache.put(autNum, this.sb.toString());
         } catch (SQLException ex) {
             log.error("Помилка при отриманні Organisation {}", autNum, ex);
         }
-    }
-
-    /** Очищає статичний кеш між запусками обробки. */
-    public static void clearCache() {
-        cache.clear();
     }
 
     /**
@@ -98,92 +87,52 @@ public class retrieveOrganisation {
         return result;
     }
 
-    private void loadAsn() {
-        try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key=? AND value=?"
-        );) {
-
-            selectStmt.setString(1, "aut-num");
-            selectStmt.setString(2, this.autNum);
-            ResultSet rs = selectStmt.executeQuery();
-            while (rs.next()) {
-                this.autNumBlock = rs.getString("block");
-                this.sb.append(getAsn(this.autNum));
-                this.sb.append(this.autNumBlock).append("\n");
-            }
-
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні aut-num для Organisation", ex);
-        }
-    }
-
-    private void loadOrg() {
-        if (autNumBlock != null) {
-            autNumBlock.lines().forEach(line -> {
-                String[] parts = line.split("\\s+", 2);
-                if (!(parts.length < 2)) {
-                    String key = parts[0].trim();
-                    String value = parts[1].trim();
-                    if (key.equals("org:")) {
-                        this.sb.append(getOrg(value));
-                    }
+    /** Витягує organisation-блоки, на які посилається {@code org:} у aut-num. */
+    private static String orgBlocks(Connection conn, String autNumBlock) throws SQLException {
+        StringBuilder out = new StringBuilder();
+        for (String line : autNumBlock.lines().toList()) {
+            String[] parts = line.split("\\s+", 2);
+            if (parts.length == 2 && parts[0].trim().equals("org:")) {
+                String block = RpslDb.fetchBlocks(conn, parts[1].trim(), "organisation");
+                if (!block.isEmpty()) {
+                    out.append(block).append("\n");
                 }
-            });
-        }
-    }
-
-    private String getOrg(String org) {
-        StringBuilder retVal = new StringBuilder();
-
-        try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key=? AND value=?"
-        );) {
-
-            selectStmt.setString(1, "organisation");
-            selectStmt.setString(2, org);
-            ResultSet rs = selectStmt.executeQuery();
-            if (rs.next()) {
-                retVal.append(rs.getString("block"));
-                retVal.append("\n");
             }
-
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні organisation для Organisation", ex);
         }
-        return retVal.toString();
+        return out.toString();
     }
 
     /**
-     * Завантажує синтетичне резюме ASN (country, name) з таблиці {@code asn}
-     * і форматує його як RPSL-подібний текст.
+     * Формує синтетичне резюме ASN (country, name) з таблиці {@code asn}
+     * у вигляді RPSL-подібного тексту.
      *
-     * @param as позначення автономної системи (наприклад, {@code "AS12345"})
-     * @return рядок у форматі {@code "as-num: ... country: ... as-name: ...\n"},
-     *         або порожній рядок, якщо ASN відсутній у таблиці
+     * @param conn відкрите з'єднання
+     * @param as   позначення автономної системи (наприклад, {@code "AS12345"})
+     * @return рядок {@code "as-num: ... country: ... as-name: ...\n"},
+     *         або порожній рядок, якщо ASN відсутній у таблиці чи не є числом
+     * @throws SQLException якщо запит не вдався
      */
-    protected String getAsn(String as) {
+    static String asnSummary(Connection conn, String as) throws SQLException {
+        int asn;
+        try {
+            asn = Integer.parseInt(as.replaceFirst("^[Aa][Ss]", ""));
+        } catch (NumberFormatException e) {
+            log.warn("retrieveOrganisation: некоректне позначення ASN «{}»", as);
+            return "";
+        }
         StringBuilder retVal = new StringBuilder();
-        String asNum = as.replaceFirst("^[Aa][Ss]", "");
-        Integer asn = Integer.valueOf(asNum);
-
-        try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT country, name FROM asn WHERE asn=?"
-        );) {
-            selectStmt.setInt(1, asn);
-            ResultSet rs = selectStmt.executeQuery();
-            while (rs.next()) {
-                retVal.append("as-num:         ");
-                retVal.append(as.toUpperCase());
-                retVal.append("\ncountry:        ");
-                retVal.append(rs.getString("country"));
-                retVal.append("\nas-name:        ");
-                retVal.append(rs.getString("name"));
-                retVal.append("\n");
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT country, name FROM asn WHERE asn=?")) {
+            stmt.setInt(1, asn);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    retVal.append("as-num:         ").append(as.toUpperCase())
+                          .append("\ncountry:        ").append(rs.getString("country"))
+                          .append("\nas-name:        ").append(rs.getString("name"))
+                          .append("\n");
+                }
             }
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні asn для Organisation", ex);
         }
         return retVal.toString();
     }
-
 }

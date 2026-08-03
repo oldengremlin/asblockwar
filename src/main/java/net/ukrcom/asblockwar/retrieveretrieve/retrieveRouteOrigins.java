@@ -18,7 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -61,8 +60,7 @@ public class retrieveRouteOrigins {
      * @param route CIDR-prefix (наприклад, {@code "192.0.2.0/24"})
      */
     public retrieveRouteOrigins(String route) {
-        try (Connection conn = DriverManager.getConnection(
-                net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI())) {
+        try (Connection conn = RpslDb.open()) {
             try (PreparedStatement stmt = conn.prepareStatement(SQL)) {
                 stmt.setString(1, route);
                 ResultSet rs = stmt.executeQuery();

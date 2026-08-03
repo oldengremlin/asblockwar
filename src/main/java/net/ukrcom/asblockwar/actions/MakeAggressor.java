@@ -68,7 +68,7 @@ public class MakeAggressor {
 
         // 1. Створюємо Executor на Virtual Threads (Java 21+)
         // Він буде створювати новий легкий потік на кожне завдання.
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
 
             // 2. Семафор — наш "контролер трафіку" для SQLite
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
@@ -78,7 +78,7 @@ public class MakeAggressor {
                         .filter(line -> !line.matches("^\\s*[#;].*"))
                         .filter(line -> line.matches("^[1-9]\\d*$"))
                         .map(str -> "AS" + str)
-                        .forEach(asNumber -> executor.submit(() -> {
+                        .forEach(asNumber -> executor.execute(() -> {
                     UIProgressCallback cb = ASBlockWar.uiCallback;
                     if (cb != null) {
                         cb.onAsnProcessing(asNumber);
@@ -127,7 +127,7 @@ public class MakeAggressor {
         // Скидання asSetResources/mntnerResources виконується в runProcessing()
 
         // Один Executor і один Semaphore для AS-SET та MNT-BY завдань одночасно
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
             // AS-SET записи: з конфігурації PrimaryEnemyResources + файл list.as-set.txt
@@ -143,7 +143,7 @@ public class MakeAggressor {
             Stream.concat(ASBlockWar.config.getPrimaryEnemyResources().stream()
                     .filter(s -> !s.matches("AS\\d+")), fileAsSets.stream())
                     .distinct()
-                    .forEach(asSet -> executor.submit(() -> {
+                    .forEach(asSet -> executor.execute(() -> {
                 UIProgressCallback cb = ASBlockWar.uiCallback;
                 if (cb != null) {
                     cb.onAsSetProcessing(asSet);
@@ -169,7 +169,7 @@ public class MakeAggressor {
             try (Stream<String> lines = Files.lines(Path.of(ASBlockWar.config.getListMntbyFile()))) {
                 lines
                         .filter(line -> !line.matches("^\\s*[#;].*"))
-                        .forEach(mntBy -> executor.submit(() -> {
+                        .forEach(mntBy -> executor.execute(() -> {
                     UIProgressCallback cb = ASBlockWar.uiCallback;
                     if (cb != null) {
                         cb.onMntByProcessing(mntBy);
@@ -215,7 +215,7 @@ public class MakeAggressor {
     public static Map<String, String> makeAggressorResources(Map<String, String> aggressorMntbyResources, Map<String, String> aggressorAsnResources) {
         Set<String> blocked = FilterAggressor.blockedCountries();
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
             aggressorMntbyResources.values().stream()
@@ -226,7 +226,7 @@ public class MakeAggressor {
                     .map(parts -> parts[1].trim())
                     .filter(asn -> asn.matches("^AS\\d+$"))
                     .distinct()
-                    .forEach(asn -> executor.submit(() -> {
+                    .forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                 } catch (InterruptedException e) {
@@ -286,9 +286,9 @@ public class MakeAggressor {
                 .collect(Collectors.toSet());
         if (toFetch.isEmpty()) return;
         log.info("Завантаження RPSL для {} AS-SET (прямий доступ)...", toFetch.size());
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-            toFetch.forEach(asSet -> executor.submit(() -> {
+            toFetch.forEach(asSet -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                 } catch (InterruptedException e) {
@@ -314,7 +314,7 @@ public class MakeAggressor {
      */
     public static void expandAsSetMap(Map<String, String> asSetMap) {
         // Один Executor на весь BFS; Semaphore — спільний для всіх хвиль
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
             boolean found;
             do {
@@ -393,9 +393,9 @@ public class MakeAggressor {
         Map<String, String> result = new ConcurrentHashMap<>();
         if (toFetch.isEmpty()) return result;
         log.info("Завантаження RPSL для {} ASN-членів AS-SET...", toFetch.size());
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-            toFetch.forEach(asn -> executor.submit(() -> {
+            toFetch.forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                 } catch (InterruptedException e) {

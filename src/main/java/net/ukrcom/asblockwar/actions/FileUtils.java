@@ -85,6 +85,27 @@ public class FileUtils {
      * @param content вміст для запису
      * @throws IOException якщо виникла помилка запису або переміщення файлу
      */
+    /**
+     * Вирішує ім'я файлу відносно директорії, не дозволяючи вийти за її межі.
+     * <p>
+     * Імена в {@code STORE/} формуються з mntner, AS-SET та інших значень, що
+     * походять із редагованих користувачем списків і з RPSL-даних. Значення
+     * на кшталт {@code ../../etc/cron.d/job} інакше записалося б поза {@code STORE/}.
+     *
+     * @param dir  базова директорія
+     * @param name ім'я файлу з недовіреного джерела
+     * @return шлях усередині {@code dir}
+     * @throws IOException якщо ім'я виводить за межі {@code dir}
+     */
+    public static Path safeResolve(Path dir, String name) throws IOException {
+        Path base = dir.toAbsolutePath().normalize();
+        Path target = base.resolve(name).normalize();
+        if (!target.startsWith(base)) {
+            throw new IOException("Некоректне ім'я файлу «" + name + "» — виходить за межі " + base);
+        }
+        return target;
+    }
+
     public static void writeStoreFile(Path file, String content) throws IOException {
         if (content == null || content.isBlank()) {
             return;

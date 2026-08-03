@@ -18,7 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -49,6 +48,9 @@ public class retrieveRouteOriginPrefixes {
 
     private final List<String> prefixes = new ArrayList<>();
 
+    /** Чи завершився запит помилкою — порожній список тоді не означає «маршрутів немає». */
+    private boolean failed;
+
     /**
      * Відкриває з'єднання з БД і завантажує список префіксів для вказаного origin AS.
      * Фільтрує сирітські записи: повертаються лише ті маршрути, для яких існує
@@ -57,8 +59,7 @@ public class retrieveRouteOriginPrefixes {
      * @param origin позначення автономної системи у форматі {@code "AS12345"}
      */
     public retrieveRouteOriginPrefixes(String origin) {
-        try (Connection conn = DriverManager.getConnection(
-                net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI())) {
+        try (Connection conn = RpslDb.open()) {
             try (PreparedStatement stmt = conn.prepareStatement(SQL)) {
                 stmt.setString(1, origin);
                 ResultSet rs = stmt.executeQuery();
@@ -67,8 +68,19 @@ public class retrieveRouteOriginPrefixes {
                 }
             }
         } catch (SQLException ex) {
+            this.failed = true;
             log.error("Помилка при отриманні prefixes для {}", origin, ex);
         }
+    }
+
+    /**
+     * @return {@code true}, якщо запит до БД впав. Викликач <b>зобов'язаний</b> це
+     *         перевірити: порожній {@link #get()} після збою невідрізнимий від
+     *         легітимної відсутності маршрутів, а різниця між ними — це різниця
+     *         між «нічого не робити» і «зняти блокування з усіх мереж».
+     */
+    public boolean isFailed() {
+        return failed;
     }
 
     /**

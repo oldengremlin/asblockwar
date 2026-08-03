@@ -18,13 +18,7 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import net.ukrcom.asblockwar.Config;
 
 /**
  * Витягує всі aut-num та as-set RPSL-блоки, що обслуговуються заданим mnt-by дескриптором.
@@ -37,14 +31,11 @@ import net.ukrcom.asblockwar.Config;
 @Slf4j
 public class retrieveMntBy {
 
-    private static final Map<String, String> cache = new ConcurrentHashMap<>();
+    private static final RpslCache cache = RpslCache.create();
 
-    private final Config config;
     private StringBuilder sb;
 
     private final String mntBy;
-
-    private Connection conn;
 
     /**
      * Відкриває з'єднання з БД і завантажує усі RPSL-блоки, обслуговувані вказаним мантейнером.
@@ -52,28 +43,27 @@ public class retrieveMntBy {
      * @param mntBy назва mnt-by (наприклад, {@code "MNTNER-UA"})
      */
     public retrieveMntBy(String mntBy) {
-        this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.sb = new StringBuilder();
         this.mntBy = mntBy;
 
-        if (cache.containsKey(mntBy)) {
-            this.sb.append(cache.get(mntBy));
+        String cached = cache.get(mntBy);
+        if (cached != null) {
+            this.sb.append(cached);
             return;
         }
 
-        try (Connection connection = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
-            this.conn = connection;
-            this.loadMntBy();
+        try (Connection conn = RpslDb.open()) {
+            for (String value : RpslDb.fetchColumn(conn,
+                    "SELECT value FROM rpsl_mntby WHERE key IN ('aut-num', 'as-set') AND mntby = ?",
+                    mntBy, "value")) {
+                this.sb.append(RpslDb.fetchBlocks(conn, value, "aut-num", "as-set"));
+                this.sb.append("\n");
+            }
             // Кешуємо ЛИШЕ успішний результат — див. retrieveAsSet
             cache.put(mntBy, this.sb.toString());
         } catch (SQLException ex) {
             log.error("Помилка при отриманні MntBy {}", mntBy, ex);
         }
-    }
-
-    /** Очищає статичний кеш між запусками обробки. */
-    public static void clearCache() {
-        cache.clear();
     }
 
     /**
@@ -87,37 +77,4 @@ public class retrieveMntBy {
         return this.sb.toString();
     }
 
-    private void loadMntBy() {
-        try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT value FROM rpsl_mntby WHERE key IN (\"aut-num\", \"as-set\") AND mntby = ?"
-        );) {
-
-            selectStmt.setString(1, this.mntBy);
-            ResultSet rs = selectStmt.executeQuery();
-            while (rs.next()) {
-                getMntByBlock(rs.getString("value"));
-                this.sb.append("\n");
-            }
-
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні aut-num для Organisation", ex);
-        }
-    }
-
-    private void getMntByBlock(String mntByValue) {
-        try (PreparedStatement selectStmt = this.conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key IN (\"aut-num\", \"as-set\") AND value=?"
-        );) {
-
-            selectStmt.setString(1, mntByValue);
-            ResultSet rs = selectStmt.executeQuery();
-            while (rs.next()) {
-                this.sb.append(rs.getString("block"));
-                this.sb.append("\n");
-            }
-
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні aut-num/as-set для MntBy", ex);
-        }
-    }
 }

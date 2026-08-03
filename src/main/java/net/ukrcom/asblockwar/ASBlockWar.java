@@ -47,6 +47,7 @@ import net.ukrcom.asblockwar.actions.Reporter;
 import net.ukrcom.asblockwar.actions.StoreActions;
 import net.ukrcom.asblockwar.graph.GraphBuilder;
 import net.ukrcom.asblockwar.graph.GraphExporter;
+import net.ukrcom.asblockwar.retrieveretrieve.RpslCache;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntBy;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
@@ -172,9 +173,7 @@ public class ASBlockWar {
         lastAggressorAsnResources = new ConcurrentHashMap<>();
 
         // Очищення статичних кешів retrieve-класів між запусками
-        retrieveOrganisation.clearCache();
-        retrieveAsSet.clearCache();
-        retrieveMntBy.clearCache();
+        RpslCache.clearAll();
 
         LOGGER.info("listFile: " + config.getListFile());
         LOGGER.info("listMntbyFile: " + config.getListMntbyFile());

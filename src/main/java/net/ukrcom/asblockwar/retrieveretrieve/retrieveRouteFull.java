@@ -18,7 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -41,8 +40,7 @@ public class retrieveRouteFull {
      */
     public retrieveRouteFull(String prefix) {
         this.prefix = prefix;
-        try (Connection conn = DriverManager.getConnection(
-                net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI())) {
+        try (Connection conn = RpslDb.open()) {
             try (PreparedStatement stmt = conn.prepareStatement(
                     "SELECT block FROM rpsl WHERE key LIKE 'route%' AND value=?")) {
                 stmt.setString(1, prefix);

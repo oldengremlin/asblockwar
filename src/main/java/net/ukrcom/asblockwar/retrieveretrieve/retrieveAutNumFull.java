@@ -18,7 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -49,7 +48,7 @@ public class retrieveAutNumFull {
         this.config = net.ukrcom.asblockwar.ASBlockWar.config;
         this.autNum = autNum;
 
-        try (Connection conn = DriverManager.getConnection(this.config.getWhoisLiteLocalURI())) {
+        try (Connection conn = RpslDb.open()) {
             loadAutNum(conn);
         } catch (SQLException ex) {
             log.error("Помилка при отриманні AutNumFull {}", autNum, ex);
