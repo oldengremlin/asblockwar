@@ -46,4 +46,28 @@ public class RpslUtils {
                 .findFirst()
                 .orElse("");
     }
+
+    /**
+     * Повертає всі значення багаторядкового RPSL-поля, з'єднані розділювачем.
+     * <p>
+     * У RPSL {@code address:} — це кілька рядків (вулиця, місто, індекс, країна),
+     * тож {@link #rpslField} повертав лише вулицю: в {@code AS.list} потрапляв
+     * рядок на кшталт «Lenina str. 1» без міста й країни.
+     *
+     * @param block     RPSL-блок
+     * @param key       ім'я поля без двокрапки
+     * @param delimiter розділювач між значеннями
+     * @return з'єднані значення, або порожній рядок, якщо поля немає
+     */
+    public static String rpslFieldJoined(String block, String key, String delimiter) {
+        if (block == null || block.isEmpty()) {
+            return "";
+        }
+        String prefix = key + ":";
+        return block.lines()
+                .filter(l -> l.startsWith(prefix))
+                .map(l -> l.substring(prefix.length()).trim())
+                .filter(v -> !v.isEmpty())
+                .collect(java.util.stream.Collectors.joining(delimiter));
+    }
 }

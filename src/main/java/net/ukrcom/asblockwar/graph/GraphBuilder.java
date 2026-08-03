@@ -36,19 +36,19 @@ import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 @Slf4j
 public class GraphBuilder {
 
-    private static final Pattern AS_NAME_PAT = Pattern.compile("(?m)^as-name:\\s*(.+)$");
-    private static final Pattern ORG_ID_PAT = Pattern.compile("(?m)^org:\\s*(\\S+)");
-    private static final Pattern ORG_NAME_PAT = Pattern.compile("(?m)^org-name:\\s*(.+)$");
-    private static final Pattern MNT_BY_PAT = Pattern.compile("(?m)^mnt-by:\\s*(\\S+)");
-    private static final Pattern MNT_REF_PAT = Pattern.compile("(?m)^mnt-ref:\\s*(\\S+)");
+    private static final Pattern AS_NAME_PAT = Pattern.compile("(?m)^as-name:[ \\t]*(.+)$");
+    private static final Pattern ORG_ID_PAT = Pattern.compile("(?m)^org:[ \\t]*(\\S+)");
+    private static final Pattern ORG_NAME_PAT = Pattern.compile("(?m)^org-name:[ \\t]*(.+)$");
+    private static final Pattern MNT_BY_PAT = Pattern.compile("(?m)^mnt-by:[ \\t]*(\\S+)");
+    private static final Pattern MNT_REF_PAT = Pattern.compile("(?m)^mnt-ref:[ \\t]*(\\S+)");
     private static final Pattern PEER_ASN_PAT = Pattern.compile("(?i)\\b(?:from|to)\\s+(AS\\d+)");
-    private static final Pattern COUNTRY_PAT = Pattern.compile("(?m)^country:\\s*([A-Z]{2,3})");
-    private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:\\s*(.+)$");
+    private static final Pattern COUNTRY_PAT = Pattern.compile("(?m)^country:[ \\t]*([A-Z]{2,3})");
+    private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:[ \\t]*(.+)$");
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
-    private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:\\s*(\\S+)");
-    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^members:\\s*(.+)$");
-    private static final Pattern MNTNER_AUTNUM_PAT = Pattern.compile("(?m)^aut-num:\\s*(AS\\d+)");
-    private static final Pattern MNTNER_ASSET_PAT = Pattern.compile("(?m)^as-set:\\s*(\\S+)");
+    private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:[ \\t]*(\\S+)");
+    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^(?:mp-)?members:[ \\t]*(.+)$");
+    private static final Pattern MNTNER_AUTNUM_PAT = Pattern.compile("(?m)^aut-num:[ \\t]*(AS\\d+)");
+    private static final Pattern MNTNER_ASSET_PAT = Pattern.compile("(?m)^as-set:[ \\t]*(\\S+)");
 
     private final Map<String, GraphNode> nodes = new ConcurrentHashMap<>();
     private final Set<GraphEdge> edges = ConcurrentHashMap.newKeySet();

@@ -18,7 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -54,8 +53,7 @@ public class retrieveAllRouteOrigins {
      * route → список origin-ASN. Записи без відповідного RPSL-блоку фільтруються.
      */
     public retrieveAllRouteOrigins() {
-        try (Connection conn = DriverManager.getConnection(
-                net.ukrcom.asblockwar.ASBlockWar.config.getWhoisLiteLocalURI());
+        try (Connection conn = RpslDb.open();
              PreparedStatement stmt = conn.prepareStatement(SQL)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {

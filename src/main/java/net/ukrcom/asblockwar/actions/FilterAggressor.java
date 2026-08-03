@@ -85,7 +85,8 @@ public class FilterAggressor {
     private static String matchedAggressorLine(String rpsl) {
         log.debug("matchedAggressorLine аналізує:\n{}", rpsl);
         Matcher m = ASBlockWar.AGGRESSOR_COMPILED.matcher(rpsl);
-        String match = m.find() ? m.group(1).trim() : null;
+        // m.group() — увесь збіг: користувацький патерн не зобов'язаний мати групу захоплення
+        String match = m.find() ? m.group().trim() : null;
         log.debug("matchedAggressorLine результат: {}", match != null ? match : "збігів немає");
         return match;
     }

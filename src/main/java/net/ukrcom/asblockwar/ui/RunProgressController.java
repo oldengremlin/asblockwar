@@ -21,6 +21,10 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicLong;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
@@ -30,6 +34,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.util.Duration;
 import javafx.stage.Stage;
 import net.ukrcom.asblockwar.ASBlockWar;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +66,24 @@ public class RunProgressController implements Initializable {
     private final Queue<String> pendingScripts = new ArrayDeque<>();
 
     /**
+     * Рядки логу, що чекають на відображення.
+     * <p>
+     * Раніше кожен рядок породжував власний {@code Platform.runLater} з окремим
+     * {@code executeScript} — на прогоні в десятки тисяч рядків черга FX-потоку
+     * росла необмежено і GUI переставав відповідати. Тепер рядки накопичуються
+     * тут і виштовхуються пачкою раз на {@link #FLUSH_INTERVAL_MS}.
+     */
+    private final Queue<String> lineBuffer = new ConcurrentLinkedQueue<>();
+    private final AtomicInteger bufferedLines = new AtomicInteger();
+    private Timeline flusher;
+
+    /** Період виштовхування накопичених рядків у WebView. */
+    private static final long FLUSH_INTERVAL_MS = 100;
+
+    /** Стеля буфера: понад це найстаріші рядки відкидаються, щоб не з'їсти пам'ять. */
+    private static final int MAX_BUFFERED_LINES = 20_000;
+
+    /**
      * Ініціалізує WebEngine: завантажує початковий HTML-документ і чекає на SUCCEEDED
      * перед виконанням накопичених JS-викликів.
      * @param url
@@ -79,6 +102,38 @@ public class RunProgressController implements Initializable {
             }
         });
         engine.loadContent(buildInitialHtml());
+
+        flusher = new Timeline(new KeyFrame(Duration.millis(FLUSH_INTERVAL_MS), e -> flushLines()));
+        flusher.setCycleCount(Timeline.INDEFINITE);
+        flusher.play();
+    }
+
+    /** Виштовхує накопичені рядки одним викликом JS. Виконується на FX-потоці. */
+    private void flushLines() {
+        if (lineBuffer.isEmpty()) {
+            return;
+        }
+        StringBuilder js = new StringBuilder();
+        String line;
+        while ((line = lineBuffer.poll()) != null) {
+            bufferedLines.decrementAndGet();
+            js.append(line).append(';');
+        }
+        if (webReady) {
+            engine.executeScript(js.toString());
+        } else {
+            pendingScripts.add(js.toString());
+        }
+    }
+
+    /** Ставить JS-виклик у чергу на найближче виштовхування. */
+    private void enqueueScript(String js) {
+        if (bufferedLines.get() >= MAX_BUFFERED_LINES) {
+            lineBuffer.poll();
+            bufferedLines.decrementAndGet();
+        }
+        lineBuffer.add(js);
+        bufferedLines.incrementAndGet();
     }
 
     private static final long HIGHLIGHT_INTERVAL_MS = 100;
@@ -130,7 +185,11 @@ public class RunProgressController implements Initializable {
         stage.setOnCloseRequest(e -> {
             if (closeButton.isDisable()) {
                 e.consume();
+                return;
             }
+            // Інакше Timeline і завантажений документ WebEngine лишаються
+            // жити після закриття вікна
+            shutdownView();
         });
 
         Task<Void> task = new Task<>() {
@@ -181,11 +240,11 @@ public class RunProgressController implements Initializable {
     }
 
     private void appendLine(String line) {
-        runScript("appendLine(\"" + jsEscape(line) + "\",false)");
+        enqueueScript("appendLine(\"" + jsEscape(line) + "\",false)");
     }
 
     private void appendBatchLine(String line, boolean stderr) {
-        runScript("appendLine(\"" + jsEscape(line) + "\"," + stderr + ")");
+        enqueueScript("appendLine(\"" + jsEscape(line) + "\"," + stderr + ")");
     }
 
     private static String jsEscape(String s) {
@@ -204,6 +263,21 @@ public class RunProgressController implements Initializable {
                 pendingScripts.add(js);
             }
         });
+    }
+
+    /**
+     * Зупиняє періодичне виштовхування і звільняє WebEngine.
+     * Без цього {@code Timeline} і завантажений документ жили б після закриття вікна.
+     */
+    private void shutdownView() {
+        if (flusher != null) {
+            flusher.stop();
+            flusher = null;
+        }
+        flushLines();
+        if (engine != null) {
+            engine.loadContent("");
+        }
     }
 
     private void detachAppender() {

@@ -16,6 +16,7 @@
 package net.ukrcom.asblockwar.actions;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -67,7 +68,7 @@ public class MakeAggressor {
 
         // 1. Створюємо Executor на Virtual Threads (Java 21+)
         // Він буде створювати новий легкий потік на кожне завдання.
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
 
             // 2. Семафор — наш "контролер трафіку" для SQLite
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
@@ -77,25 +78,33 @@ public class MakeAggressor {
                         .filter(line -> !line.matches("^\\s*[#;].*"))
                         .filter(line -> line.matches("^[1-9]\\d*$"))
                         .map(str -> "AS" + str)
-                        .forEach(asNumber -> executor.submit(() -> {
+                        .forEach(asNumber -> executor.execute(() -> {
                     UIProgressCallback cb = ASBlockWar.uiCallback;
                     if (cb != null) {
                         cb.onAsnProcessing(asNumber);
                     }
+                    // Чекаємо дозволу на вхід до БД. acquire() поза try-finally:
+                    // якщо він перерветься, дозволу не отримано — і звільняти нічого
                     try {
-                        // Чекаємо дозволу на вхід до БД
                         dbLimit.acquire();
-                        String result = new retrieveOrganisation(asNumber).get();
-                        aggressorAsnResources.put(asNumber, result);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
+                        return;
+                    }
+                    try {
+                        String result = new retrieveOrganisation(asNumber).get();
+                        aggressorAsnResources.put(asNumber, result);
                     } finally {
                         // Обов'язково звільняємо місце для наступного потоку
                         dbLimit.release();
                     }
                 }));
             } catch (IOException e) {
-                log.error("Помилка читання файлу", e);
+                // Порожній результат тут невідрізнимий від «у списку немає ворогів»,
+                // а далі він призвів би до перезапису list.txt і зняття блокувань.
+                throw new UncheckedIOException(
+                        "Не вдалося прочитати " + ASBlockWar.config.getListFile()
+                        + " — обробку припинено, щоб не перезаписати списки порожніми даними", e);
             }
 
             // В try-with-resources executor.close() викличеться автоматично,
@@ -118,7 +127,7 @@ public class MakeAggressor {
         // Скидання asSetResources/mntnerResources виконується в runProcessing()
 
         // Один Executor і один Semaphore для AS-SET та MNT-BY завдань одночасно
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
             // AS-SET записи: з конфігурації PrimaryEnemyResources + файл list.as-set.txt
@@ -134,20 +143,23 @@ public class MakeAggressor {
             Stream.concat(ASBlockWar.config.getPrimaryEnemyResources().stream()
                     .filter(s -> !s.matches("AS\\d+")), fileAsSets.stream())
                     .distinct()
-                    .forEach(asSet -> executor.submit(() -> {
+                    .forEach(asSet -> executor.execute(() -> {
                 UIProgressCallback cb = ASBlockWar.uiCallback;
                 if (cb != null) {
                     cb.onAsSetProcessing(asSet);
                 }
                 try {
                     dbLimit.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
                     String result = new retrieveAsSet(asSet).get();
                     if (!result.isBlank()) {
                         aggressorMntbyResources.put(asSet, result);
                         ASBlockWar.asSetResources.put(asSet, result);
                     }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
                 } finally {
                     dbLimit.release();
                 }
@@ -157,24 +169,29 @@ public class MakeAggressor {
             try (Stream<String> lines = Files.lines(Path.of(ASBlockWar.config.getListMntbyFile()))) {
                 lines
                         .filter(line -> !line.matches("^\\s*[#;].*"))
-                        .forEach(mntBy -> executor.submit(() -> {
+                        .forEach(mntBy -> executor.execute(() -> {
                     UIProgressCallback cb = ASBlockWar.uiCallback;
                     if (cb != null) {
                         cb.onMntByProcessing(mntBy);
                     }
                     try {
                         dbLimit.acquire();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                    try {
                         String result = new retrieveMntBy(mntBy).get();
                         aggressorMntbyResources.put(mntBy, result);
                         ASBlockWar.mntnerResources.put(mntBy, result);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
                     } finally {
                         dbLimit.release();
                     }
                 }));
             } catch (IOException e) {
-                log.error("Помилка читання файлу", e);
+                throw new UncheckedIOException(
+                        "Не вдалося прочитати " + ASBlockWar.config.getListMntbyFile()
+                        + " — обробку припинено, щоб не перезаписати списки порожніми даними", e);
             }
 
             // executor.close() (try-with-resources) чекає завершення ВСІХ завдань
@@ -198,7 +215,7 @@ public class MakeAggressor {
     public static Map<String, String> makeAggressorResources(Map<String, String> aggressorMntbyResources, Map<String, String> aggressorAsnResources) {
         Set<String> blocked = FilterAggressor.blockedCountries();
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
             aggressorMntbyResources.values().stream()
@@ -209,9 +226,14 @@ public class MakeAggressor {
                     .map(parts -> parts[1].trim())
                     .filter(asn -> asn.matches("^AS\\d+$"))
                     .distinct()
-                    .forEach(asn -> executor.submit(() -> {
+                    .forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
                     String block = new retrieveOrganisation(asn).get();
                     if (FilterAggressor.isAggressor(block, blocked)) {
                         if (aggressorAsnResources.containsKey(asn)) {
@@ -243,8 +265,6 @@ public class MakeAggressor {
                             log.debug("Знайдено ASN: {}", asn);
                         }
                     }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
                 } finally {
                     dbLimit.release();
                 }
@@ -254,7 +274,7 @@ public class MakeAggressor {
         return aggressorAsnResources;
     }
 
-    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^members:\\s*(.+)$");
+    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^(?:mp-)?members:[ \\t]*(.+)$");
 
     /**
      * Завантажує RPSL для AS-SET-записів у map, що мають порожній RPSL (один прохід).
@@ -266,18 +286,21 @@ public class MakeAggressor {
                 .collect(Collectors.toSet());
         if (toFetch.isEmpty()) return;
         log.info("Завантаження RPSL для {} AS-SET (прямий доступ)...", toFetch.size());
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-            toFetch.forEach(asSet -> executor.submit(() -> {
+            toFetch.forEach(asSet -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    asSetMap.putIfAbsent(asSet, "");
+                    return;
+                }
+                try {
                     String rpsl = new retrieveAsSet(asSet).get();
                     String r = rpsl != null ? rpsl : "";
                     asSetMap.put(asSet, r);
                     if (!r.isBlank()) ASBlockWar.asSetResources.put(asSet, r);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    asSetMap.putIfAbsent(asSet, "");
                 } finally {
                     dbLimit.release();
                 }
@@ -291,7 +314,7 @@ public class MakeAggressor {
      */
     public static void expandAsSetMap(Map<String, String> asSetMap) {
         // Один Executor на весь BFS; Semaphore — спільний для всіх хвиль
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
             boolean found;
             do {
@@ -319,13 +342,16 @@ public class MakeAggressor {
                     toFetch.forEach(asSet -> futures.add(executor.submit(() -> {
                         try {
                             dbLimit.acquire();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            asSetMap.put(asSet, "");
+                            return;
+                        }
+                        try {
                             String rpsl = new retrieveAsSet(asSet).get();
                             String r = rpsl != null ? rpsl : "";
                             asSetMap.put(asSet, r);
                             if (!r.isBlank()) ASBlockWar.asSetResources.put(asSet, r);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            asSetMap.put(asSet, "");
                         } finally {
                             dbLimit.release();
                         }
@@ -367,15 +393,18 @@ public class MakeAggressor {
         Map<String, String> result = new ConcurrentHashMap<>();
         if (toFetch.isEmpty()) return result;
         log.info("Завантаження RPSL для {} ASN-членів AS-SET...", toFetch.size());
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-            toFetch.forEach(asn -> executor.submit(() -> {
+            toFetch.forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
-                    String rpsl = new retrieveOrganisation(asn).get();
-                    if (rpsl != null && !rpsl.isBlank()) result.put(asn, rpsl);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
+                    String rpsl = new retrieveOrganisation(asn).get();
+                    if (rpsl != null && !rpsl.isBlank()) result.put(asn, rpsl);
                 } finally {
                     dbLimit.release();
                 }

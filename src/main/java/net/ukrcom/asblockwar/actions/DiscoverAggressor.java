@@ -15,11 +15,14 @@
  */
 package net.ukrcom.asblockwar.actions;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -48,6 +51,44 @@ public class DiscoverAggressor {
     }
 
     public static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Перевіряє, що рядок є коректним CIDR-префіксом.
+     * {@link InetAddress#getByName} не використовуємо — він резолвить імена по DNS;
+     * тут потрібна суто синтаксична перевірка адреси й довжини маски.
+     *
+     * @param prefix рядок виду {@code "192.0.2.0/24"} або {@code "2001:db8::/32"}
+     * @return {@code true}, якщо префікс синтаксично коректний
+     */
+    static boolean isValidPrefix(String prefix) {
+        int slash = prefix.indexOf('/');
+        if (slash < 0) {
+            log.warn("ForceNetBlock: пропущено «{}» — немає довжини маски", prefix);
+            return false;
+        }
+        String addr = prefix.substring(0, slash);
+        boolean v6 = addr.contains(":");
+        int max = v6 ? 128 : 32;
+        int len;
+        try {
+            len = Integer.parseInt(prefix.substring(slash + 1));
+        } catch (NumberFormatException e) {
+            log.warn("ForceNetBlock: пропущено «{}» — некоректна довжина маски", prefix);
+            return false;
+        }
+        if (len < 0 || len > max) {
+            log.warn("ForceNetBlock: пропущено «{}» — довжина маски поза межами /0../{}", prefix, max);
+            return false;
+        }
+        boolean ok = v6
+                ? addr.matches("[0-9A-Fa-f:]+") && addr.chars().filter(c -> c == ':').count() <= 8
+                  && !addr.contains(":::")
+                : addr.matches("(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}");
+        if (!ok) {
+            log.warn("ForceNetBlock: пропущено «{}» — некоректна адреса", prefix);
+        }
+        return ok;
+    }
 
     private static void addMntBy(String block, Set<String> target) {
         block.lines()
@@ -86,11 +127,11 @@ public class DiscoverAggressor {
         Set<String> seenAsns         = ConcurrentHashMap.newKeySet();
         seenAsns.addAll(aggressorAsnResources.keySet());
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("discover")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
             aggressorAsnResources.keySet().stream()
-                    .forEach(asn -> executor.submit(() -> {
+                    .forEach(asn -> executor.execute(() -> {
                 try {
                     retrieveImportExportAsSets retriever;
                     dbLimit.acquire();
@@ -176,7 +217,8 @@ public class DiscoverAggressor {
      * @param aggressorAsnResources карта {@code ASN → RPSL-блок}
      * @return обчислені зміни разом з набором нових ворожих ASN
      */
-    public static BlackbgpChanges discoverBlackbgpChanges(Map<String, String> aggressorAsnResources) {
+    public static BlackbgpChanges discoverBlackbgpChanges(Map<String, String> aggressorAsnResources)
+            throws IOException {
         boolean ipv6 = ASBlockWar.config.isBlackbgpIpv6();
 
         // 1. Поточний стан таблиці blackbgp (через SSH)
@@ -185,22 +227,38 @@ public class DiscoverAggressor {
 
         // 2. Цільовий набір prefixes з БД (тільки IPv4 якщо не передано -6)
         Set<String> targetPrefixes = ConcurrentHashMap.newKeySet();
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        AtomicInteger dbFailures = new AtomicInteger();
+        try (ExecutorService executor = VirtualExecutor.create("discover")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-            aggressorAsnResources.keySet().forEach(asn -> executor.submit(() -> {
+            aggressorAsnResources.keySet().forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
-                    try {
-                        new retrieveRouteOriginPrefixes(asn).get().stream()
-                                .filter(p -> ipv6 || !p.contains(":"))
-                                .forEach(targetPrefixes::add);
-                    } finally {
-                        dbLimit.release();
-                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    dbFailures.incrementAndGet();
+                    return;
+                }
+                try {
+                    retrieveRouteOriginPrefixes retriever = new retrieveRouteOriginPrefixes(asn);
+                    if (retriever.isFailed()) {
+                        dbFailures.incrementAndGet();
+                        return;
+                    }
+                    retriever.get().stream()
+                            .filter(p -> ipv6 || !p.contains(":"))
+                            .forEach(targetPrefixes::add);
+                } finally {
+                    dbLimit.release();
                 }
             }));
+        }
+
+        // Часткова помилка так само небезпечна, як повна: недоотримані префікси
+        // потраплять у toDelete і знімуть блокування з мереж, які лишились ворожими.
+        if (dbFailures.get() > 0) {
+            throw new IOException("discoverBlackbgpChanges: " + dbFailures.get() + " з "
+                    + aggressorAsnResources.size() + " запитів префіксів завершились помилкою — "
+                    + "генерацію diff скасовано, щоб не зняти блокування з ворожих мереж");
         }
 
         // ForceNETBlock: примусово додаємо до цілі незалежно від БД
@@ -210,23 +268,50 @@ public class DiscoverAggressor {
                 .filter(p -> !p.isEmpty())
                 .map(p -> p.contains("/") ? p : (p.contains(":") ? p + "/128" : p + "/32"))
                 .filter(p -> ipv6 || !p.contains(":"))
+                // Значення потрапляє прямо в команду роутера, тож одрук у конфізі
+                // («10.0.0.0/8 ; reboot», «300.1.2.3/24») не повинен пройти далі
+                .filter(DiscoverAggressor::isValidPrefix)
                 .forEach(targetPrefixes::add);
 
-        // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні
-        Set<String> toDelete = ConcurrentHashMap.newKeySet();
-        toDelete.addAll(currentPrefixes);
-        toDelete.removeAll(targetPrefixes);
+        // Запобіжник: порожня ціль при непорожньому поточному стані означає збій БД
+        // (retrieveRouteOriginPrefixes ковтає SQLException і повертає порожній список),
+        // а не «ворожих маршрутів немає». Без цієї перевірки згенерувався б diff,
+        // що знімає ВЕСЬ blackhole.
+        if (targetPrefixes.isEmpty() && !currentPrefixes.isEmpty()) {
+            throw new IOException("discoverBlackbgpChanges: цільовий набір префіксів порожній "
+                    + "при " + currentPrefixes.size() + " поточних у blackbgp — ймовірно недоступна БД; "
+                    + "генерацію diff скасовано, щоб не зняти блокування");
+        }
 
-        Set<String> toReplace = new HashSet<>(targetPrefixes);
-        toReplace.removeAll(currentPrefixes);
+        // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні.
+        // Порівнюємо канонічні форми, а не сирі рядки: маршрут з роутера і з RPSL
+        // може бути записаний по-різному (2001:db8:0::/48 vs 2001:db8::/48) і тоді
+        // щоразу потрапляв би одночасно в обидва набори. У командах при цьому
+        // лишається вихідна форма — з роутера для видалення, з БД для додавання.
+        Map<String, String> currentByKey = PrefixUtils.byCanonical(currentPrefixes);
+        Map<String, String> targetByKey = PrefixUtils.byCanonical(targetPrefixes);
+
+        Set<String> toDelete = ConcurrentHashMap.newKeySet();
+        currentByKey.forEach((key, original) -> {
+            if (!targetByKey.containsKey(key)) {
+                toDelete.add(original);
+            }
+        });
+
+        Set<String> toReplace = new HashSet<>();
+        targetByKey.forEach((key, original) -> {
+            if (!currentByKey.containsKey(key)) {
+                toReplace.add(original);
+            }
+        });
 
         // 4. Перевірка маршрутів на видалення: чи не належать вони ворогу?
         Set<String> blocked = FilterAggressor.blockedCountries();
         Map<String, String> newEnemies = new ConcurrentHashMap<>();
         if (!toDelete.isEmpty()) {
-            try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            try (ExecutorService executor = VirtualExecutor.create("discover")) {
                 Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-                toDelete.forEach(prefix -> executor.submit(() -> {
+                toDelete.forEach(prefix -> executor.execute(() -> {
                     try {
                         List<String> origins;
                         dbLimit.acquire();

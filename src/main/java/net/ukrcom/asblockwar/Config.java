@@ -19,8 +19,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -450,11 +453,40 @@ public class Config {
         p.setProperty("EmailSmtpPassword", this.emailSmtpPassword != null ? this.emailSmtpPassword : "");
         p.setProperty("EmailSmtpSslTrust", this.emailSmtpSslTrust != null ? this.emailSmtpSslTrust : "");
 
-        try (OutputStream out = Files.newOutputStream(Path.of(savePath))) {
-            p.store(out, "ASBlockWar configuration");
+        // Атомарний запис: файл містить EmailSmtpPassword і всі списки — обрив
+        // посеред запису знищив би конфігурацію.
+        Path target = Path.of(savePath);
+        Path tmp = target.resolveSibling(target.getFileName() + ".tmp");
+        try {
+            try (OutputStream out = Files.newOutputStream(tmp)) {
+                p.store(out, "ASBlockWar configuration");
+            }
+            restrictToOwner(tmp);
+            try {
+                Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(tmp);
         }
+        restrictToOwner(target);
         this.configPath = savePath;
         log.info("Конфігурацію збережено до {}", savePath);
+    }
+
+    /**
+     * Обмежує доступ до файлу конфігурації власником ({@code rw-------}).
+     * Файл містить SMTP-пароль у відкритому вигляді, тож права за замовчуванням
+     * ({@code 0644} за типового umask) зробили б його читабельним для всіх.
+     * На файлових системах без POSIX-прав (Windows) тихо пропускається.
+     */
+    private static void restrictToOwner(Path path) {
+        try {
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException | IOException e) {
+            log.debug("Не вдалося обмежити права доступу до {}: {}", path, e.getMessage());
+        }
     }
 
     private void loadProperties() throws IOException {

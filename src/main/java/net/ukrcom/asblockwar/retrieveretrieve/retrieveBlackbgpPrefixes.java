@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +35,9 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 public class retrieveBlackbgpPrefixes {
+
+    /** Ліміт очікування зовнішньої команди (ssh до blackbgp-сервера). */
+    private static final long PROCESS_TIMEOUT_SECONDS = 300;
 
     private static final Pattern CIDR4 = Pattern.compile(
             "\\b(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2})\\b");
@@ -63,12 +67,15 @@ public class retrieveBlackbgpPrefixes {
 
     private void fetch(String command, boolean ipv6) {
         Pattern pattern = ipv6 ? CIDR6 : CIDR4;
+        Process proc = null;
         try {
-            Process proc = new ProcessBuilder("sh", "-c", command)
+            proc = new ProcessBuilder("sh", "-c", command)
                     .redirectErrorStream(true)
+                    .redirectInput(ProcessBuilder.Redirect.from(new java.io.File("/dev/null")))
                     .start();
+            final Process p = proc;
             try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(proc.getInputStream()))) {
+                    new InputStreamReader(p.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
                 reader.lines().forEach(line -> {
                     Matcher m = pattern.matcher(line);
                     if (m.find()) {
@@ -86,14 +93,28 @@ public class retrieveBlackbgpPrefixes {
                     }
                 });
             }
-            int exit = proc.waitFor();
+            // Таймаут обов'язковий: команда за замовчуванням — ssh до blackbgp-сервера,
+            // і зависла сесія інакше блокувала б увесь прогін назавжди
+            if (!proc.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                proc.destroy();
+                if (!proc.waitFor(10, TimeUnit.SECONDS)) {
+                    proc.destroyForcibly();
+                }
+                log.error("retrieveBlackbgpPrefixes: '{}' не завершився за {} с — процес знищено",
+                        command, PROCESS_TIMEOUT_SECONDS);
+                return;
+            }
+            int exit = proc.exitValue();
             if (exit != 0) {
                 log.warn("retrieveBlackbgpPrefixes: '{}' завершився з кодом {}", command, exit);
             } else {
                 log.debug("retrieveBlackbgpPrefixes: прочитано {} prefixes ({})", prefixes.size(), command);
             }
         } catch (IOException | InterruptedException e) {
-            log.error("retrieveBlackbgpPrefixes: помилка '{}': {}", command, e.getMessage());
+            log.error("retrieveBlackbgpPrefixes: помилка '{}'", command, e);
+            if (proc != null) {
+                proc.destroyForcibly();
+            }
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }

@@ -26,6 +26,7 @@ import java.util.ResourceBundle;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -437,25 +438,34 @@ public class MainWindowsController implements Initializable {
         if (ASBlockWar.config == null) {
             return;
         }
-        loadListFile(listMntBy, Path.of(ASBlockWar.config.getListMntbyFile()),
-                items -> allItemsMntBy = items, 0);
-        loadListFile(listAsSet, Path.of(ASBlockWar.config.getListAssetFile()),
-                items -> allItemsAsSet = items, 1);
-        loadListFile(listAs, Path.of(ASBlockWar.config.getListFile()),
-                items -> allItemsAs = items, 2);
-        loadPrefixes();
-        loadTextFile(textWarJuniper, Path.of(ASBlockWar.config.getWarFile()));
-        loadTextFile(textWarBlackbgp, Path.of(ASBlockWar.config.getBlackbgpFile()));
+        // Читання з диска — у фоновому потоці: list.txt і war.blackbgp.txt бувають
+        // на десятки тисяч рядків, а на мережевій ФС читання може висіти секундами.
+        // На FX-потоці це заморозило б вікно; самі ListView оновлюються через
+        // Platform.runLater усередині loadListFile/loadTextFile.
+        Thread.ofVirtual().name("ui-refresh").start(() -> {
+            loadListFile(listMntBy, Path.of(ASBlockWar.config.getListMntbyFile()),
+                    items -> allItemsMntBy = items, 0);
+            loadListFile(listAsSet, Path.of(ASBlockWar.config.getListAssetFile()),
+                    items -> allItemsAsSet = items, 1);
+            loadListFile(listAs, Path.of(ASBlockWar.config.getListFile()),
+                    items -> allItemsAs = items, 2);
+            loadPrefixes();
+            loadTextFile(textWarJuniper, Path.of(ASBlockWar.config.getWarFile()));
+            loadTextFile(textWarBlackbgp, Path.of(ASBlockWar.config.getBlackbgpFile()));
+        });
     }
 
     private void loadListFile(ListView<String> lv, Path path,
                               Consumer<List<String>> store, int tabIdx) {
         try {
             if (Files.exists(path)) {
-                List<String> items = Files.lines(path)
-                        .map(String::trim)
-                        .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
-                        .collect(Collectors.toList());
+                List<String> items;
+                try (Stream<String> lines = Files.lines(path)) {
+                    items = lines
+                            .map(String::trim)
+                            .filter(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith(";"))
+                            .collect(Collectors.toList());
+                }
                 store.accept(items);
                 List<String> toShow = filtered(items, tabFilters[tabIdx]);
                 Platform.runLater(() -> lv.setItems(FXCollections.observableList(toShow)));
@@ -472,11 +482,14 @@ public class MainWindowsController implements Initializable {
         Path networksFile = Path.of(ASBlockWar.config.getStoreDir()).resolve("networks.list");
         try {
             if (Files.exists(networksFile)) {
-                List<String> prefixes = Files.lines(networksFile)
-                        .map(String::trim)
-                        .filter(l -> !l.isEmpty())
-                        .map(l -> l.split("\\s+")[0])
-                        .collect(Collectors.toList());
+                List<String> prefixes;
+                try (Stream<String> lines = Files.lines(networksFile)) {
+                    prefixes = lines
+                            .map(String::trim)
+                            .filter(l -> !l.isEmpty())
+                            .map(l -> l.split("\\s+")[0])
+                            .collect(Collectors.toList());
+                }
                 allItemsPrefixes = prefixes;
                 List<String> toShow = filtered(prefixes, tabFilters[3]);
                 Platform.runLater(() -> listPrefixes.setItems(FXCollections.observableList(toShow)));

@@ -139,6 +139,12 @@ public class StoreActions {
             log.debug("DRY-RUN: skip backup + skip write → {}", ASBlockWar.config.getListFile());
             return;
         }
+        // Запобіжник: порожній набір означає збій вище за течією (недоступна БД,
+        // помилка читання), а не «ворогів немає». Запис стер би весь список.
+        if (aggressorAsnResources.isEmpty()) {
+            throw new IOException("storeAggressorAsnResources: набір ворожих ASN порожній — "
+                    + "запис " + ASBlockWar.config.getListFile() + " скасовано");
+        }
         Path source = Path.of(ASBlockWar.config.getListFile());
         Path lockPath = source.resolveSibling(source.getFileName() + ".lock");
 
@@ -158,10 +164,11 @@ public class StoreActions {
             try (FileChannel lc = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                  FileLock fl = lc.lock()) {
 
-                // Порівнюємо з останнім бекапом — пропускаємо якщо вміст не змінився
-                Optional<Path> latestBackup = findLatestBackup(source, backupDir);
-                if (latestBackup.isPresent() && Files.readString(latestBackup.get()).equals(newContent)) {
-                    log.info("list.txt не змінився ({} AS) — вміст збігається з останнім бекапом, пропущено",
+                // Порівнюємо з самим list.txt, а не з бекапом: бекап містить стан
+                // ДО попереднього запису, тож порівняння з ним відставало на покоління
+                // і при «осциляції» списку блокувало запис назавжди.
+                if (Files.exists(source) && Files.readString(source).equals(newContent)) {
+                    log.info("list.txt не змінився ({} AS) — запис пропущено",
                             aggressorAsnResources.size());
                     return;
                 }
@@ -252,7 +259,7 @@ public class StoreActions {
         }
 
         // усі три store паралельно — map вже фінальний, changes вже обчислено
-        try (ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService exec = VirtualExecutor.create("store")) {
             var warTask = exec.submit(() -> {
                 storeWarResources(aggressorAsnResources);
                 return null;
@@ -363,7 +370,7 @@ public class StoreActions {
                     long asn = Long.parseLong(e.getKey().substring(2));
                     String block = e.getValue();
                     String orgName = RpslUtils.rpslField(block, "org-name");
-                    String address = RpslUtils.rpslField(block, "address");
+                    String address = RpslUtils.rpslFieldJoined(block, "address", ", ");
                     String info = orgName.isEmpty() ? ""
                                   : address.isEmpty() ? orgName
                                     : orgName + ", " + address;
@@ -391,15 +398,15 @@ public class StoreActions {
         FileUtils.ensureStoreDir(base);
 
         Map<String, String> infoByMnt = new ConcurrentHashMap<>();
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("store")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
-            allMntBy.forEach(mnt -> executor.submit(() -> {
+            allMntBy.forEach(mnt -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                     try {
                         String block = new retrieveMntnerFull(mnt).get();
                         String role = RpslUtils.rpslField(block, "role");
-                        String address = RpslUtils.rpslField(block, "address");
+                        String address = RpslUtils.rpslFieldJoined(block, "address", ", ");
                         String info = role.isEmpty() ? ""
                                       : address.isEmpty() ? role
                                         : role + ", " + address;
@@ -473,14 +480,14 @@ public class StoreActions {
 
         // 4. Записуємо STORE/NET/{addr.prefix}.txt паралельно (virtual threads)
         AtomicInteger count = new AtomicInteger(0);
-        try (ExecutorService netExec = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService netExec = VirtualExecutor.create("store")) {
             sorted.forEach(e -> netExec.submit(() -> {
                 try {
                     String filename = e.getKey().replace('/', '.') + ".txt";
                     String content = e.getValue().stream()
                             .map(o -> String.format("%-16s%s", "origin:", o.toLowerCase()))
                             .collect(Collectors.joining("\n", "", "\n"));
-                    FileUtils.writeStoreFile(dirNet.resolve(filename), content);
+                    FileUtils.writeStoreFile(FileUtils.safeResolve(dirNet, filename), content);
                     int c = count.incrementAndGet();
                     if (c % 10000 == 0) {
                         log.info("storeNetworkFiles: NET/ {}/{}", c, sorted.size());
@@ -525,11 +532,11 @@ public class StoreActions {
         FileUtils.ensureStoreDir(dirASSet);
         FileUtils.ensureStoreDir(dirASNet);
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = VirtualExecutor.create("store")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
 
             // STORE/AS/{asn}.txt and STORE/AS-NET/{asn}.txt (один acquire на два послідовних DB-запити)
-            aggressorAsnResources.keySet().forEach(asn -> executor.submit(() -> {
+            aggressorAsnResources.keySet().forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                     try {
@@ -547,12 +554,12 @@ public class StoreActions {
             }));
 
             // STORE/MNT/{mnt}.txt and STORE/MNT-SET-AS/{mnt}.txt (один acquire на два послідовних DB-запити)
-            allMntBy.forEach(mnt -> executor.submit(() -> {
+            allMntBy.forEach(mnt -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                     try {
-                        FileUtils.writeStoreFile(dirMNT.resolve(mnt + ".txt"), new retrieveMntnerFull(mnt).get());
-                        FileUtils.writeStoreFile(dirMNTSETAS.resolve(mnt + ".txt"), new retrieveMntBy(mnt).get());
+                        FileUtils.writeStoreFile(FileUtils.safeResolve(dirMNT, mnt + ".txt"), new retrieveMntnerFull(mnt).get());
+                        FileUtils.writeStoreFile(FileUtils.safeResolve(dirMNTSETAS, mnt + ".txt"), new retrieveMntBy(mnt).get());
                     } finally {
                         dbLimit.release();
                     }
@@ -564,11 +571,11 @@ public class StoreActions {
             }));
 
             // STORE/AS-SET/{asset}.txt
-            allAsSets.forEach(asSet -> executor.submit(() -> {
+            allAsSets.forEach(asSet -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
                     try {
-                        FileUtils.writeStoreFile(dirASSet.resolve(asSet + ".txt"), new retrieveAsSet(asSet).get());
+                        FileUtils.writeStoreFile(FileUtils.safeResolve(dirASSet, asSet + ".txt"), new retrieveAsSet(asSet).get());
                     } finally {
                         dbLimit.release();
                     }
