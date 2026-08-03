@@ -197,13 +197,13 @@ public class EmailReportSender {
                 case remove -> "<span class=\"action-del\">&#1042;&#1080;&#1083;&#1091;&#1095;&#1077;&#1085;&#1086;</span>";
                 case modify -> "<span class=\"action-mod\">&#1047;&#1084;&#1110;&#1085;&#1077;&#1085;&#1086;</span>";
             };
-            String country = esc(RpslUtils.rpslField(a.data(), "country"));
-            String org     = esc(RpslUtils.rpslField(a.data(), "org-name"));
+            String countryHtml = diffField(a.action(), a.prevData(), a.data(), "country");
+            String orgHtml     = diffField(a.action(), a.prevData(), a.data(), "org-name");
             sb.append("<tr class=\"").append(rowCls).append("\">")
               .append("<td valign=\"top\"><span class=\"asn\">").append(asnHtml(a.asn())).append("</span></td>")
               .append("<td valign=\"top\">").append(actHtml).append("</td>")
-              .append("<td valign=\"top\">").append(country).append("</td>")
-              .append("<td valign=\"top\">").append(org).append("</td>")
+              .append("<td valign=\"top\">").append(countryHtml).append("</td>")
+              .append("<td valign=\"top\">").append(orgHtml).append("</td>")
               .append("</tr>");
         }
 
@@ -528,6 +528,32 @@ public class EmailReportSender {
         return Collections.emptyList();
     }
 
+    /**
+     * Форматує поле RPSL для колонки "Країна" або "Організація" в таблиці змін ASN.
+     * <ul>
+     *   <li>add    — поточне значення у темно-зеленому кольорі
+     *   <li>remove — поточне значення у темно-червоному кольорі
+     *   <li>modify — якщо поле змінилось: {@code <old>} &#8594; {@code <new>} з кольорами;
+     *                якщо не змінилось — нейтральний текст
+     * </ul>
+     */
+    private static String diffField(Action action, String prevData, String data, String field) {
+        String cur  = esc(RpslUtils.rpslField(data != null ? data : "", field));
+        String prev = prevData != null ? esc(RpslUtils.rpslField(prevData, field)) : null;
+        return switch (action) {
+            case add    -> cur.isEmpty()  ? "" : "<span class=\"val-new\">" + cur  + "</span>";
+            case remove -> cur.isEmpty()  ? "" : "<span class=\"val-old\">" + cur  + "</span>";
+            case modify -> {
+                if (prev == null || prev.equals(cur)) yield cur;
+                if (prev.isEmpty()) yield cur.isEmpty() ? "" : "<span class=\"val-new\">" + cur + "</span>";
+                if (cur.isEmpty())  yield "<span class=\"val-old\">" + prev + "</span>";
+                yield "<span class=\"val-old\">" + prev + "</span>"
+                    + " &#8594; "
+                    + "<span class=\"val-new\">" + cur + "</span>";
+            }
+        };
+    }
+
     /** Форматує ASN як HTML: {@code AS<b>12345</b>}. */
     private static String asnHtml(String asn) {
         if (asn == null) {
@@ -583,5 +609,7 @@ public class EmailReportSender {
             + ".action-mod{color:#e65100;font-weight:bold}"
             + ".action-sus{color:#6a1b9a;font-weight:bold}"
             + ".footer{font-size:11px;color:#aaa;margin-top:24px;border-top:1px solid #ddd;padding-top:8px}"
-            + "code{font-family:monospace;font-size:11px;background:#f5f5f5;padding:1px 3px}";
+            + "code{font-family:monospace;font-size:11px;background:#f5f5f5;padding:1px 3px}"
+            + ".val-old{color:#b71c1c}"
+            + ".val-new{color:#1b5e20}";
 }

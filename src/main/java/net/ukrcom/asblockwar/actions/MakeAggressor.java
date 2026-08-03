@@ -218,7 +218,7 @@ public class MakeAggressor {
                             if (!block.equals(aggressorAsnResources.get(asn))) {
                                 ASBlockWar.resourcesForVerification.put(
                                         asn,
-                                        new ASN(Action.modify, asn, block)
+                                        new ASN(Action.modify, asn, block, aggressorAsnResources.get(asn))
                                 );
                                 aggressorAsnResources.put(asn, block);
                                 log.debug("Змінено ASN: {}", asn);
