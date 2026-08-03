@@ -438,15 +438,21 @@ public class MainWindowsController implements Initializable {
         if (ASBlockWar.config == null) {
             return;
         }
-        loadListFile(listMntBy, Path.of(ASBlockWar.config.getListMntbyFile()),
-                items -> allItemsMntBy = items, 0);
-        loadListFile(listAsSet, Path.of(ASBlockWar.config.getListAssetFile()),
-                items -> allItemsAsSet = items, 1);
-        loadListFile(listAs, Path.of(ASBlockWar.config.getListFile()),
-                items -> allItemsAs = items, 2);
-        loadPrefixes();
-        loadTextFile(textWarJuniper, Path.of(ASBlockWar.config.getWarFile()));
-        loadTextFile(textWarBlackbgp, Path.of(ASBlockWar.config.getBlackbgpFile()));
+        // Читання з диска — у фоновому потоці: list.txt і war.blackbgp.txt бувають
+        // на десятки тисяч рядків, а на мережевій ФС читання може висіти секундами.
+        // На FX-потоці це заморозило б вікно; самі ListView оновлюються через
+        // Platform.runLater усередині loadListFile/loadTextFile.
+        Thread.ofVirtual().name("ui-refresh").start(() -> {
+            loadListFile(listMntBy, Path.of(ASBlockWar.config.getListMntbyFile()),
+                    items -> allItemsMntBy = items, 0);
+            loadListFile(listAsSet, Path.of(ASBlockWar.config.getListAssetFile()),
+                    items -> allItemsAsSet = items, 1);
+            loadListFile(listAs, Path.of(ASBlockWar.config.getListFile()),
+                    items -> allItemsAs = items, 2);
+            loadPrefixes();
+            loadTextFile(textWarJuniper, Path.of(ASBlockWar.config.getWarFile()));
+            loadTextFile(textWarBlackbgp, Path.of(ASBlockWar.config.getBlackbgpFile()));
+        });
     }
 
     private void loadListFile(ListView<String> lv, Path path,

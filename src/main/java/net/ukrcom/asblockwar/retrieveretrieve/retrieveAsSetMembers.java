@@ -84,7 +84,7 @@ public class retrieveAsSetMembers {
     private void parseBlock(Connection conn, String block, int depth, Set<String> visited) throws SQLException {
         boolean inMembers = false;
         for (String line : block.split("\n")) {
-            if (line.matches("(?i)^members:.*")) {
+            if (line.matches("(?i)^(?:mp-)?members:.*")) {
                 inMembers = true;
             } else if (line.matches("^\\s+.*")) {
                 // RFC 2622 continuation line — keep state

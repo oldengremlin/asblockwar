@@ -370,7 +370,7 @@ public class StoreActions {
                     long asn = Long.parseLong(e.getKey().substring(2));
                     String block = e.getValue();
                     String orgName = RpslUtils.rpslField(block, "org-name");
-                    String address = RpslUtils.rpslField(block, "address");
+                    String address = RpslUtils.rpslFieldJoined(block, "address", ", ");
                     String info = orgName.isEmpty() ? ""
                                   : address.isEmpty() ? orgName
                                     : orgName + ", " + address;
@@ -406,7 +406,7 @@ public class StoreActions {
                     try {
                         String block = new retrieveMntnerFull(mnt).get();
                         String role = RpslUtils.rpslField(block, "role");
-                        String address = RpslUtils.rpslField(block, "address");
+                        String address = RpslUtils.rpslFieldJoined(block, "address", ", ");
                         String info = role.isEmpty() ? ""
                                       : address.isEmpty() ? role
                                         : role + ", " + address;

@@ -28,7 +28,10 @@ import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
- * Генерує автономний HTML-файл з Canvas-графом залежностей RPSL-об'єктів.
+ * Генерує HTML-файл з Canvas-графом залежностей RPSL-об'єктів.
+ * <p>
+ * Файл самодостатній за даними; d3.js підтягується з {@code /graph/d3.min.js}
+ * (якщо його покладено в ресурси), інакше — з файлу поруч із HTML або з CDN.
  *
  * <p>Якщо {@code sfdp} (з пакету graphviz) доступний у PATH, розраховує
  * layout заздалегідь і вбудовує координати у JSON: браузер відкриває граф
@@ -70,7 +73,7 @@ public class GraphExporter {
                 throw new IOException("Шаблон /graph/template.html не знайдено у classpath");
             }
             String template = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            return template.replace("[[GRAPH_DATA]]", buildJson(graph, positions));
+            return inlineD3(template).replace("[[GRAPH_DATA]]", buildJson(graph, positions));
         }
     }
 
@@ -292,6 +295,33 @@ public class GraphExporter {
     private static String formatCoord(double v) {
         long rounded = Math.round(v);
         return Long.toString(rounded);
+    }
+
+    /**
+     * Вбудовує d3.js у шаблон, якщо в classpath є {@code /graph/d3.min.js}.
+     * <p>
+     * Файл у репозиторій не покладено (він важить близько 280 КБ), але якщо
+     * покласти його в {@code src/main/resources/graph/}, згенерований HTML стане
+     * повністю автономним і працюватиме без доступу до мережі. Інакше плейсхолдер
+     * прибирається, і шаблон послідовно пробує {@code d3.min.js} поруч із HTML,
+     * а потім CDN; якщо не вдалося нічого — показує пояснення замість порожньої сторінки.
+     *
+     * @param template вміст шаблону
+     * @return шаблон із вбудованим d3 або без плейсхолдера
+     */
+    private static String inlineD3(String template) {
+        try (InputStream d3 = GraphExporter.class.getResourceAsStream("/graph/d3.min.js")) {
+            if (d3 == null) {
+                return template.replace("<script src=\"[[D3_INLINE]]\"></script>", "");
+            }
+            String js = new String(d3.readAllBytes(), StandardCharsets.UTF_8);
+            log.debug("GraphExporter: d3.js вбудовано у HTML ({} символів)", js.length());
+            return template.replace("<script src=\"[[D3_INLINE]]\"></script>",
+                    "<script>" + js + "</script>");
+        } catch (IOException e) {
+            log.warn("GraphExporter: не вдалося прочитати вбудований d3.min.js: {}", e.getMessage());
+            return template.replace("<script src=\"[[D3_INLINE]]\"></script>", "");
+        }
     }
 
     private static String jsonStr(String s) {

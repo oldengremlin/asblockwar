@@ -274,7 +274,7 @@ public class MakeAggressor {
         return aggressorAsnResources;
     }
 
-    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^members:\\s*(.+)$");
+    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^(?:mp-)?members:[ \\t]*(.+)$");
 
     /**
      * Завантажує RPSL для AS-SET-записів у map, що мають порожній RPSL (один прохід).

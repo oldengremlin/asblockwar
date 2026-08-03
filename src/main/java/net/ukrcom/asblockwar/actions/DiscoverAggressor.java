@@ -283,13 +283,27 @@ public class DiscoverAggressor {
                     + "генерацію diff скасовано, щоб не зняти блокування");
         }
 
-        // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні
-        Set<String> toDelete = ConcurrentHashMap.newKeySet();
-        toDelete.addAll(currentPrefixes);
-        toDelete.removeAll(targetPrefixes);
+        // 3. Диф: видалити = поточні - цільові; додати = цільові - поточні.
+        // Порівнюємо канонічні форми, а не сирі рядки: маршрут з роутера і з RPSL
+        // може бути записаний по-різному (2001:db8:0::/48 vs 2001:db8::/48) і тоді
+        // щоразу потрапляв би одночасно в обидва набори. У командах при цьому
+        // лишається вихідна форма — з роутера для видалення, з БД для додавання.
+        Map<String, String> currentByKey = PrefixUtils.byCanonical(currentPrefixes);
+        Map<String, String> targetByKey = PrefixUtils.byCanonical(targetPrefixes);
 
-        Set<String> toReplace = new HashSet<>(targetPrefixes);
-        toReplace.removeAll(currentPrefixes);
+        Set<String> toDelete = ConcurrentHashMap.newKeySet();
+        currentByKey.forEach((key, original) -> {
+            if (!targetByKey.containsKey(key)) {
+                toDelete.add(original);
+            }
+        });
+
+        Set<String> toReplace = new HashSet<>();
+        targetByKey.forEach((key, original) -> {
+            if (!currentByKey.containsKey(key)) {
+                toReplace.add(original);
+            }
+        });
 
         // 4. Перевірка маршрутів на видалення: чи не належать вони ворогу?
         Set<String> blocked = FilterAggressor.blockedCountries();

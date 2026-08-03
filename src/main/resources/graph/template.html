@@ -137,8 +137,31 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#ECEFF1;overflow:hid
   <div class="leg-row"><svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#FFD54F" stroke-width="1.5" stroke-dasharray="8,3"/></svg> peer</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<!-- D3: спершу локальна копія поруч із цим файлом (робота без мережі),
+     потім CDN. Порядок саме такий, щоб офлайн-варіант мав пріоритет. -->
+<script src="[[D3_INLINE]]"></script>
 <script>
+if (typeof d3 === 'undefined') {
+  document.write('<scr' + 'ipt src="d3.min.js"><\/scr' + 'ipt>');
+}
+</script>
+<script>
+if (typeof d3 === 'undefined') {
+  document.write('<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"><\/scr' + 'ipt>');
+}
+</script>
+<script>
+if (typeof d3 === 'undefined') {
+  document.body.innerHTML =
+    '<div style="font:14px/1.6 sans-serif;padding:2em;max-width:46em">'
+    + '<h2>Граф не відображено: не завантажено бібліотеку D3</h2>'
+    + '<p>Цей файл потребує d3.js. Доступні варіанти:</p><ul>'
+    + '<li>покласти <code>d3.min.js</code> (v7) поруч із цим HTML-файлом;</li>'
+    + '<li>або відкрити файл на машині з доступом до <code>cdn.jsdelivr.net</code>.</li>'
+    + '</ul></div>';
+  throw new Error('d3 is not available');
+}
+
 // ── Дані, впроваджені GraphExporter ──────────────────────────────────────
 const DATA = [[GRAPH_DATA]];
 
