@@ -5,6 +5,40 @@
 
 ---
 
+## [3.15.1] — 2026-08-03
+
+Приведення коду у відповідність до правил стилю з `CLAUDE.md`.
+
+### Змінено
+
+- **Завершено дедуплікацію запиту RPSL-блоків.** У попередньому релізі `RpslDb`
+  охопив лише частину класів — 8 інлайнових копій
+  `SELECT block FROM rpsl WHERE key=… AND value=?` лишалися в
+  `retrieveAsSetMembers`, `retrieveAutNumFull` (2), `retrieveImportExportAsSets`,
+  `retrieveMntnerFull` (2), `retrieveRouteFull`, `retrieveRouteOriginFull`.
+  Тепер їх нуль; заразом `RpslDb.fetchBlocksLike` перестав бути невживаною
+  абстракцією, доданою «про запас».
+
+- **`ASBlockWar` переведено на `@Slf4j`** — залишався єдиним класом із ручним
+  `LoggerFactory.getLogger`. Поле `public static final Logger LOGGER` прибрано;
+  зовнішніх використань не було (перевірено), усередині класу — `log`.
+
+- **Прибрано зайві проміжні змінні** за правилом «лише коли результат
+  використовується двічі або вираз важкочитабельний»:
+  `sql` у `RpslDb.fetchBlocks`, `factory` у `VirtualExecutor.create`,
+  `len` у `PrefixUtils.canonical`, `existing` у двох методах `StoreActions`.
+
+- **Прибрано 17 імпортів**, що осиротіли після рефакторингу шару БД
+  (`PreparedStatement`, `ResultSet`, `Executors`, три `retrieve*`-класи).
+
+### Примітка
+
+Змінні, залишені навмисно: захоплення в лямбдах (`blocked` у `FilterAggressor`
+викликався б інакше для кожного елемента `parallelStream`), змінні навколо
+зовнішніх API (`FXMLLoader`, JDBC) — правило їх прямо дозволяє заради
+налагодження, — і `aggressorMntbyResources` в `ASBlockWar`: інлайнінг змістив би
+виклик після фільтрації, а він побічно наповнює `asSetResources`.
+
 ## [3.15.0] — 2026-08-03
 
 ### Виправлено

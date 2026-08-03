@@ -18,8 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
@@ -71,14 +69,7 @@ public class retrieveAsSetMembers {
             return;
         }
 
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key='as-set' AND value=?")) {
-            stmt.setString(1, setName);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                parseBlock(conn, rs.getString("block"), depth, visited);
-            }
-        }
+        parseBlock(conn, RpslDb.fetchBlocks(conn, setName, "as-set"), depth, visited);
     }
 
     private void parseBlock(Connection conn, String block, int depth, Set<String> visited) throws SQLException {

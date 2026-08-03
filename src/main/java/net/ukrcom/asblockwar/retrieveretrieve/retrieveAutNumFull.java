@@ -56,22 +56,11 @@ public class retrieveAutNumFull {
     }
 
     private void loadAutNum(Connection conn) throws SQLException {
-        String autNumBlock = null;
-
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key='aut-num' AND value=?")) {
-            stmt.setString(1, this.autNum);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                autNumBlock = rs.getString("block");
-                sb.append(autNumBlock);
-                sb.append("\n");
-            }
-        }
-
-        if (autNumBlock == null) {
+        String autNumBlock = RpslDb.fetchBlocks(conn, this.autNum, "aut-num");
+        if (autNumBlock.isEmpty()) {
             return;
         }
+        sb.append(autNumBlock).append("\n");
 
         appendAsnSummary(conn, autNumBlock);
 
@@ -123,15 +112,7 @@ public class retrieveAutNumFull {
     }
 
     private void appendOrg(Connection conn, String org) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key='organisation' AND value=?")) {
-            stmt.setString(1, org);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                sb.append(rs.getString("block"));
-                sb.append("\n");
-            }
-        }
+        sb.append(RpslDb.fetchBlocks(conn, org, "organisation")).append("\n");
     }
 
     /**

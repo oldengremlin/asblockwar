@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -73,9 +72,8 @@ public class StoreActions {
         log.debug("storeMntByResources: знайдено мантейнерів (до фільтрації): {}", discovered);
 
         Path path = Path.of(ASBlockWar.config.getListMntbyFile());
-        Set<String> existing = FileUtils.readFileEntries(path);
-
-        List<String> merged = Stream.concat(existing.stream(), discovered.stream())
+        List<String> merged = Stream.concat(
+                FileUtils.readFileEntries(path).stream(), discovered.stream())
                 .map(String::toUpperCase)
                 .filter(m -> !DiscoverAggressor.SERVICE_MNT.matcher(m).matches())
                 .distinct()
@@ -105,9 +103,8 @@ public class StoreActions {
 
         String listAssetFile = ASBlockWar.config.getListAssetFile();
         Path path = Path.of(listAssetFile);
-        Set<String> existing = FileUtils.readFileEntries(path);
-
-        List<String> merged = Stream.concat(existing.stream(), discovered.stream())
+        List<String> merged = Stream.concat(
+                FileUtils.readFileEntries(path).stream(), discovered.stream())
                 .map(String::toUpperCase)
                 .map(s -> s.endsWith(";") ? s.substring(0, s.length() - 1) : s)
                 .filter(s -> !s.isEmpty())

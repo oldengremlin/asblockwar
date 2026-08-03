@@ -18,8 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import net.ukrcom.asblockwar.Config;
 
@@ -54,22 +52,9 @@ public class retrieveRouteOriginFull {
     }
 
     private void loadRoutes(Connection conn) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT route FROM rpsl_origin WHERE origin=? ORDER BY route")) {
-            stmt.setString(1, this.origin);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                String route = rs.getString("route");
-                try (PreparedStatement routeStmt = conn.prepareStatement(
-                        "SELECT block FROM rpsl WHERE key IN ('route', 'route6') AND value=?")) {
-                    routeStmt.setString(1, route);
-                    ResultSet routeRs = routeStmt.executeQuery();
-                    while (routeRs.next()) {
-                        sb.append(routeRs.getString("block"));
-                        sb.append("\n");
-                    }
-                }
-            }
+        for (String route : RpslDb.fetchColumn(conn,
+                "SELECT route FROM rpsl_origin WHERE origin=? ORDER BY route", this.origin, "route")) {
+            sb.append(RpslDb.fetchBlocks(conn, route, "route", "route6")).append("\n");
         }
     }
 
