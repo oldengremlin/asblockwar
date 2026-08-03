@@ -87,15 +87,28 @@ public class Reporter {
             // Деталі змін: ASN + країна + назва організації
             record DetailRow(String asn, String act, String country, String org) {}
             List<DetailRow> details = Stream.of(removed, added, modified).flatMap(List::stream)
-                    .map(a -> new DetailRow(
-                        a.asn(),
-                        switch (a.action()) {
-                            case add    -> "Додано";
-                            case remove -> "Вилучено";
-                            case modify -> "Змінено";
-                        },
-                        RpslUtils.rpslField(a.data(), "country"),
-                        RpslUtils.rpslField(a.data(), "org-name")))
+                    .map(a -> {
+                        String country = RpslUtils.rpslField(a.data(), "country");
+                        String org     = RpslUtils.rpslField(a.data(), "org-name");
+                        if (a.action() == Action.modify && a.prevData() != null) {
+                            String prevCountry = RpslUtils.rpslField(a.prevData(), "country");
+                            String prevOrg     = RpslUtils.rpslField(a.prevData(), "org-name");
+                            if (!prevCountry.equals(country) && !prevCountry.isEmpty()) {
+                                country = prevCountry + " → " + country;
+                            }
+                            if (!prevOrg.equals(org) && !prevOrg.isEmpty()) {
+                                org = prevOrg + " → " + org;
+                            }
+                        }
+                        return new DetailRow(
+                            a.asn(),
+                            switch (a.action()) {
+                                case add    -> "Додано";
+                                case remove -> "Вилучено";
+                                case modify -> "Змінено";
+                            },
+                            country, org);
+                    })
                     .toList();
 
             final String HA = "ASN", HB = "Дія", HC = "CN", HD = "Організація";

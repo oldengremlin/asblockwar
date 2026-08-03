@@ -22,11 +22,16 @@ package net.ukrcom.asblockwar.serviceStructures;
  * між компонентами обробки, де {@code asn} — ідентифікатор АС,
  * а {@code data} — додаткові дані (наприклад, список префіксів).
  *
- * @param action тип дії ({@link Action#add}, {@link Action#remove}, {@link Action#modify})
- * @param asn    рядкове позначення автономної системи (наприклад, {@code "AS12345"})
- * @param data   додаткові дані, пов'язані з операцією (може бути {@code null})
+ * @param action   тип дії ({@link Action#add}, {@link Action#remove}, {@link Action#modify})
+ * @param asn      рядкове позначення автономної системи (наприклад, {@code "AS12345"})
+ * @param data     поточний RPSL-блок, пов'язаний з операцією (може бути {@code null})
+ * @param prevData попередній RPSL-блок до зміни; {@code null} для {@code add} і {@code remove}
  * @author olden
  */
-public record ASN(Action action, String asn, String data) {
+public record ASN(Action action, String asn, String data, String prevData) {
 
+    /** Сумісний конструктор для {@code add} і {@code remove} (без попередніх даних). */
+    public ASN(Action action, String asn, String data) {
+        this(action, asn, data, null);
+    }
 }
