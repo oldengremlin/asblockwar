@@ -18,8 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
@@ -41,14 +39,7 @@ public class retrieveRouteFull {
     public retrieveRouteFull(String prefix) {
         this.prefix = prefix;
         try (Connection conn = RpslDb.open()) {
-            try (PreparedStatement stmt = conn.prepareStatement(
-                    "SELECT block FROM rpsl WHERE key LIKE 'route%' AND value=?")) {
-                stmt.setString(1, prefix);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    sb.append(rs.getString("block")).append("\n");
-                }
-            }
+            sb.append(RpslDb.fetchBlocksLike(conn, prefix, "route%")).append("\n");
         } catch (SQLException ex) {
             log.error("Помилка при отриманні route block для {}", prefix, ex);
         }

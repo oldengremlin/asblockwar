@@ -74,8 +74,8 @@ public final class RpslDb {
      */
     public static String fetchBlocks(Connection conn, String value, String... keys) throws SQLException {
         StringBuilder sb = new StringBuilder();
-        String sql = "SELECT block FROM rpsl WHERE key IN (" + placeholders(keys.length) + ") AND value=?";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT block FROM rpsl WHERE key IN (" + placeholders(keys.length) + ") AND value=?")) {
             int i = 1;
             for (String key : keys) {
                 stmt.setString(i++, key);

@@ -54,7 +54,6 @@ public final class PrefixUtils {
             return prefix.toLowerCase();
         }
         String addr = prefix.substring(0, slash);
-        String len = prefix.substring(slash + 1);
         // Літеральна адреса — DNS не задіюється; на не-літералі впаде у except
         if (!addr.matches("[0-9A-Fa-f:.]+")) {
             return prefix.toLowerCase();
@@ -69,7 +68,7 @@ public final class PrefixUtils {
                     host = host.substring(0, pct);
                 }
             }
-            return host.toLowerCase() + "/" + len;
+            return host.toLowerCase() + prefix.substring(slash);
         } catch (UnknownHostException e) {
             log.debug("PrefixUtils: не вдалося канонізувати «{}»", prefix);
             return prefix.toLowerCase();

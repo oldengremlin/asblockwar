@@ -28,8 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javafx.application.Application;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import net.ukrcom.asblockwar.ui.ASBlockWarApp;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
@@ -48,9 +47,6 @@ import net.ukrcom.asblockwar.actions.StoreActions;
 import net.ukrcom.asblockwar.graph.GraphBuilder;
 import net.ukrcom.asblockwar.graph.GraphExporter;
 import net.ukrcom.asblockwar.retrieveretrieve.RpslCache;
-import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSet;
-import net.ukrcom.asblockwar.retrieveretrieve.retrieveMntBy;
-import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
 
 /**
  * Головна точка входу та ядро обробки ASBlockWar.
@@ -61,9 +57,9 @@ import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
  *
  * @author olden
  */
+@Slf4j
 public class ASBlockWar {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger(ASBlockWar.class);
     public static final int MAX_CONCURRENT_DB_QUERIES = 20;
     public static Config config;
 
@@ -115,9 +111,9 @@ public class ASBlockWar {
             runProcessing();
 
         } catch (IOException ex) {
-            LOGGER.error("Помилка вводу-виводу: ", ex);
+            log.error("Помилка вводу-виводу: ", ex);
         } catch (RuntimeException ex) {
-            LOGGER.error("Непередбачена помилка: ", ex);
+            log.error("Непередбачена помилка: ", ex);
         }
     }
 
@@ -175,14 +171,14 @@ public class ASBlockWar {
         // Очищення статичних кешів retrieve-класів між запусками
         RpslCache.clearAll();
 
-        LOGGER.info("listFile: " + config.getListFile());
-        LOGGER.info("listMntbyFile: " + config.getListMntbyFile());
+        log.info("listFile: " + config.getListFile());
+        log.info("listMntbyFile: " + config.getListMntbyFile());
 
         Map<String, String> aggressorAsnResources = MakeAggressor.makeAggressorAsnResources();
         Map<String, String> aggressorMntbyResources = MakeAggressor.makeAggressorAssetAndMntbyResources();
 
-        LOGGER.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
-        LOGGER.info("Починаємо фільтрацію...");
+        log.info("Всі потоки завершили роботу. Результатів: " + aggressorAsnResources.size());
+        log.info("Починаємо фільтрацію...");
 
         aggressorAsnResources = FilterAggressor.filterAggressorAsnResources(
                 MakeAggressor.makeAggressorResources(
@@ -300,14 +296,14 @@ public class ASBlockWar {
                         config.isDependencyWithUnknown());
                 GraphExporter.export(graph, config.getDependencyGraphPath());
             } catch (IOException e) {
-                LOGGER.warn("Не вдалося згенерувати граф залежностей: {}", e.getMessage());
+                log.warn("Не вдалося згенерувати граф залежностей: {}", e.getMessage());
             }
         }
 
-        LOGGER.info("Готово за {}.", formatDuration(System.nanoTime() - t0));
+        log.info("Готово за {}.", formatDuration(System.nanoTime() - t0));
         BatchRunner.runBatchCommand();
         if (config.isBatchMode()) {
-            LOGGER.info("Загальний час: {}.", formatDuration(System.nanoTime() - t0));
+            log.info("Загальний час: {}.", formatDuration(System.nanoTime() - t0));
         }
     }
 

@@ -18,8 +18,6 @@ package net.ukrcom.asblockwar.retrieveretrieve;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import net.ukrcom.asblockwar.Config;
 
@@ -54,32 +52,10 @@ public class retrieveMntnerFull {
     }
 
     private void loadMntner(Connection conn) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT block FROM rpsl WHERE key='mntner' AND value=?")) {
-            stmt.setString(1, this.mntner);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                sb.append(rs.getString("block"));
-                sb.append("\n");
-            }
-        }
-
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT value FROM rpsl_mntby WHERE key='role' AND mntby=?")) {
-            stmt.setString(1, this.mntner);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                String roleValue = rs.getString("value");
-                try (PreparedStatement roleStmt = conn.prepareStatement(
-                        "SELECT block FROM rpsl WHERE key='role' AND value=?")) {
-                    roleStmt.setString(1, roleValue);
-                    ResultSet roleRs = roleStmt.executeQuery();
-                    while (roleRs.next()) {
-                        sb.append(roleRs.getString("block"));
-                        sb.append("\n");
-                    }
-                }
-            }
+        sb.append(RpslDb.fetchBlocks(conn, this.mntner, "mntner")).append("\n");
+        for (String role : RpslDb.fetchColumn(conn,
+                "SELECT value FROM rpsl_mntby WHERE key='role' AND mntby=?", this.mntner, "value")) {
+            sb.append(RpslDb.fetchBlocks(conn, role, "role")).append("\n");
         }
     }
 

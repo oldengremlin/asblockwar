@@ -17,7 +17,6 @@ package net.ukrcom.asblockwar.actions;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -42,11 +41,10 @@ public final class VirtualExecutor {
      * @return новий executor; закривати через try-with-resources
      */
     public static ExecutorService create(String name) {
-        ThreadFactory factory = Thread.ofVirtual()
+        return Executors.newThreadPerTaskExecutor(Thread.ofVirtual()
                 .name(name + "-", 0)
                 .uncaughtExceptionHandler((thread, ex)
                         -> log.error("Необроблена помилка у задачі {}", thread.getName(), ex))
-                .factory();
-        return Executors.newThreadPerTaskExecutor(factory);
+                .factory());
     }
 }
