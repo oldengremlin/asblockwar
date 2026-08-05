@@ -314,11 +314,14 @@ public class EmailReportSender {
 
             boolean firstRow = true;
             for (String asn : asnList) {
-                String rpsl    = lookupRpsl(asn, aggressorAsnResources);
-                String country = esc(RpslUtils.rpslField(rpsl, "country"));
-                String descr   = esc(RpslUtils.rpslField(rpsl, "org-name"));
+                RpslLookup lookup = lookupRpsl(asn, aggressorAsnResources);
+                String country = esc(RpslUtils.rpslField(lookup.rpsl(), "country"));
+                String descr   = esc(RpslUtils.rpslField(lookup.rpsl(), "org-name"));
                 if (descr.isEmpty()) {
-                    descr = esc(RpslUtils.rpslField(rpsl, "descr"));
+                    descr = esc(RpslUtils.rpslField(lookup.rpsl(), "descr"));
+                }
+                if (lookup.fromCache()) {
+                    descr = withWasLabel(descr);
                 }
                 sb.append("<tr class=\"").append(rowCls).append("\">");
                 sb.append(firstRow
@@ -467,21 +470,51 @@ public class EmailReportSender {
     }
 
     /**
+     * Результат пошуку RPSL для ASN.
+     *
+     * @param rpsl      знайдений RPSL-блок (може бути порожнім)
+     * @param fromCache {@code true}, якщо блок узято з {@code STORE/AS/} — тобто
+     *                  ASN цього запуску взагалі не торкався, і дані можуть
+     *                  описувати вже видалений об'єкт
+     */
+    private record RpslLookup(String rpsl, boolean fromCache) {
+    }
+
+    /**
      * Шукає RPSL для ASN у трьох джерелах по черзі:
      * 1. поточна карта ворогів (aggressorAsnResources)
      * 2. resourcesForVerification (зміни поточного запуску, включно з action=remove)
      * 3. STORE/AS/<number>.txt — файл зберігається навіть після видалення AS
      */
-    private static String lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
+    private static RpslLookup lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
         String rpsl = aggressorAsnResources.get(asn);
         if (rpsl != null && !rpsl.isBlank()) {
-            return rpsl;
+            return new RpslLookup(rpsl, false);
         }
         ASN entry = ASBlockWar.resourcesForVerification.get(asn);
         if (entry != null && entry.data() != null && !entry.data().isBlank()) {
-            return entry.data();
+            return new RpslLookup(entry.data(), false);
         }
-        return readRpslFromStoreAs(asn);
+        return new RpslLookup(readRpslFromStoreAs(asn), true);
+    }
+
+    /**
+     * Позначає назву організації як історичну: {@code було «Назва»} замість
+     * голого значення. Використовується там, де показане значення не є
+     * поточним станом — кеш {@code STORE/AS/} для об'єктів, яких запуск не
+     * торкався, або org-name видаленого ASN у таблиці «Зміни ASN» — інакше
+     * читач сприйняв би застарілі дані як актуальні.
+     * <p>
+     * Порожню назву не позначає: «було» без нічого після лише плутає,
+     * а назву організації не завжди вдається знайти навіть у кеші.
+     *
+     * @param orgHtml готовий до вставки HTML з назвою організації
+     * @return HTML з міткою «було», або порожній рядок, якщо {@code orgHtml} порожній
+     */
+    private static String withWasLabel(String orgHtml) {
+        return (orgHtml == null || orgHtml.isEmpty())
+                ? ""
+                : "<span class=\"was-label\">було</span> «" + orgHtml + "»";
     }
 
     /** Читає RPSL-блок з {@code STORE/AS/<number>.txt}; зберігається навіть після видалення AS. */
@@ -542,7 +575,9 @@ public class EmailReportSender {
         String prev = prevData != null ? esc(RpslUtils.rpslField(prevData, field)) : null;
         return switch (action) {
             case add    -> cur.isEmpty()  ? "" : "<span class=\"val-new\">" + cur  + "</span>";
-            case remove -> cur.isEmpty()  ? "" : "<span class=\"val-old\">" + cur  + "</span>";
+            // Для remove "data" — це стан ДО видалення, а не поточний, тож
+            // позначаємо як історичний
+            case remove -> cur.isEmpty() ? "" : withWasLabel("<span class=\"val-old\">" + cur + "</span>");
             case modify -> {
                 if (prev == null || prev.equals(cur)) yield cur;
                 if (prev.isEmpty()) yield cur.isEmpty() ? "" : "<span class=\"val-new\">" + cur + "</span>";
@@ -611,5 +646,6 @@ public class EmailReportSender {
             + ".footer{font-size:11px;color:#aaa;margin-top:24px;border-top:1px solid #ddd;padding-top:8px}"
             + "code{font-family:monospace;font-size:11px;background:#f5f5f5;padding:1px 3px}"
             + ".val-old{color:#b71c1c}"
-            + ".val-new{color:#1b5e20}";
+            + ".val-new{color:#1b5e20}"
+            + ".was-label{color:#888;font-style:italic}";
 }
