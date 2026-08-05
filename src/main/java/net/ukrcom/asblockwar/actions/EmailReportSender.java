@@ -197,8 +197,8 @@ public class EmailReportSender {
                 case remove -> "<span class=\"action-del\">&#1042;&#1080;&#1083;&#1091;&#1095;&#1077;&#1085;&#1086;</span>";
                 case modify -> "<span class=\"action-mod\">&#1047;&#1084;&#1110;&#1085;&#1077;&#1085;&#1086;</span>";
             };
-            String countryHtml = diffField(a.action(), a.prevData(), a.data(), "country", false);
-            String orgHtml     = diffField(a.action(), a.prevData(), a.data(), "org-name", true);
+            String countryHtml = diffField(a.action(), a.prevData(), a.data(), "country");
+            String orgHtml     = diffField(a.action(), a.prevData(), a.data(), "org-name");
             sb.append("<tr class=\"").append(rowCls).append("\">")
               .append("<td valign=\"top\"><span class=\"asn\">").append(asnHtml(a.asn())).append("</span></td>")
               .append("<td valign=\"top\">").append(actHtml).append("</td>")
@@ -570,18 +570,14 @@ public class EmailReportSender {
      *                якщо не змінилось — нейтральний текст
      * </ul>
      */
-    private static String diffField(Action action, String prevData, String data, String field, boolean wasLabelOnRemove) {
+    private static String diffField(Action action, String prevData, String data, String field) {
         String cur  = esc(RpslUtils.rpslField(data != null ? data : "", field));
         String prev = prevData != null ? esc(RpslUtils.rpslField(prevData, field)) : null;
         return switch (action) {
             case add    -> cur.isEmpty()  ? "" : "<span class=\"val-new\">" + cur  + "</span>";
             // Для remove "data" — це стан ДО видалення, а не поточний, тож
-            // для org-name (не для country) явно позначаємо як історичний
-            case remove -> {
-                if (cur.isEmpty()) yield "";
-                String value = "<span class=\"val-old\">" + cur + "</span>";
-                yield wasLabelOnRemove ? withWasLabel(value) : value;
-            }
+            // позначаємо як історичний
+            case remove -> cur.isEmpty() ? "" : withWasLabel("<span class=\"val-old\">" + cur + "</span>");
             case modify -> {
                 if (prev == null || prev.equals(cur)) yield cur;
                 if (prev.isEmpty()) yield cur.isEmpty() ? "" : "<span class=\"val-new\">" + cur + "</span>";
