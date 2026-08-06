@@ -197,8 +197,8 @@ public class EmailReportSender {
                 case remove -> "<span class=\"action-del\">&#1042;&#1080;&#1083;&#1091;&#1095;&#1077;&#1085;&#1086;</span>";
                 case modify -> "<span class=\"action-mod\">&#1047;&#1084;&#1110;&#1085;&#1077;&#1085;&#1086;</span>";
             };
-            String countryHtml = diffField(a.action(), a.prevData(), a.data(), "country");
-            String orgHtml     = diffField(a.action(), a.prevData(), a.data(), "org-name");
+            String countryHtml = diffField(a.action(), a.asn(), a.prevData(), a.data(), "country");
+            String orgHtml     = diffField(a.action(), a.asn(), a.prevData(), a.data(), "org-name");
             sb.append("<tr class=\"").append(rowCls).append("\">")
               .append("<td valign=\"top\"><span class=\"asn\">").append(asnHtml(a.asn())).append("</span></td>")
               .append("<td valign=\"top\">").append(actHtml).append("</td>")
@@ -290,16 +290,27 @@ public class EmailReportSender {
                 + "<th valign=\"top\" style=\"width:50%\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
                 + "</tr></thead><tbody>");
 
-        Map<String, List<String>> origins = ASBlockWar.lastRouteOrigins;
+        Map<String, List<String>> liveOrigins = ASBlockWar.lastRouteOrigins;
 
         for (String prefix : sorted) {
-            List<String> asnList = origins != null
-                    ? origins.getOrDefault(prefix, Collections.emptyList())
-                    : Collections.emptyList();
-
-            // Якщо БД вже не містить запису (маршрут видалений) — беремо з STORE/NET/
-            if (asnList.isEmpty()) {
+            List<String> asnList;
+            if (forReplace) {
+                asnList = liveOrigins != null
+                        ? liveOrigins.getOrDefault(prefix, Collections.emptyList())
+                        : Collections.emptyList();
+                if (asnList.isEmpty()) {
+                    asnList = readOriginsFromStoreNet(prefix);
+                }
+            } else {
+                // Видалений маршрут: перевагу має історичний запис (хто фактично
+                // блокувався, поки цей маршрут ще був у blackbgp), а не свіжий
+                // bulk-запит до БД — для вже знятого маршруту він може повернути
+                // зовсім іншого власника після перепризначення мережі, який до
+                // блокування не має жодного стосунку.
                 asnList = readOriginsFromStoreNet(prefix);
+                if (asnList.isEmpty() && liveOrigins != null) {
+                    asnList = liveOrigins.getOrDefault(prefix, Collections.emptyList());
+                }
             }
 
             if (asnList.isEmpty()) {
@@ -314,14 +325,18 @@ public class EmailReportSender {
 
             boolean firstRow = true;
             for (String asn : asnList) {
-                RpslLookup lookup = lookupRpsl(asn, aggressorAsnResources);
-                String country = esc(RpslUtils.rpslField(lookup.rpsl(), "country"));
-                String descr   = esc(RpslUtils.rpslField(lookup.rpsl(), "org-name"));
+                String rpsl    = lookupRpsl(asn, aggressorAsnResources);
+                String country = esc(RpslUtils.rpslField(rpsl, "country"));
+                String descr   = esc(RpslUtils.rpslField(rpsl, "org-name"));
                 if (descr.isEmpty()) {
-                    descr = esc(RpslUtils.rpslField(lookup.rpsl(), "descr"));
+                    descr = esc(RpslUtils.rpslField(rpsl, "descr"));
                 }
-                if (lookup.fromCache()) {
-                    descr = withWasLabel(descr);
+                // Весь рядок цієї таблиці для forReplace=false описує стан ДО
+                // зняття маршруту з blackbgp, тож і country, і org-name завжди
+                // історичні — незалежно від того, чи ASN досі живий агресор десь ще
+                if (!forReplace) {
+                    country = withWasLabel(country);
+                    descr   = withWasLabel(descr);
                 }
                 sb.append("<tr class=\"").append(rowCls).append("\">");
                 sb.append(firstRow
@@ -470,32 +485,21 @@ public class EmailReportSender {
     }
 
     /**
-     * Результат пошуку RPSL для ASN.
-     *
-     * @param rpsl      знайдений RPSL-блок (може бути порожнім)
-     * @param fromCache {@code true}, якщо блок узято з {@code STORE/AS/} — тобто
-     *                  ASN цього запуску взагалі не торкався, і дані можуть
-     *                  описувати вже видалений об'єкт
-     */
-    private record RpslLookup(String rpsl, boolean fromCache) {
-    }
-
-    /**
      * Шукає RPSL для ASN у трьох джерелах по черзі:
      * 1. поточна карта ворогів (aggressorAsnResources)
      * 2. resourcesForVerification (зміни поточного запуску, включно з action=remove)
      * 3. STORE/AS/<number>.txt — файл зберігається навіть після видалення AS
      */
-    private static RpslLookup lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
+    private static String lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
         String rpsl = aggressorAsnResources.get(asn);
         if (rpsl != null && !rpsl.isBlank()) {
-            return new RpslLookup(rpsl, false);
+            return rpsl;
         }
         ASN entry = ASBlockWar.resourcesForVerification.get(asn);
         if (entry != null && entry.data() != null && !entry.data().isBlank()) {
-            return new RpslLookup(entry.data(), false);
+            return entry.data();
         }
-        return new RpslLookup(readRpslFromStoreAs(asn), true);
+        return readRpslFromStoreAs(asn);
     }
 
     /**
@@ -565,19 +569,30 @@ public class EmailReportSender {
      * Форматує поле RPSL для колонки "Країна" або "Організація" в таблиці змін ASN.
      * <ul>
      *   <li>add    — поточне значення у темно-зеленому кольорі
-     *   <li>remove — поточне значення у темно-червоному кольорі
+     *   <li>remove — значення до видалення, позначене як {@code було «X»}
      *   <li>modify — якщо поле змінилось: {@code <old>} &#8594; {@code <new>} з кольорами;
      *                якщо не змінилось — нейтральний текст
      * </ul>
+     *
+     * @param asn ASN рядка — потрібен лише для {@code remove}, як фолбек у
+     *            {@code STORE/AS/} на випадок, якщо {@code data} порожній
+     *            (RPSL-об'єкт видалено з БД до того, як його встигли закешувати)
      */
-    private static String diffField(Action action, String prevData, String data, String field) {
+    private static String diffField(Action action, String asn, String prevData, String data, String field) {
         String cur  = esc(RpslUtils.rpslField(data != null ? data : "", field));
         String prev = prevData != null ? esc(RpslUtils.rpslField(prevData, field)) : null;
         return switch (action) {
             case add    -> cur.isEmpty()  ? "" : "<span class=\"val-new\">" + cur  + "</span>";
-            // Для remove "data" — це стан ДО видалення, а не поточний, тож
-            // позначаємо як історичний
-            case remove -> cur.isEmpty() ? "" : withWasLabel("<span class=\"val-old\">" + cur + "</span>");
+            // Для remove "data" — це стан ДО видалення, а не поточний, тож позначаємо
+            // як історичний. Якщо data порожній (RPSL-об'єкт зник ще до того, як цей
+            // прогін встиг зафіксувати його вміст), пробуємо STORE/AS/ — той самий
+            // фолбек, що й у buildRouteSection.
+            case remove -> {
+                String value = cur.isEmpty()
+                        ? esc(RpslUtils.rpslField(readRpslFromStoreAs(asn), field))
+                        : cur;
+                yield value.isEmpty() ? "" : withWasLabel("<span class=\"val-old\">" + value + "</span>");
+            }
             case modify -> {
                 if (prev == null || prev.equals(cur)) yield cur;
                 if (prev.isEmpty()) yield cur.isEmpty() ? "" : "<span class=\"val-new\">" + cur + "</span>";
