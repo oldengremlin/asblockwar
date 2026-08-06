@@ -197,8 +197,8 @@ public class EmailReportSender {
                 case remove -> "<span class=\"action-del\">&#1042;&#1080;&#1083;&#1091;&#1095;&#1077;&#1085;&#1086;</span>";
                 case modify -> "<span class=\"action-mod\">&#1047;&#1084;&#1110;&#1085;&#1077;&#1085;&#1086;</span>";
             };
-            String countryHtml = diffField(a.action(), a.prevData(), a.data(), "country");
-            String orgHtml     = diffField(a.action(), a.prevData(), a.data(), "org-name");
+            String countryHtml = diffField(a.action(), a.asn(), a.prevData(), a.data(), "country");
+            String orgHtml     = diffField(a.action(), a.asn(), a.prevData(), a.data(), "org-name");
             sb.append("<tr class=\"").append(rowCls).append("\">")
               .append("<td valign=\"top\"><span class=\"asn\">").append(asnHtml(a.asn())).append("</span></td>")
               .append("<td valign=\"top\">").append(actHtml).append("</td>")
@@ -565,19 +565,30 @@ public class EmailReportSender {
      * Форматує поле RPSL для колонки "Країна" або "Організація" в таблиці змін ASN.
      * <ul>
      *   <li>add    — поточне значення у темно-зеленому кольорі
-     *   <li>remove — поточне значення у темно-червоному кольорі
+     *   <li>remove — значення до видалення, позначене як {@code було «X»}
      *   <li>modify — якщо поле змінилось: {@code <old>} &#8594; {@code <new>} з кольорами;
      *                якщо не змінилось — нейтральний текст
      * </ul>
+     *
+     * @param asn ASN рядка — потрібен лише для {@code remove}, як фолбек у
+     *            {@code STORE/AS/} на випадок, якщо {@code data} порожній
+     *            (RPSL-об'єкт видалено з БД до того, як його встигли закешувати)
      */
-    private static String diffField(Action action, String prevData, String data, String field) {
+    private static String diffField(Action action, String asn, String prevData, String data, String field) {
         String cur  = esc(RpslUtils.rpslField(data != null ? data : "", field));
         String prev = prevData != null ? esc(RpslUtils.rpslField(prevData, field)) : null;
         return switch (action) {
             case add    -> cur.isEmpty()  ? "" : "<span class=\"val-new\">" + cur  + "</span>";
-            // Для remove "data" — це стан ДО видалення, а не поточний, тож
-            // позначаємо як історичний
-            case remove -> cur.isEmpty() ? "" : withWasLabel("<span class=\"val-old\">" + cur + "</span>");
+            // Для remove "data" — це стан ДО видалення, а не поточний, тож позначаємо
+            // як історичний. Якщо data порожній (RPSL-об'єкт зник ще до того, як цей
+            // прогін встиг зафіксувати його вміст), пробуємо STORE/AS/ — той самий
+            // фолбек, що й у buildRouteSection.
+            case remove -> {
+                String value = cur.isEmpty()
+                        ? esc(RpslUtils.rpslField(readRpslFromStoreAs(asn), field))
+                        : cur;
+                yield value.isEmpty() ? "" : withWasLabel("<span class=\"val-old\">" + value + "</span>");
+            }
             case modify -> {
                 if (prev == null || prev.equals(cur)) yield cur;
                 if (prev.isEmpty()) yield cur.isEmpty() ? "" : "<span class=\"val-new\">" + cur + "</span>";
