@@ -290,16 +290,27 @@ public class EmailReportSender {
                 + "<th valign=\"top\" style=\"width:50%\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
                 + "</tr></thead><tbody>");
 
-        Map<String, List<String>> origins = ASBlockWar.lastRouteOrigins;
+        Map<String, List<String>> liveOrigins = ASBlockWar.lastRouteOrigins;
 
         for (String prefix : sorted) {
-            List<String> asnList = origins != null
-                    ? origins.getOrDefault(prefix, Collections.emptyList())
-                    : Collections.emptyList();
-
-            // Якщо БД вже не містить запису (маршрут видалений) — беремо з STORE/NET/
-            if (asnList.isEmpty()) {
+            List<String> asnList;
+            if (forReplace) {
+                asnList = liveOrigins != null
+                        ? liveOrigins.getOrDefault(prefix, Collections.emptyList())
+                        : Collections.emptyList();
+                if (asnList.isEmpty()) {
+                    asnList = readOriginsFromStoreNet(prefix);
+                }
+            } else {
+                // Видалений маршрут: перевагу має історичний запис (хто фактично
+                // блокувався, поки цей маршрут ще був у blackbgp), а не свіжий
+                // bulk-запит до БД — для вже знятого маршруту він може повернути
+                // зовсім іншого власника після перепризначення мережі, який до
+                // блокування не має жодного стосунку.
                 asnList = readOriginsFromStoreNet(prefix);
+                if (asnList.isEmpty() && liveOrigins != null) {
+                    asnList = liveOrigins.getOrDefault(prefix, Collections.emptyList());
+                }
             }
 
             if (asnList.isEmpty()) {
@@ -314,14 +325,18 @@ public class EmailReportSender {
 
             boolean firstRow = true;
             for (String asn : asnList) {
-                RpslLookup lookup = lookupRpsl(asn, aggressorAsnResources);
-                String country = esc(RpslUtils.rpslField(lookup.rpsl(), "country"));
-                String descr   = esc(RpslUtils.rpslField(lookup.rpsl(), "org-name"));
+                String rpsl    = lookupRpsl(asn, aggressorAsnResources);
+                String country = esc(RpslUtils.rpslField(rpsl, "country"));
+                String descr   = esc(RpslUtils.rpslField(rpsl, "org-name"));
                 if (descr.isEmpty()) {
-                    descr = esc(RpslUtils.rpslField(lookup.rpsl(), "descr"));
+                    descr = esc(RpslUtils.rpslField(rpsl, "descr"));
                 }
-                if (lookup.fromCache()) {
-                    descr = withWasLabel(descr);
+                // Весь рядок цієї таблиці для forReplace=false описує стан ДО
+                // зняття маршруту з blackbgp, тож і country, і org-name завжди
+                // історичні — незалежно від того, чи ASN досі живий агресор десь ще
+                if (!forReplace) {
+                    country = withWasLabel(country);
+                    descr   = withWasLabel(descr);
                 }
                 sb.append("<tr class=\"").append(rowCls).append("\">");
                 sb.append(firstRow
@@ -470,32 +485,21 @@ public class EmailReportSender {
     }
 
     /**
-     * Результат пошуку RPSL для ASN.
-     *
-     * @param rpsl      знайдений RPSL-блок (може бути порожнім)
-     * @param fromCache {@code true}, якщо блок узято з {@code STORE/AS/} — тобто
-     *                  ASN цього запуску взагалі не торкався, і дані можуть
-     *                  описувати вже видалений об'єкт
-     */
-    private record RpslLookup(String rpsl, boolean fromCache) {
-    }
-
-    /**
      * Шукає RPSL для ASN у трьох джерелах по черзі:
      * 1. поточна карта ворогів (aggressorAsnResources)
      * 2. resourcesForVerification (зміни поточного запуску, включно з action=remove)
      * 3. STORE/AS/<number>.txt — файл зберігається навіть після видалення AS
      */
-    private static RpslLookup lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
+    private static String lookupRpsl(String asn, Map<String, String> aggressorAsnResources) {
         String rpsl = aggressorAsnResources.get(asn);
         if (rpsl != null && !rpsl.isBlank()) {
-            return new RpslLookup(rpsl, false);
+            return rpsl;
         }
         ASN entry = ASBlockWar.resourcesForVerification.get(asn);
         if (entry != null && entry.data() != null && !entry.data().isBlank()) {
-            return new RpslLookup(entry.data(), false);
+            return entry.data();
         }
-        return new RpslLookup(readRpslFromStoreAs(asn), true);
+        return readRpslFromStoreAs(asn);
     }
 
     /**
