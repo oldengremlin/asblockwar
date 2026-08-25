@@ -89,7 +89,7 @@ public class DiscoverAggressor {
         seenAsns.addAll(aggressorAsnResources.keySet());
 
         try (ExecutorService executor = VirtualExecutor.create("discover")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
 
             aggressorAsnResources.keySet().stream()
                     .forEach(asn -> executor.execute(() -> {
@@ -193,7 +193,7 @@ public class DiscoverAggressor {
         // «недоступна БД» там, де користувач просто натиснув «зупинити»
         AtomicBoolean interrupted = new AtomicBoolean();
         try (ExecutorService executor = VirtualExecutor.create("discover")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             aggressorAsnResources.keySet().forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
@@ -282,7 +282,7 @@ public class DiscoverAggressor {
         Map<String, String> newEnemies = new ConcurrentHashMap<>();
         if (!toDelete.isEmpty()) {
             try (ExecutorService executor = VirtualExecutor.create("discover")) {
-                Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+                Semaphore dbLimit = ASBlockWar.DB_LIMIT;
                 toDelete.forEach(prefix -> executor.execute(() -> {
                     try {
                         List<String> origins;

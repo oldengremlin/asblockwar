@@ -51,7 +51,7 @@ public class ForceBlockActions {
         }
 
         try (ExecutorService executor = VirtualExecutor.create("forceblock")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             forceList.forEach(raw -> executor.execute(() -> {
                 String asn = raw.trim().toUpperCase();
                 if (!asn.startsWith("AS")) {

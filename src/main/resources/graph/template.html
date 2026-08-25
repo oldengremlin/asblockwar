@@ -798,7 +798,10 @@ const STATUS_COLORS = {BLOCKED:'#C62828',SUSPICIOUS:'#E65100',CLEAR:'#2E7D32',UN
 function showPathModal(pathArr) {
     // Зміщення нового вікна відносно попередніх, щоб не повністю перекривалися
     const existing = document.querySelectorAll('.path-float-panel');
-    const offset = existing.length * 24;
+    // Зміщення циклічне: раніше воно росло без межі, і після ~25 панелей нові
+    // з'являлися нижче видимої області — закрити їх було неможливо, бо
+    // drag-хендл теж опинявся за екраном
+    const offset = (existing.length % 8) * 24;
 
     const panel = document.createElement('div');
     panel.className = 'path-float-panel';

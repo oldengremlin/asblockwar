@@ -403,7 +403,7 @@ public class StoreActions {
 
         Map<String, String> infoByMnt = new ConcurrentHashMap<>();
         try (ExecutorService executor = VirtualExecutor.create("store")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             allMntBy.forEach(mnt -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
@@ -537,7 +537,7 @@ public class StoreActions {
         FileUtils.ensureStoreDir(dirASNet);
 
         try (ExecutorService executor = VirtualExecutor.create("store")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
 
             // STORE/AS/{asn}.txt and STORE/AS-NET/{asn}.txt (один acquire на два послідовних DB-запити)
             aggressorAsnResources.keySet().forEach(asn -> executor.execute(() -> {

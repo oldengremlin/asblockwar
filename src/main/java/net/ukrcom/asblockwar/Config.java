@@ -322,11 +322,11 @@ public class Config {
         } catch (CommandLine.ParameterException ex) {
             System.err.println(ex.getMessage());
             System.err.println("Run with --help for usage.");
-            System.exit(1);
+            throw new ExitRequest(1);
         }
         if (cmd.isUsageHelpRequested()) {
             cmd.usage(System.out);
-            System.exit(0);
+            throw new ExitRequest(0);
         }
 
         // Resolve list fields from comma-separated strings (already filled by Picocli)
@@ -582,4 +582,27 @@ public class Config {
         return System.getProperty("os.name", "").toLowerCase().contains("win")
                ? "after.cmd" : "after.sh";
     }
+
+    /**
+     * Сигнал завершення процесу з конструктора {@link Config}.
+     * <p>
+     * Раніше конструктор викликав {@code System.exit()} напряму — на помилці розбору
+     * CLI та на {@code --help}. Це вбивало JVM в обхід будь-якого прибирання і робило
+     * клас непридатним для тестів. Тепер рішення про вихід приймає {@code main()}.
+     *
+     * @param code код завершення процесу
+     */
+    public static class ExitRequest extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        /** Код, з яким має завершитися процес. */
+        public final transient int code;
+
+        ExitRequest(int code) {
+            super("завершення з кодом " + code);
+            this.code = code;
+        }
+    }
+
 }

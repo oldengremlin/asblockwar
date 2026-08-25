@@ -151,7 +151,7 @@ public class FilterAggressor {
      */
     public static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
         Set<String> blocked = blockedCountries();
-        Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+        Semaphore dbLimit = ASBlockWar.DB_LIMIT;
         Map<String, String> confirmed = new ConcurrentHashMap<>();
 
         // Раніше тут був parallelStream, тобто ForkJoinPool.commonPool. Це давало дві

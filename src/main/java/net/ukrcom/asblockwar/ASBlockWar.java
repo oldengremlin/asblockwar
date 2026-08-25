@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javafx.application.Application;
@@ -62,6 +63,18 @@ import net.ukrcom.asblockwar.retrieveretrieve.RpslDb;
 public class ASBlockWar {
 
     public static final int MAX_CONCURRENT_DB_QUERIES = 20;
+
+    /**
+     * Спільний обмежувач паралельних запитів до whois-lite-local.
+     * <p>
+     * Раніше кожен метод створював власний {@code new Semaphore(MAX_CONCURRENT_DB_QUERIES)} —
+     * тринадцять незалежних лічильників. Оскільки {@code storeDetails} і
+     * {@code storeMaintainersList} стартують одночасно, фактична межа була 40, а не 20.
+     * Це не лише навантаження на SQLite: розмір пулу з'єднань у {@code RpslDb} дорівнює
+     * саме цій константі, тож половина з'єднань щоразу створювалася й закривалася марно,
+     * бо пул уже був повний.
+     */
+    public static final Semaphore DB_LIMIT = new Semaphore(MAX_CONCURRENT_DB_QUERIES);
     public static Config config;
 
     public static volatile UIProgressCallback uiCallback;
@@ -111,6 +124,10 @@ public class ASBlockWar {
 
             runProcessing();
 
+        } catch (Config.ExitRequest ex) {
+            // --help або помилка розбору CLI: рішення про код виходу належить main(),
+            // а не конструктору Config. Ловиться до RuntimeException — ExitRequest її наслідує.
+            System.exit(ex.code);
         } catch (IOException ex) {
             log.error("Помилка вводу-виводу: ", ex);
             // Ненульовий код обов'язковий: без нього cron/systemd бачить успіх
