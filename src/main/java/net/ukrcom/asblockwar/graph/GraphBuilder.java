@@ -230,8 +230,10 @@ public class GraphBuilder {
             }
         });
 
+        // Назва організації однакова для всіх збігів у блоці — рахуємо один раз,
+        // а не повним скануванням rpsl на кожен org:
+        String orgName = extractOrgName(rpsl);
         allMatches(ORG_ID_PAT, rpsl).forEach(org -> {
-            String orgName = extractOrgName(rpsl);
             addNode(org, NodeType.ORGANISATION, NodeStatus.UNKNOWN, org,
                     orgName.isBlank() ? "" : orgName);
             addEdge(asn, org, EdgeRelation.ORG);
@@ -244,8 +246,10 @@ public class GraphBuilder {
             }
         });
 
-        // Peer-ребра — додаємо умовно, будуть відфільтровані якщо target не в графі
-        allMatches(PEER_ASN_PAT, rpsl).stream()
+        // Peer-ребра — лише з рядків import/export. Раніше патерн шукав «from|to AS\\d+»
+        // по ВСЬОМУ блоку, тож «remarks: migrated from AS12345» або
+        // «descr: transit to AS3356» малювали peering, якого в політиці немає.
+        allMatches(PEER_ASN_PAT, String.join("\n", policyLines(rpsl))).stream()
                 .map(String::toUpperCase)
                 .filter(peer -> !peer.equals(asn))
                 .forEach(peer -> addEdge(asn, peer, EdgeRelation.PEER));
@@ -269,6 +273,34 @@ public class GraphBuilder {
      * @param rpsl RPSL-блок as-set
      * @return значення полів members без імені поля, по рядку на запис
      */
+
+    /** Поля політики маршрутизації, у яких лише й мають шукатися peer-ASN. */
+    private static final Pattern POLICY_LINE
+            = Pattern.compile("(?i)^(?:mp-)?(?:import|export|default):.*");
+
+    /**
+     * Збирає рядки {@code import:}/{@code export:} (та їхні mp-варіанти) разом
+     * із continuation-рядками RFC 2622.
+     *
+     * @param rpsl RPSL-блок aut-num
+     * @return рядки політики маршрутизації
+     */
+    private static List<String> policyLines(String rpsl) {
+        List<String> out = new ArrayList<>();
+        boolean inPolicy = false;
+        for (String line : rpsl.split("\n")) {
+            if (POLICY_LINE.matcher(line).matches()) {
+                inPolicy = true;
+                out.add(line);
+            } else if (inPolicy && MEMBERS_CONT.matcher(line).matches()) {
+                out.add(line);
+            } else {
+                inPolicy = false;
+            }
+        }
+        return out;
+    }
+
     static List<String> memberLines(String rpsl) {
         List<String> out = new ArrayList<>();
         boolean inMembers = false;

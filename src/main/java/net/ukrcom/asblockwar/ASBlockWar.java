@@ -113,8 +113,12 @@ public class ASBlockWar {
 
         } catch (IOException ex) {
             log.error("Помилка вводу-виводу: ", ex);
+            // Ненульовий код обов'язковий: без нього cron/systemd бачить успіх
+            // навіть коли жоден файл не оновлено
+            System.exit(1);
         } catch (RuntimeException ex) {
             log.error("Непередбачена помилка: ", ex);
+            System.exit(1);
         }
     }
 

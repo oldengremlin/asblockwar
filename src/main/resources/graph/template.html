@@ -174,8 +174,22 @@ const EDGE_W     = {MNT_BY:1.5,MNT_REF:1,ORG:1.5,MEMBER_OF:1,PEER:1};
 const R = 8; // базовий радіус вузла (SVG-одиниці)
 
 // ── Розміри ───────────────────────────────────────────────────────────────
-const W = window.innerWidth, H = window.innerHeight - 48;
+// let, а не const: fitAll() і zoomToFit() рахують масштаб і центрування саме
+// від цих величин. Раніше вони фіксувалися на момент завантаження, тож після
+// розгортання вікна SVG (width:100%) розтягувався, а центрування лишалося
+// за старими розмірами — граф з'їжджав, і Reset відтворював те саме зміщення.
+let W = window.innerWidth, H = window.innerHeight - 48;
 const svg = d3.select('#graph').attr('width', W).attr('height', H);
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        W = window.innerWidth;
+        H = window.innerHeight - 48;
+        svg.attr('width', W).attr('height', H);
+    }, 150);
+});
 const zoomLayer = d3.select('#zoom-layer');
 
 const nodeMap = new Map(DATA.nodes.map(n => [n.id, n]));

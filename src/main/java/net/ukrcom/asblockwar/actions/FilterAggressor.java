@@ -109,7 +109,10 @@ public class FilterAggressor {
     private static String enrichForSuspiciousCheck(String rpsl, Semaphore dbLimit) {
         StringBuilder enriched = new StringBuilder(rpsl);
         rpsl.lines()
-                .filter(l -> l.matches("(?i)^mnt-(by|ref):\\s*\\S+"))
+                // matches() вимагає збігу ВСЬОГО рядка, а блоки беруться з БД дослівно —
+                // «mnt-by:   FOO-MNT » з кінцевим пробілом мовчки не проходив, і mntner
+                // не підтягувався до перевірки на підозрілу AS
+                .filter(l -> l.matches("(?i)^mnt-(by|ref):\\s*\\S+\\s*"))
                 .map(l -> l.replaceFirst("(?i)^mnt-(?:by|ref):\\s*", "").trim())
                 .filter(v -> !v.isEmpty() && !DiscoverAggressor.SERVICE_MNT.matcher(v).matches())
                 .distinct()
