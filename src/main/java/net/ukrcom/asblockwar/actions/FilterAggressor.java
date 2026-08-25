@@ -17,6 +17,8 @@ package net.ukrcom.asblockwar.actions;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -147,32 +149,37 @@ public class FilterAggressor {
     public static Map<String, String> filterAggressorAsnResources(Map<String, String> aggressorAsnResources) {
         Set<String> blocked = blockedCountries();
         Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+        Map<String, String> confirmed = new ConcurrentHashMap<>();
 
-        return aggressorAsnResources.entrySet().parallelStream()
-                .filter(entry -> {
-                    String rpsl = entry.getValue();
-                    if (isAggressor(rpsl, blocked)) {
-                        return true;
-                    }
-                    String matched = matchedAggressorLine(enrichForSuspiciousCheck(rpsl, dbLimit));
-                    if (matched != null) {
-                        log.warn("Не в BlockCountry, але AggressorPattern збігається: {}", entry.getKey());
-                        ASBlockWar.suspiciousAsnResources.put(
-                                entry.getKey(),
-                                new SuspiciousAS(entry.getKey(), extractCountry(rpsl), matched, rpsl)
-                        );
-                    } else {
-                        log.warn("Вилучено (country не в блокованих, pattern не збігається): {}", entry.getKey());
-                    }
-                    ASBlockWar.resourcesForVerification.put(
-                            entry.getKey(),
-                            new ASN(Action.remove, entry.getKey(), rpsl)
+        // Раніше тут був parallelStream, тобто ForkJoinPool.commonPool. Це давало дві
+        // проблеми. По-перше, enrichForSuspiciousCheck ставить прапорець переривання
+        // на поточному потоці, а FJ не скидає його між задачами — воркер лишався
+        // «перерваним» назавжди, і будь-який наступний блокуючий виклик у JVM на цьому
+        // воркері одразу кидав InterruptedException. По-друге, паралелізм commonPool
+        // це NCPU-1, тож семафор на 20 не діяв узагалі, а на 1-2 ядрах увесь етап
+        // серіалізувався. Віртуальні потоки знімають обидві проблеми.
+        try (ExecutorService executor = VirtualExecutor.create("filter")) {
+            aggressorAsnResources.forEach((asn, rpsl) -> executor.execute(() -> {
+                if (isAggressor(rpsl, blocked)) {
+                    confirmed.put(asn, rpsl);
+                    return;
+                }
+                String matched = matchedAggressorLine(enrichForSuspiciousCheck(rpsl, dbLimit));
+                if (matched != null) {
+                    log.warn("Не в BlockCountry, але AggressorPattern збігається: {}", asn);
+                    ASBlockWar.suspiciousAsnResources.put(
+                            asn,
+                            new SuspiciousAS(asn, extractCountry(rpsl), matched, rpsl)
                     );
-                    return false;
-                })
-                .collect(Collectors.toConcurrentMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue
-                ));
+                } else {
+                    log.warn("Вилучено (country не в блокованих, pattern не збігається): {}", asn);
+                }
+                ASBlockWar.resourcesForVerification.put(
+                        asn,
+                        new ASN(Action.remove, asn, rpsl)
+                );
+            }));
+        }
+        return confirmed;
     }
 }

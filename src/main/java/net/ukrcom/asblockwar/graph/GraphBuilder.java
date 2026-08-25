@@ -15,7 +15,9 @@
  */
 package net.ukrcom.asblockwar.graph;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,7 +48,10 @@ public class GraphBuilder {
     private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:[ \\t]*(.+)$");
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
     private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:[ \\t]*(\\S+)");
-    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^(?:mp-)?members:[ \\t]*(.+)$");
+    /** Початок поля members:/mp-members:. */
+    private static final Pattern MEMBERS_LINE = Pattern.compile("(?i)^(?:mp-)?members:.*");
+    /** Continuation-рядок RFC 2622 — починається з пробілу або табуляції. */
+    private static final Pattern MEMBERS_CONT = Pattern.compile("^[ \\t]+\\S.*");
     private static final Pattern MNTNER_AUTNUM_PAT = Pattern.compile("(?m)^aut-num:[ \\t]*(AS\\d+)");
     private static final Pattern MNTNER_ASSET_PAT = Pattern.compile("(?m)^as-set:[ \\t]*(\\S+)");
 
@@ -246,8 +251,42 @@ public class GraphBuilder {
                 .forEach(peer -> addEdge(asn, peer, EdgeRelation.PEER));
     }
 
+
+    /**
+     * Збирає значення полів {@code members:}/{@code mp-members:} разом із
+     * continuation-рядками.
+     * <p>
+     * За RFC 2622 великі as-set записуються з переносом:
+     * <pre>
+     * members:        AS1, AS2,
+     *                 AS3, AS-CHILD
+     * </pre>
+     * Регулярний вираз, прив'язаний до {@code ^members:}, бачив лише перший рядок,
+     * тож граф систематично недораховував членів найбільших as-set, а вкладені
+     * as-set не потрапляли до нього взагалі. {@code retrieveAsSetMembers}
+     * обробляє continuation саме так — тут була розбіжність.
+     *
+     * @param rpsl RPSL-блок as-set
+     * @return значення полів members без імені поля, по рядку на запис
+     */
+    static List<String> memberLines(String rpsl) {
+        List<String> out = new ArrayList<>();
+        boolean inMembers = false;
+        for (String line : rpsl.split("\n")) {
+            if (MEMBERS_LINE.matcher(line).matches()) {
+                inMembers = true;
+                out.add(line.replaceFirst("(?i)^(?:mp-)?members:", "").trim());
+            } else if (inMembers && MEMBERS_CONT.matcher(line).matches()) {
+                out.add(line.trim());
+            } else {
+                inMembers = false;
+            }
+        }
+        return out;
+    }
+
     private void parseAsSetEdges(String asSetId, String rpsl) {
-        allMatches(MEMBERS_PAT, rpsl).forEach(line -> {
+        memberLines(rpsl).forEach(line -> {
             for (String token : line.split("[,\\s]+")) {
                 String member = token.trim().replaceAll(";$", "");
                 if (member.isEmpty()) {

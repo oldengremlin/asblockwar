@@ -291,6 +291,11 @@ public class RunProgressController implements Initializable {
 
     @FXML
     private void doClose() {
+        // stage.hide() НЕ породжує WINDOW_CLOSE_REQUEST — той приходить лише від
+        // віконного менеджера. Оскільки штатний шлях користувача це саме ця кнопка,
+        // без явного виклику Timeline і документ WebEngine жили б до кінця процесу,
+        // а в GUI прогонів буває кілька.
+        shutdownView();
         if (stage != null) {
             stage.hide();
         }

@@ -124,8 +124,13 @@ public class GraphExporter {
             Map<String, double[]> pos = parsePlainPositions(
                     raw != null ? new String(raw, StandardCharsets.UTF_8) : "");
 
-            if (pos.size() < graph.getNodes().size() * 0.9) {
-                log.warn("sfdp: неповний layout ({}/{}), переключаємось на D3 симуляцію",
+            // Раніше допускалося до 10% вузлів без координат. У шаблоні
+            // (n.px - x0) для них давало NaN, а `d.x || 0` перетворювало NaN на 0 —
+            // тобто до 1800 вузлів на графі у 18K злипалися в точці (0,0) разом
+            // з усіма своїми ребрами, і жодного попередження при цьому не було.
+            // Layout приймаємо тільки повний.
+            if (pos.size() < graph.getNodes().size()) {
+                log.warn("sfdp: неповний layout ({}/{} вузлів), переключаємось на D3 симуляцію",
                         pos.size(), graph.getNodes().size());
                 return Map.of();
             }
