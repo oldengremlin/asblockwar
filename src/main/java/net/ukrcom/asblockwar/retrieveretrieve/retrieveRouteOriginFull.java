@@ -52,9 +52,13 @@ public class retrieveRouteOriginFull {
     }
 
     private void loadRoutes(Connection conn) throws SQLException {
-        for (String route : RpslDb.fetchColumn(conn,
-                "SELECT route FROM rpsl_origin WHERE origin=? ORDER BY route", this.origin, "route")) {
-            sb.append(RpslDb.fetchBlocks(conn, route, "route", "route6")).append("\n");
+        // Один JOIN замість «список маршрутів + запит на кожен»: для AS із сотнями
+        // маршрутів це була сотня round-trip'ів до SQLite на кожен ASN
+        for (String block : RpslDb.fetchColumn(conn,
+                "SELECT r.block FROM rpsl_origin o"
+                + " JOIN rpsl r ON r.value = o.route AND r.key IN ('route', 'route6')"
+                + " WHERE o.origin = ? ORDER BY o.route", this.origin, "block")) {
+            sb.append(block).append("\n");
         }
     }
 

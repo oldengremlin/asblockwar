@@ -53,11 +53,13 @@ public class retrieveMntBy {
         }
 
         try (Connection conn = RpslDb.open()) {
-            for (String value : RpslDb.fetchColumn(conn,
-                    "SELECT value FROM rpsl_mntby WHERE key IN ('aut-num', 'as-set') AND mntby = ?",
-                    mntBy, "value")) {
-                this.sb.append(RpslDb.fetchBlocks(conn, value, "aut-num", "as-set"));
-                this.sb.append("\n");
+            // Один JOIN замість «список value + запит на кожен» — див. retrieveRouteOriginFull
+            for (String block : RpslDb.fetchColumn(conn,
+                    "SELECT r.block FROM rpsl_mntby m"
+                    + " JOIN rpsl r ON r.value = m.value AND r.key IN ('aut-num', 'as-set')"
+                    + " WHERE m.key IN ('aut-num', 'as-set') AND m.mntby = ?",
+                    mntBy, "block")) {
+                this.sb.append(block).append("\n");
             }
             // Кешуємо ЛИШЕ успішний результат — див. retrieveAsSet
             cache.put(mntBy, this.sb.toString());

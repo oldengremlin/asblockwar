@@ -16,12 +16,12 @@
 package net.ukrcom.asblockwar.actions;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
@@ -50,44 +50,6 @@ public class DiscoverAggressor {
     }
 
     public static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
-
-    /**
-     * Перевіряє, що рядок є коректним CIDR-префіксом.
-     * {@link InetAddress#getByName} не використовуємо — він резолвить імена по DNS;
-     * тут потрібна суто синтаксична перевірка адреси й довжини маски.
-     *
-     * @param prefix рядок виду {@code "192.0.2.0/24"} або {@code "2001:db8::/32"}
-     * @return {@code true}, якщо префікс синтаксично коректний
-     */
-    static boolean isValidPrefix(String prefix) {
-        int slash = prefix.indexOf('/');
-        if (slash < 0) {
-            log.warn("ForceNetBlock: пропущено «{}» — немає довжини маски", prefix);
-            return false;
-        }
-        String addr = prefix.substring(0, slash);
-        boolean v6 = addr.contains(":");
-        int max = v6 ? 128 : 32;
-        int len;
-        try {
-            len = Integer.parseInt(prefix.substring(slash + 1));
-        } catch (NumberFormatException e) {
-            log.warn("ForceNetBlock: пропущено «{}» — некоректна довжина маски", prefix);
-            return false;
-        }
-        if (len < 0 || len > max) {
-            log.warn("ForceNetBlock: пропущено «{}» — довжина маски поза межами /0../{}", prefix, max);
-            return false;
-        }
-        boolean ok = v6
-                ? addr.matches("[0-9A-Fa-f:]+") && addr.chars().filter(c -> c == ':').count() <= 8
-                  && !addr.contains(":::")
-                : addr.matches("(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}");
-        if (!ok) {
-            log.warn("ForceNetBlock: пропущено «{}» — некоректна адреса", prefix);
-        }
-        return ok;
-    }
 
     private static void addMntBy(String block, Set<String> target) {
         block.lines()
@@ -227,6 +189,9 @@ public class DiscoverAggressor {
         // 2. Цільовий набір prefixes з БД (тільки IPv4 якщо не передано -6)
         Set<String> targetPrefixes = ConcurrentHashMap.newKeySet();
         AtomicInteger dbFailures = new AtomicInteger();
+        // Скасування прогону — не збій БД: рахуємо окремо, щоб не рапортувати
+        // «недоступна БД» там, де користувач просто натиснув «зупинити»
+        AtomicBoolean interrupted = new AtomicBoolean();
         try (ExecutorService executor = VirtualExecutor.create("discover")) {
             Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
             aggressorAsnResources.keySet().forEach(asn -> executor.execute(() -> {
@@ -234,7 +199,7 @@ public class DiscoverAggressor {
                     dbLimit.acquire();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    dbFailures.incrementAndGet();
+                    interrupted.set(true);
                     return;
                 }
                 try {
@@ -245,6 +210,10 @@ public class DiscoverAggressor {
                     }
                     retriever.get().stream()
                             .filter(p -> ipv6 || !p.contains(":"))
+                            // Поля route:/route6: пишуть оператори ворожих AS, а звідси
+                            // значення потрапляє у war.blackbgp.txt, який виконується
+                            // як shell-скрипт. Це межа довіри, не косметика.
+                            .filter(p -> NetworkUtils.isValidPrefix(p, "RPSL route " + asn))
                             .forEach(targetPrefixes::add);
                 } finally {
                     dbLimit.release();
@@ -254,6 +223,10 @@ public class DiscoverAggressor {
 
         // Часткова помилка так само небезпечна, як повна: недоотримані префікси
         // потраплять у toDelete і знімуть блокування з мереж, які лишились ворожими.
+        if (interrupted.get()) {
+            throw new IOException("discoverBlackbgpChanges: обробку перервано — "
+                    + "генерацію diff скасовано");
+        }
         if (dbFailures.get() > 0) {
             throw new IOException("discoverBlackbgpChanges: " + dbFailures.get() + " з "
                     + aggressorAsnResources.size() + " запитів префіксів завершились помилкою — "
@@ -269,7 +242,7 @@ public class DiscoverAggressor {
                 .filter(p -> ipv6 || !p.contains(":"))
                 // Значення потрапляє прямо в команду роутера, тож одрук у конфізі
                 // («10.0.0.0/8 ; reboot», «300.1.2.3/24») не повинен пройти далі
-                .filter(DiscoverAggressor::isValidPrefix)
+                .filter(p -> NetworkUtils.isValidPrefix(p, "ForceNetBlock"))
                 .forEach(targetPrefixes::add);
 
         // Запобіжник: порожня ціль при непорожньому поточному стані означає збій БД

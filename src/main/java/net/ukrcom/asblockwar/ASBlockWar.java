@@ -47,6 +47,7 @@ import net.ukrcom.asblockwar.actions.StoreActions;
 import net.ukrcom.asblockwar.graph.GraphBuilder;
 import net.ukrcom.asblockwar.graph.GraphExporter;
 import net.ukrcom.asblockwar.retrieveretrieve.RpslCache;
+import net.ukrcom.asblockwar.retrieveretrieve.RpslDb;
 
 /**
  * Головна точка входу та ядро обробки ASBlockWar.
@@ -170,6 +171,8 @@ public class ASBlockWar {
 
         // Очищення статичних кешів retrieve-класів між запусками
         RpslCache.clearAll();
+        // І з'єднань: у GUI прогонів може бути кілька, а WhoisLiteLocalURI могли змінити
+        RpslDb.closeAll();
 
         log.info("listFile: " + config.getListFile());
         log.info("listMntbyFile: " + config.getListMntbyFile());

@@ -40,7 +40,7 @@ class PrefixValidationTest {
     })
     @DisplayName("Валідні CIDR-префікси приймаються")
     void validPrefixesAccepted(String prefix) {
-        assertTrue(DiscoverAggressor.isValidPrefix(prefix));
+        assertTrue(NetworkUtils.isValidPrefix(prefix, "тест"));
     }
 
     @ParameterizedTest(name = "відхилено: {0}")
@@ -53,11 +53,16 @@ class PrefixValidationTest {
         "192.0.2.0/24 ; reboot",  // ін'єкція команди
         "10.0.0.0/8\nrm -rf /",   // перенесення рядка
         "не-адреса/24",
-        "2001:db8:::1/64"         // потрійна двокрапка
+        "2001:db8:::1/64",        // потрійна двокрапка
+        "1234/24",                // ціле — Java прийняла б як 0.0.4.210
+        "10.1/8",                 // скорочений IPv4 — Java прийняла б як 10.0.0.1
+        "192.0.2.0/24;reboot",    // ін'єкція без пробілів
+        "$(id)/24",               // підстановка команди
+        "`id`/24"                 // backtick-підстановка
     })
     @DisplayName("Некоректні та небезпечні значення ForceNetBlock відхиляються")
     void invalidPrefixesRejected(String prefix) {
-        assertFalse(DiscoverAggressor.isValidPrefix(prefix));
+        assertFalse(NetworkUtils.isValidPrefix(prefix, "тест"));
     }
 
     @Test

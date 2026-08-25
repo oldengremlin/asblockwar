@@ -31,6 +31,7 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -527,15 +528,17 @@ public class EmailReportSender {
         String storeDir = ASBlockWar.config.getStoreDir();
         if (storeDir == null || storeDir.isBlank()) return "";
         String number = asn.toUpperCase().startsWith("AS") ? asn.substring(2) : asn;
+        // Читаємо напряму, без Files.exists: для видалених маршрутів цей метод
+        // викликається на кожен префікс, а перевірка існування — зайвий syscall
         Path path = Path.of(storeDir, "AS", number + ".txt");
         try {
-            if (Files.exists(path)) {
-                return Files.readString(path);
-            }
+            return Files.readString(path);
+        } catch (NoSuchFileException e) {
+            return "";
         } catch (IOException e) {
             log.debug("EmailReport: STORE/AS/{}.txt: {}", number, e.getMessage());
+            return "";
         }
-        return "";
     }
 
     /**
@@ -547,22 +550,20 @@ public class EmailReportSender {
         String storeDir = ASBlockWar.config.getStoreDir();
         if (storeDir == null || storeDir.isBlank()) return Collections.emptyList();
         Path path = Path.of(storeDir, "NET", prefix.replace('/', '.') + ".txt");
-        try {
-            if (Files.exists(path)) {
-                try (Stream<String> lines = Files.lines(path)) {
-                    return lines
-                            .map(String::trim)
-                            .filter(line -> line.toLowerCase().startsWith("origin:"))
-                            .map(line -> line.substring("origin:".length()).trim().toUpperCase())
-                            .filter(s -> !s.isEmpty())
-                            .distinct()
-                            .collect(Collectors.toList());
-                }
-            }
+        try (Stream<String> lines = Files.lines(path)) {
+            return lines
+                    .map(String::trim)
+                    .filter(line -> line.toLowerCase().startsWith("origin:"))
+                    .map(line -> line.substring("origin:".length()).trim().toUpperCase())
+                    .filter(s -> !s.isEmpty())
+                    .distinct()
+                    .collect(Collectors.toList());
+        } catch (NoSuchFileException e) {
+            return Collections.emptyList();
         } catch (IOException e) {
             log.debug("EmailReport: STORE/NET/{}: {}", prefix.replace('/', '.') + ".txt", e.getMessage());
+            return Collections.emptyList();
         }
-        return Collections.emptyList();
     }
 
     /**

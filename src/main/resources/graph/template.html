@@ -611,8 +611,13 @@ document.getElementById('stats').textContent =
 applyVisibility();
 
 // ── Утиліти ───────────────────────────────────────────────────────────────
+// Екранує і лапки: значення підставляються не лише в текст, а й в атрибути
+// (data-path), а id вузлів приходять з RPSL — їх пише оператор ворожої AS.
+// Без екранування лапок рядок на кшталт X"onmouseover=alert(1) виходить
+// з атрибута й стає робочим обробником події.
 function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ── Зважений Dijkstra до ворожих ресурсів ────────────────────────────────
@@ -715,7 +720,7 @@ function runEnemySearch(n) {
         sorted.forEach(([tid, {path}]) => {
             const h = path.length - 1;
             html += '<div style="margin:2px 0"><a href="#" class="enemy-path-link" data-path="'
-                + path.join(',') + '" style="font-size:10px;color:#0288D1;text-decoration:none">'
+                + esc(path.join(',')) + '" style="font-size:10px;color:#0288D1;text-decoration:none">'
                 + '&#8594; ' + esc(tid) + ' <span style="color:#90A4AE">(' + h + '&nbsp;&#1087;&#1077;&#1088;&#1077;&#1093;.' + ')</span></a></div>';
         });
         area.innerHTML = html;
