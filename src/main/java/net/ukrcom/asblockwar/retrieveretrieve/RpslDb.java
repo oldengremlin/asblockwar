@@ -15,6 +15,8 @@
  */
 package net.ukrcom.asblockwar.retrieveretrieve;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -23,6 +25,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.ASBlockWar;
 
 /**
@@ -40,25 +45,82 @@ import net.ukrcom.asblockwar.ASBlockWar;
  *   <li>єдине місце для зміни SQL при зміні схеми БД.</li>
  * </ul>
  */
+@Slf4j
 public final class RpslDb {
 
     /** Скільки чекати зняття блокування БД, перш ніж повернути SQLITE_BUSY. */
     private static final String BUSY_TIMEOUT_MS = "15000";
 
+    /**
+     * Пул відкритих з'єднань.
+     * <p>
+     * За прогін створювалося ~30 000 з'єднань: кожен {@code new retrieve*()} відкривав
+     * власне. {@code ThreadLocal} тут не допоміг би — executor створює віртуальний потік
+     * на кожну задачу, тож потік і задача це те саме. Розмір пулу дорівнює межі
+     * паралельних запитів ({@code MAX_CONCURRENT_DB_QUERIES}): семафор {@code dbLimit}
+     * і так не пускає до БД більше потоків, тож більше з'єднань одночасно не потрібно.
+     */
+    private static final BlockingQueue<Connection> POOL
+            = new ArrayBlockingQueue<>(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+
     private RpslDb() {
     }
 
     /**
-     * Відкриває з'єднання з whois-lite-local у режимі лише для читання.
+     * Видає з'єднання з whois-lite-local у режимі лише для читання.
+     * <p>
+     * Повертає обгортку, чий {@code close()} віддає з'єднання назад у пул замість
+     * фактичного закриття — тож звичний {@code try (Connection c = RpslDb.open())}
+     * у викликачів лишається без змін.
      *
-     * @return нове з'єднання; викликач зобов'язаний закрити його
+     * @return з'єднання; викликач зобов'язаний закрити його (try-with-resources)
      * @throws SQLException якщо БД недоступна
      */
     public static Connection open() throws SQLException {
+        Connection pooled = POOL.poll();
+        final Connection real = pooled != null ? pooled : createConnection();
+        return (Connection) Proxy.newProxyInstance(
+                RpslDb.class.getClassLoader(),
+                new Class<?>[]{Connection.class},
+                (proxy, method, args) -> {
+                    if ("close".equals(method.getName())) {
+                        // Пул повний (або прогін завершено) — закриваємо по-справжньому
+                        if (!POOL.offer(real)) {
+                            real.close();
+                        }
+                        return null;
+                    }
+                    try {
+                        return method.invoke(real, args);
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+    }
+
+    private static Connection createConnection() throws SQLException {
         Properties props = new Properties();
         props.setProperty("busy_timeout", BUSY_TIMEOUT_MS);
         props.setProperty("open_mode", "1");   // SQLITE_OPEN_READONLY
         return DriverManager.getConnection(ASBlockWar.config.getWhoisLiteLocalURI(), props);
+    }
+
+    /**
+     * Закриває всі з'єднання пулу.
+     * <p>
+     * Викликається на початку прогону: у GUI можна запускати обробку кілька разів,
+     * і без цього дескриптори попереднього прогону накопичувалися б. Заразом
+     * підхоплюється зміна {@code WhoisLiteLocalURI} у налаштуваннях.
+     */
+    public static void closeAll() {
+        Connection c;
+        while ((c = POOL.poll()) != null) {
+            try {
+                c.close();
+            } catch (SQLException e) {
+                log.debug("RpslDb: не вдалося закрити з'єднання пулу: {}", e.getMessage());
+            }
+        }
     }
 
     /**

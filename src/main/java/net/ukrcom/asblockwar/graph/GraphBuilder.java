@@ -15,7 +15,9 @@
  */
 package net.ukrcom.asblockwar.graph;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,7 +48,10 @@ public class GraphBuilder {
     private static final Pattern DESCR_PAT = Pattern.compile("(?m)^descr:[ \\t]*(.+)$");
     private static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
     private static final Pattern MEMBER_OF_PAT = Pattern.compile("(?m)^member-of:[ \\t]*(\\S+)");
-    private static final Pattern MEMBERS_PAT = Pattern.compile("(?m)^(?:mp-)?members:[ \\t]*(.+)$");
+    /** Початок поля members:/mp-members:. */
+    private static final Pattern MEMBERS_LINE = Pattern.compile("(?i)^(?:mp-)?members:.*");
+    /** Continuation-рядок RFC 2622 — починається з пробілу або табуляції. */
+    private static final Pattern MEMBERS_CONT = Pattern.compile("^[ \\t]+\\S.*");
     private static final Pattern MNTNER_AUTNUM_PAT = Pattern.compile("(?m)^aut-num:[ \\t]*(AS\\d+)");
     private static final Pattern MNTNER_ASSET_PAT = Pattern.compile("(?m)^as-set:[ \\t]*(\\S+)");
 
@@ -225,8 +230,10 @@ public class GraphBuilder {
             }
         });
 
+        // Назва організації однакова для всіх збігів у блоці — рахуємо один раз,
+        // а не повним скануванням rpsl на кожен org:
+        String orgName = extractOrgName(rpsl);
         allMatches(ORG_ID_PAT, rpsl).forEach(org -> {
-            String orgName = extractOrgName(rpsl);
             addNode(org, NodeType.ORGANISATION, NodeStatus.UNKNOWN, org,
                     orgName.isBlank() ? "" : orgName);
             addEdge(asn, org, EdgeRelation.ORG);
@@ -239,15 +246,79 @@ public class GraphBuilder {
             }
         });
 
-        // Peer-ребра — додаємо умовно, будуть відфільтровані якщо target не в графі
-        allMatches(PEER_ASN_PAT, rpsl).stream()
+        // Peer-ребра — лише з рядків import/export. Раніше патерн шукав «from|to AS\\d+»
+        // по ВСЬОМУ блоку, тож «remarks: migrated from AS12345» або
+        // «descr: transit to AS3356» малювали peering, якого в політиці немає.
+        allMatches(PEER_ASN_PAT, String.join("\n", policyLines(rpsl))).stream()
                 .map(String::toUpperCase)
                 .filter(peer -> !peer.equals(asn))
                 .forEach(peer -> addEdge(asn, peer, EdgeRelation.PEER));
     }
 
+
+    /**
+     * Збирає значення полів {@code members:}/{@code mp-members:} разом із
+     * continuation-рядками.
+     * <p>
+     * За RFC 2622 великі as-set записуються з переносом:
+     * <pre>
+     * members:        AS1, AS2,
+     *                 AS3, AS-CHILD
+     * </pre>
+     * Регулярний вираз, прив'язаний до {@code ^members:}, бачив лише перший рядок,
+     * тож граф систематично недораховував членів найбільших as-set, а вкладені
+     * as-set не потрапляли до нього взагалі. {@code retrieveAsSetMembers}
+     * обробляє continuation саме так — тут була розбіжність.
+     *
+     * @param rpsl RPSL-блок as-set
+     * @return значення полів members без імені поля, по рядку на запис
+     */
+
+    /** Поля політики маршрутизації, у яких лише й мають шукатися peer-ASN. */
+    private static final Pattern POLICY_LINE
+            = Pattern.compile("(?i)^(?:mp-)?(?:import|export|default):.*");
+
+    /**
+     * Збирає рядки {@code import:}/{@code export:} (та їхні mp-варіанти) разом
+     * із continuation-рядками RFC 2622.
+     *
+     * @param rpsl RPSL-блок aut-num
+     * @return рядки політики маршрутизації
+     */
+    private static List<String> policyLines(String rpsl) {
+        List<String> out = new ArrayList<>();
+        boolean inPolicy = false;
+        for (String line : rpsl.split("\n")) {
+            if (POLICY_LINE.matcher(line).matches()) {
+                inPolicy = true;
+                out.add(line);
+            } else if (inPolicy && MEMBERS_CONT.matcher(line).matches()) {
+                out.add(line);
+            } else {
+                inPolicy = false;
+            }
+        }
+        return out;
+    }
+
+    static List<String> memberLines(String rpsl) {
+        List<String> out = new ArrayList<>();
+        boolean inMembers = false;
+        for (String line : rpsl.split("\n")) {
+            if (MEMBERS_LINE.matcher(line).matches()) {
+                inMembers = true;
+                out.add(line.replaceFirst("(?i)^(?:mp-)?members:", "").trim());
+            } else if (inMembers && MEMBERS_CONT.matcher(line).matches()) {
+                out.add(line.trim());
+            } else {
+                inMembers = false;
+            }
+        }
+        return out;
+    }
+
     private void parseAsSetEdges(String asSetId, String rpsl) {
-        allMatches(MEMBERS_PAT, rpsl).forEach(line -> {
+        memberLines(rpsl).forEach(line -> {
             for (String token : line.split("[,\\s]+")) {
                 String member = token.trim().replaceAll(";$", "");
                 if (member.isEmpty()) {

@@ -174,8 +174,22 @@ const EDGE_W     = {MNT_BY:1.5,MNT_REF:1,ORG:1.5,MEMBER_OF:1,PEER:1};
 const R = 8; // базовий радіус вузла (SVG-одиниці)
 
 // ── Розміри ───────────────────────────────────────────────────────────────
-const W = window.innerWidth, H = window.innerHeight - 48;
+// let, а не const: fitAll() і zoomToFit() рахують масштаб і центрування саме
+// від цих величин. Раніше вони фіксувалися на момент завантаження, тож після
+// розгортання вікна SVG (width:100%) розтягувався, а центрування лишалося
+// за старими розмірами — граф з'їжджав, і Reset відтворював те саме зміщення.
+let W = window.innerWidth, H = window.innerHeight - 48;
 const svg = d3.select('#graph').attr('width', W).attr('height', H);
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        W = window.innerWidth;
+        H = window.innerHeight - 48;
+        svg.attr('width', W).attr('height', H);
+    }, 150);
+});
 const zoomLayer = d3.select('#zoom-layer');
 
 const nodeMap = new Map(DATA.nodes.map(n => [n.id, n]));
@@ -274,6 +288,8 @@ STATUS_ORDER.forEach(st => {
 
 // Кешована вибірка всіх підписів — оновлюється під час зуму (один раз за кадр)
 const labelsSel = d3.selectAll('.node-label');
+let labelsShown = true;   // поточний стан display у labelsSel
+let labelsFs    = -1;     // останній застосований font-size
 
 // ── Зум / пан ─────────────────────────────────────────────────────────────
 // scaleExtent навмисно широкий ([0.005, 20]) — жодного кліпінгу навіть для
@@ -282,14 +298,20 @@ const zoom = d3.zoom()
     .scaleExtent([0.005, 20])
     .filter(e => e.type !== 'mousedown' || !e.target.closest('.node'))
     .on('zoom', e => {
-        curK = e.transform.k;
         zoomLayer.attr('transform', e.transform);
+        // Пан не змінює масштаб — підписи чіпати нема потреби. Раніше кожен
+        // mousemove переписував атрибути всіх 18K підписів дарма.
+        if (e.transform.k === curK) return;
+        curK = e.transform.k;
         // Підписи: підтримуємо ~9 px на екрані; ховаємо при k < 0.15
         if (curK < 0.15) {
-            labelsSel.attr('display', 'none');
+            if (labelsShown) { labelsSel.attr('display', 'none'); labelsShown = false; }
         } else {
+            // Розмір міняється лише коли змінилося ціле значення — інакше
+            // 18K записів на кожен «клік» колеса без візуального ефекту
             const fs = Math.round(9 / curK);
-            labelsSel.attr('display', null).attr('font-size', fs);
+            if (!labelsShown) { labelsSel.attr('display', null); labelsShown = true; }
+            if (fs !== labelsFs) { labelsSel.attr('font-size', fs); labelsFs = fs; }
         }
     });
 svg.call(zoom);
@@ -322,23 +344,23 @@ function updatePos() {
         nodeGroups[st].attr('transform', d => 'translate(' + (d.x || 0) + ',' + (d.y || 0) + ')')
     );
     // Кінці ребер зміщені до краю вузла (щоб стрілка не заходила всередину)
-    linkSel
-        .attr('x1', d => nodeMap.get(d.source.id || d.source)?.x || 0)
-        .attr('y1', d => nodeMap.get(d.source.id || d.source)?.y || 0)
-        .attr('x2', d => {
-            const s = nodeMap.get(d.source.id || d.source);
-            const t = nodeMap.get(d.target.id || d.target);
-            if (!s || !t) return 0;
-            const ang = Math.atan2(t.y - s.y, t.x - s.x);
-            return t.x - nodeR(t) * Math.cos(ang);
-        })
-        .attr('y2', d => {
-            const s = nodeMap.get(d.source.id || d.source);
-            const t = nodeMap.get(d.target.id || d.target);
-            if (!s || !t) return 0;
-            const ang = Math.atan2(t.y - s.y, t.x - s.x);
-            return t.y - nodeR(t) * Math.sin(ang);
-        });
+    // Один прохід замість чотирьох: було 4 пошуки в nodeMap і 2 atan2 на ребро,
+    // а updatePos викликається 300+ разів за симуляцію
+    linkSel.each(function (d) {
+        const s = nodeMap.get(d.source.id || d.source);
+        const t = nodeMap.get(d.target.id || d.target);
+        this.setAttribute('x1', (s && s.x) || 0);
+        this.setAttribute('y1', (s && s.y) || 0);
+        if (!s || !t) {
+            this.setAttribute('x2', 0);
+            this.setAttribute('y2', 0);
+            return;
+        }
+        const ang = Math.atan2(t.y - s.y, t.x - s.x);
+        const r = nodeR(t);
+        this.setAttribute('x2', t.x - r * Math.cos(ang));
+        this.setAttribute('y2', t.y - r * Math.sin(ang));
+    });
 }
 
 // ── Fit to screen ─────────────────────────────────────────────────────────
@@ -426,7 +448,12 @@ STATUS_ORDER.forEach(st => {
         })
         .on('drag', (e, d) => {
             d.fx = e.x; d.fy = e.y;
-            if (preLayout) updatePos();
+            if (preLayout) {
+                // Без симуляції ніхто не копіює fx/fy у x/y, а updatePos читає
+                // саме x/y — тому в режимі sfdp вузол просто не рухався за курсором
+                d.x = e.x; d.y = e.y;
+                updatePos();
+            }
         })
         .on('end', (e, d) => {
             if (!preLayout) { sim.alphaTarget(0); d.fx = null; d.fy = null; }
@@ -454,44 +481,45 @@ function applyVisibility() {
             .style('filter',      d => matchedIds.has(d.id) ? 'drop-shadow(0 0 4px #FF6F00)' : null);
     });
 
-    linkSel
-        .attr('display', d => {
-            const sn = nodeMap.get(d.source.id || d.source);
-            const tn = nodeMap.get(d.target.id || d.target);
-            if (!sn || !tn || hiddenStats.has(sn.status) || hiddenStats.has(tn.status)
-                || hiddenTypes.has(sn.type) || hiddenTypes.has(tn.type)) return 'none';
-            return null;
-        })
-        .attr('stroke-opacity', d => {
-            const s = d.source.id || d.source, t = d.target.id || d.target;
-            if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return 1;
-            if (inFocus && (s === focusedId || t === focusedId)) return 1;
-            if (inFocus  && s !== focusedId && t !== focusedId) return 0.04;
-            if (inSearch && !visibleIds.has(s) && !visibleIds.has(t)) return 0.04;
-            return 0.5;
-        })
-        .attr('stroke', d => {
-            const s = d.source.id || d.source, t = d.target.id || d.target;
-            if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return '#FFFFFF';
-            if (inFocus && (s === focusedId || t === focusedId)) return '#FF1744';
-            return EDGE_COLOR[d.relation] || '#aaa';
-        })
-        .attr('stroke-width', d => {
-            const s = d.source.id || d.source, t = d.target.id || d.target;
-            if (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t)) return 3.5;
-            if (inFocus && (s === focusedId || t === focusedId)) return 3.5;
-            return EDGE_W[d.relation] || 1;
-        })
-        .attr('stroke-dasharray', d => {
-            const s = d.source.id || d.source, t = d.target.id || d.target;
-            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
-                ? '10,5' : (EDGE_DASH[d.relation] || '');
-        })
-        .style('animation', d => {
-            const s = d.source.id || d.source, t = d.target.id || d.target;
-            return (pathEdgeKeys.size > 0 && pathEdgeKeys.has(s + '|' + t))
-                ? 'dash-flow 0.4s linear infinite' : null;
-        });
+    // Один прохід замість шести: кожен з .attr()/.style() нижче був окремим
+    // обходом усіх ребер, і кожен наново рахував s, t та ключ s+'|'+t.
+    // Для 50K ребер це було ~300K зайвих обчислень на кожне натискання клавіші.
+    const hasPath = pathEdgeKeys.size > 0;
+    linkSel.each(function (d) {
+        const s = d.source.id || d.source;
+        const t = d.target.id || d.target;
+        const sn = nodeMap.get(s);
+        const tn = nodeMap.get(t);
+
+        if (!sn || !tn || hiddenStats.has(sn.status) || hiddenStats.has(tn.status)
+                || hiddenTypes.has(sn.type) || hiddenTypes.has(tn.type)) {
+            this.setAttribute('display', 'none');
+            return;   // приховане ребро — решту атрибутів перерахуємо, коли з'явиться
+        }
+        this.removeAttribute('display');
+
+        const isPath  = hasPath && pathEdgeKeys.has(s + '|' + t);
+        const touches = inFocus && (s === focusedId || t === focusedId);
+
+        let opacity;
+        if (isPath || touches) {
+            opacity = 1;
+        } else if (inFocus) {
+            opacity = 0.04;
+        } else if (inSearch && !visibleIds.has(s) && !visibleIds.has(t)) {
+            opacity = 0.04;
+        } else {
+            opacity = 0.5;
+        }
+
+        this.setAttribute('stroke-opacity', opacity);
+        this.setAttribute('stroke',
+                isPath ? '#FFFFFF' : (touches ? '#FF1744' : (EDGE_COLOR[d.relation] || '#aaa')));
+        this.setAttribute('stroke-width', (isPath || touches) ? 3.5 : (EDGE_W[d.relation] || 1));
+        this.setAttribute('stroke-dasharray', isPath ? '10,5' : (EDGE_DASH[d.relation] || ''));
+        this.style.animation = isPath ? 'dash-flow 0.4s linear infinite' : '';
+    });
+
     // Ребра фокусованого вузла — піднімаємо першими, path-ребра поверх них
     if (inFocus) {
         linkSel.filter(d => {
@@ -542,8 +570,18 @@ document.getElementById('info-close').onclick = () => {
 };
 
 // ── Пошук ─────────────────────────────────────────────────────────────────
+let searchTimer = null;
 d3.select('#search').on('input', function() {
-    const term = this.value.trim().toLowerCase();
+    // Debounce: без нього кожен символ проганяв повний скан вузлів,
+    // applyVisibility по всіх ребрах і 650 мс zoom-транзицію, яку одразу
+    // переривав наступний символ
+    const value = this.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => runSearch(value), 180);
+});
+
+function runSearch(raw) {
+    const term = raw.trim().toLowerCase();
     if (!term) { resetFocus(); return; }
     pathEdgeKeys = new Set();
     matchedIds = new Set();
@@ -563,7 +601,7 @@ d3.select('#search').on('input', function() {
     d3.select('#search-count').text(matchedIds.size + ' знайдено');
     applyVisibility();
     if (matchedIds.size > 0) zoomToFit(matchedIds);
-});
+}
 
 // ── Фільтр статусів ───────────────────────────────────────────────────────
 document.querySelectorAll('.status-filter').forEach(cb =>
@@ -611,8 +649,13 @@ document.getElementById('stats').textContent =
 applyVisibility();
 
 // ── Утиліти ───────────────────────────────────────────────────────────────
+// Екранує і лапки: значення підставляються не лише в текст, а й в атрибути
+// (data-path), а id вузлів приходять з RPSL — їх пише оператор ворожої AS.
+// Без екранування лапок рядок на кшталт X"onmouseover=alert(1) виходить
+// з атрибута й стає робочим обробником події.
 function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ── Зважений Dijkstra до ворожих ресурсів ────────────────────────────────
@@ -715,7 +758,7 @@ function runEnemySearch(n) {
         sorted.forEach(([tid, {path}]) => {
             const h = path.length - 1;
             html += '<div style="margin:2px 0"><a href="#" class="enemy-path-link" data-path="'
-                + path.join(',') + '" style="font-size:10px;color:#0288D1;text-decoration:none">'
+                + esc(path.join(',')) + '" style="font-size:10px;color:#0288D1;text-decoration:none">'
                 + '&#8594; ' + esc(tid) + ' <span style="color:#90A4AE">(' + h + '&nbsp;&#1087;&#1077;&#1088;&#1077;&#1093;.' + ')</span></a></div>';
         });
         area.innerHTML = html;
@@ -755,7 +798,10 @@ const STATUS_COLORS = {BLOCKED:'#C62828',SUSPICIOUS:'#E65100',CLEAR:'#2E7D32',UN
 function showPathModal(pathArr) {
     // Зміщення нового вікна відносно попередніх, щоб не повністю перекривалися
     const existing = document.querySelectorAll('.path-float-panel');
-    const offset = existing.length * 24;
+    // Зміщення циклічне: раніше воно росло без межі, і після ~25 панелей нові
+    // з'являлися нижче видимої області — закрити їх було неможливо, бо
+    // drag-хендл теж опинявся за екраном
+    const offset = (existing.length % 8) * 24;
 
     const panel = document.createElement('div');
     panel.className = 'path-float-panel';

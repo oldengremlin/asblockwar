@@ -247,11 +247,22 @@ public class MainWindowsController implements Initializable {
     }
 
     private void showWhoisInfo(String title, Supplier<String> supplier) {
-        Thread.ofVirtual().start(() -> {
-            String text = supplier.get();
+        Thread.ofVirtual().name("whois-lookup").start(() -> {
+            String text;
+            try {
+                text = supplier.get();
+            } catch (RuntimeException e) {
+                // Віртуальний потік не має UncaughtExceptionHandler, тож без цього
+                // помилка запиту (недоступна БД, таймаут) убивала його беззвучно:
+                // подвійний клік просто нічого не робив, і в лозі теж нічого
+                log.error("Помилка whois-запиту для «{}»", title, e);
+                text = "Помилка запиту: " + e;
+            }
+            final String result = text;
             Platform.runLater(() -> {
                 Stage owner = (Stage) runButton.getScene().getWindow();
-                WhoisInfoController.show(owner, title, text.isBlank() ? "(no data)" : text);
+                WhoisInfoController.show(owner, title,
+                        (result == null || result.isBlank()) ? "(no data)" : result);
             });
         });
     }
@@ -329,6 +340,9 @@ public class MainWindowsController implements Initializable {
             ASBlockWar.config.setDryRunWithGraph(wasWithGraph);
             runButton.setDisable(false);
             propertiesButton.setDisable(false);
+            // Без цього при помилці завантаження діалогу кнопка лишалася
+            // вимкненою до перезапуску застосунку, хоча файл графа на диску є
+            refreshDependencyButton();
         }
     }
 

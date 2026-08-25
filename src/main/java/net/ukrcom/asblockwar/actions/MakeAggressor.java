@@ -70,7 +70,7 @@ public class MakeAggressor {
         try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
 
             // 2. Семафор — наш "контролер трафіку" для SQLite
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
 
             try (Stream<String> lines = Files.lines(Path.of(ASBlockWar.config.getListFile()))) {
                 lines
@@ -127,7 +127,7 @@ public class MakeAggressor {
 
         // Один Executor і один Semaphore для AS-SET та MNT-BY завдань одночасно
         try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
 
             // AS-SET записи: з конфігурації PrimaryEnemyResources + файл list.as-set.txt
             Set<String> fileAsSets;
@@ -215,7 +215,7 @@ public class MakeAggressor {
         Set<String> blocked = FilterAggressor.blockedCountries();
 
         try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
 
             aggressorMntbyResources.values().stream()
                     .flatMap(block -> Arrays.stream(block.split("\n")))
@@ -286,7 +286,7 @@ public class MakeAggressor {
         if (toFetch.isEmpty()) return;
         log.info("Завантаження RPSL для {} AS-SET (прямий доступ)...", toFetch.size());
         try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             toFetch.forEach(asSet -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
@@ -314,7 +314,7 @@ public class MakeAggressor {
     public static void expandAsSetMap(Map<String, String> asSetMap) {
         // Один Executor на весь BFS; Semaphore — спільний для всіх хвиль
         try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             boolean found;
             do {
                 Set<String> toFetch = ConcurrentHashMap.newKeySet();
@@ -393,7 +393,7 @@ public class MakeAggressor {
         if (toFetch.isEmpty()) return result;
         log.info("Завантаження RPSL для {} ASN-членів AS-SET...", toFetch.size());
         try (ExecutorService executor = VirtualExecutor.create("aggressor")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             toFetch.forEach(asn -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();

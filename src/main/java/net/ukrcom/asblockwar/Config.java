@@ -322,11 +322,11 @@ public class Config {
         } catch (CommandLine.ParameterException ex) {
             System.err.println(ex.getMessage());
             System.err.println("Run with --help for usage.");
-            System.exit(1);
+            throw new ExitRequest(1);
         }
         if (cmd.isUsageHelpRequested()) {
             cmd.usage(System.out);
-            System.exit(0);
+            throw new ExitRequest(0);
         }
 
         // Resolve list fields from comma-separated strings (already filled by Picocli)
@@ -362,14 +362,14 @@ public class Config {
             this.blackbgpIpv6Explicit = true;
         }
         if (!this.blackbgpIpv6Explicit) {
-            this.blackbgpIpv6 = Boolean.parseBoolean(
-                    properties.getProperty("BlackbgpIpv6", "true").trim());
+            this.blackbgpIpv6 = parseFlag(properties.getProperty("BlackbgpIpv6", "true"),
+                    true, "BlackbgpIpv6");
         }
 
-        this.useSfdp = Boolean.parseBoolean(
-                properties.getProperty("UseSfdp", "true").trim());
-        this.dependencyWithUnknown = Boolean.parseBoolean(
-                properties.getProperty("DependencyWithUnknown", "false").trim());
+        this.useSfdp = parseFlag(properties.getProperty("UseSfdp", "true"),
+                true, "UseSfdp");
+        this.dependencyWithUnknown = parseFlag(properties.getProperty("DependencyWithUnknown", "false"),
+                false, "DependencyWithUnknown");
 
         // Resolve recursiveAsset: null flag = absent
         this.recursiveAsset = recursiveAssetFlag != null ? recursiveAssetFlag : -1;
@@ -517,6 +517,37 @@ public class Config {
         }
     }
 
+
+    /**
+     * Розбирає булеву властивість, приймаючи звичні для конфігів написання.
+     * <p>
+     * {@code Boolean.parseBoolean} мовчки повертає {@code false} для всього, крім
+     * {@code "true"}, тож {@code BlackbgpIpv6=yes} вимикав IPv6-маршрути, і жодного
+     * сліду про це не лишалося.
+     *
+     * @param raw          значення з properties
+     * @param defaultValue що повернути, якщо значення нерозпізнане
+     * @param name         ім'я властивості для повідомлення в лозі
+     * @return розібране булеве значення
+     */
+    private static boolean parseFlag(String raw, boolean defaultValue, String name) {
+        if (raw == null) {
+            return defaultValue;
+        }
+        String v = raw.trim().toLowerCase();
+        if (v.isEmpty()) {
+            return defaultValue;
+        }
+        return switch (v) {
+            case "true", "yes", "on", "1" -> true;
+            case "false", "no", "off", "0" -> false;
+            default -> {
+                log.warn("{}: нерозпізнане значення «{}», використано {}", name, raw.trim(), defaultValue);
+                yield defaultValue;
+            }
+        };
+    }
+
     private static List<String> parseList(String s) {
         if (s == null || s.trim().isEmpty()) {
             return new ArrayList<>();
@@ -551,4 +582,27 @@ public class Config {
         return System.getProperty("os.name", "").toLowerCase().contains("win")
                ? "after.cmd" : "after.sh";
     }
+
+    /**
+     * Сигнал завершення процесу з конструктора {@link Config}.
+     * <p>
+     * Раніше конструктор викликав {@code System.exit()} напряму — на помилці розбору
+     * CLI та на {@code --help}. Це вбивало JVM в обхід будь-якого прибирання і робило
+     * клас непридатним для тестів. Тепер рішення про вихід приймає {@code main()}.
+     *
+     * @param code код завершення процесу
+     */
+    public static class ExitRequest extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        /** Код, з яким має завершитися процес. */
+        public final transient int code;
+
+        ExitRequest(int code) {
+            super("завершення з кодом " + code);
+            this.code = code;
+        }
+    }
+
 }

@@ -336,9 +336,16 @@ public class StoreActions {
      * @throws IOException якщо виникла помилка запису файлу
      */
     public static void storeBlackbgpResources(BlackbgpChanges changes) throws IOException {
+        // Друга лінія: префікси вже провалідовані на вході (DiscoverAggressor), але цей
+        // файл виконується на роутері як shell-скрипт, тож перевіряємо ще раз на самому
+        // записі — щоб жодне майбутнє джерело префіксів не змогло обійти перевірку
         String content = Stream.concat(
-                changes.toDelete().stream().sorted(NetworkUtils.CIDR_ORDER).map(p -> NetworkUtils.blackbgpCmd("d", p)),
-                changes.toReplace().stream().sorted(NetworkUtils.CIDR_ORDER).map(p -> NetworkUtils.blackbgpCmd("r", p))
+                changes.toDelete().stream()
+                        .filter(p -> NetworkUtils.isValidPrefix(p, "blackbgp delete"))
+                        .sorted(NetworkUtils.CIDR_ORDER).map(p -> NetworkUtils.blackbgpCmd("d", p)),
+                changes.toReplace().stream()
+                        .filter(p -> NetworkUtils.isValidPrefix(p, "blackbgp replace"))
+                        .sorted(NetworkUtils.CIDR_ORDER).map(p -> NetworkUtils.blackbgpCmd("r", p))
         ).collect(Collectors.joining("\n", "", "\n"));
 
         Path path = Path.of(ASBlockWar.config.getBlackbgpFile());
@@ -396,7 +403,7 @@ public class StoreActions {
 
         Map<String, String> infoByMnt = new ConcurrentHashMap<>();
         try (ExecutorService executor = VirtualExecutor.create("store")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
             allMntBy.forEach(mnt -> executor.execute(() -> {
                 try {
                     dbLimit.acquire();
@@ -530,7 +537,7 @@ public class StoreActions {
         FileUtils.ensureStoreDir(dirASNet);
 
         try (ExecutorService executor = VirtualExecutor.create("store")) {
-            Semaphore dbLimit = new Semaphore(ASBlockWar.MAX_CONCURRENT_DB_QUERIES);
+            Semaphore dbLimit = ASBlockWar.DB_LIMIT;
 
             // STORE/AS/{asn}.txt and STORE/AS-NET/{asn}.txt (один acquire на два послідовних DB-запити)
             aggressorAsnResources.keySet().forEach(asn -> executor.execute(() -> {

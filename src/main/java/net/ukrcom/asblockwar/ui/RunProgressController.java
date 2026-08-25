@@ -248,10 +248,18 @@ public class RunProgressController implements Initializable {
     }
 
     private static String jsEscape(String s) {
+        // U+2028/U+2029 — термінатори рядка в JS-літералах. Один такий символ
+        // у descr:/remarks: ворожої AS робив увесь пакет (до 20 000 рядків,
+        // що склеюються в один executeScript) синтаксично некоректним, і пакет
+        // губився цілком. GraphExporter.jsonStr цей випадок обробляє — тут ні.
         return s.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\r", "")
-                .replace("\n", "\\n");
+                .replace("\n", "\\n")
+                // Через (char), а не літерал: escape-послідовність у джерелі Java
+                // розгортається лексером ще до парсингу
+                .replace(String.valueOf((char) 0x2028), "\\u2028")
+                .replace(String.valueOf((char) 0x2029), "\\u2029");
     }
 
     // Must be called from any thread; executes or queues the JS on the FX thread.
@@ -291,6 +299,11 @@ public class RunProgressController implements Initializable {
 
     @FXML
     private void doClose() {
+        // stage.hide() НЕ породжує WINDOW_CLOSE_REQUEST — той приходить лише від
+        // віконного менеджера. Оскільки штатний шлях користувача це саме ця кнопка,
+        // без явного виклику Timeline і документ WebEngine жили б до кінця процесу,
+        // а в GUI прогонів буває кілька.
+        shutdownView();
         if (stage != null) {
             stage.hide();
         }

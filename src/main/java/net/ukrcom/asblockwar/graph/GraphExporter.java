@@ -114,6 +114,16 @@ public class GraphExporter {
                 return Map.of();
             }
             reader.join(10_000);
+            // join() дає happens-before лише якщо потік справді завершився.
+            // Раніше out[0] читався беззастережно: при таймауті (sfdp завершився,
+            // але труба ще не дренована — реально для виводу на десятки МБ)
+            // видимість запису не гарантована, і raw міг виявитися null уже
+            // після 5 хвилин розрахунку.
+            if (reader.isAlive()) {
+                reader.interrupt();
+                log.warn("sfdp: вивід не дочитано за 10 с, переключаємось на D3 симуляцію");
+                return Map.of();
+            }
 
             if (sfdp.exitValue() != 0) {
                 log.warn("sfdp: вийшов з кодом {}, переключаємось на D3 симуляцію", sfdp.exitValue());
@@ -124,8 +134,13 @@ public class GraphExporter {
             Map<String, double[]> pos = parsePlainPositions(
                     raw != null ? new String(raw, StandardCharsets.UTF_8) : "");
 
-            if (pos.size() < graph.getNodes().size() * 0.9) {
-                log.warn("sfdp: неповний layout ({}/{}), переключаємось на D3 симуляцію",
+            // Раніше допускалося до 10% вузлів без координат. У шаблоні
+            // (n.px - x0) для них давало NaN, а `d.x || 0` перетворювало NaN на 0 —
+            // тобто до 1800 вузлів на графі у 18K злипалися в точці (0,0) разом
+            // з усіма своїми ребрами, і жодного попередження при цьому не було.
+            // Layout приймаємо тільки повний.
+            if (pos.size() < graph.getNodes().size()) {
+                log.warn("sfdp: неповний layout ({}/{} вузлів), переключаємось на D3 симуляцію",
                         pos.size(), graph.getNodes().size());
                 return Map.of();
             }
@@ -134,6 +149,10 @@ public class GraphExporter {
             return pos;
 
         } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                // Інакше сигнал скасування губиться і решта конвеєра працює далі
+                Thread.currentThread().interrupt();
+            }
             log.warn("sfdp: помилка — {}, переключаємось на D3 симуляцію", e.getMessage());
             return Map.of();
         } finally {
@@ -147,13 +166,29 @@ public class GraphExporter {
     }
 
     private static boolean isSfdpAvailable() {
+        Process probe = null;
         try {
-            // Just check the binary starts — some versions exit non-0 for -V
-            new ProcessBuilder("sfdp", "-V")
-                    .redirectErrorStream(true).start().destroy();
+            // Перевіряємо лише факт запуску — деякі версії виходять з ненульовим кодом на -V
+            probe = new ProcessBuilder("sfdp", "-V")
+                    .redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            // Раніше тут був голий destroy() без waitFor: процес лишався зомбі,
+            // а потоки не закривалися
+            probe.getInputStream().close();
+            probe.getOutputStream().close();
+            if (!probe.waitFor(10, TimeUnit.SECONDS)) {
+                probe.destroyForcibly();
+            }
             return true;
         } catch (IOException e) {
             log.debug("sfdp не знайдено: {}", e.getMessage());
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            if (probe != null) {
+                probe.destroyForcibly();
+            }
             return false;
         }
     }

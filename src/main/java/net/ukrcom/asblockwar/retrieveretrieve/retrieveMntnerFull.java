@@ -53,9 +53,12 @@ public class retrieveMntnerFull {
 
     private void loadMntner(Connection conn) throws SQLException {
         sb.append(RpslDb.fetchBlocks(conn, this.mntner, "mntner")).append("\n");
-        for (String role : RpslDb.fetchColumn(conn,
-                "SELECT value FROM rpsl_mntby WHERE key='role' AND mntby=?", this.mntner, "value")) {
-            sb.append(RpslDb.fetchBlocks(conn, role, "role")).append("\n");
+        // Один JOIN замість «список ролей + запит на кожну» — див. retrieveRouteOriginFull
+        for (String block : RpslDb.fetchColumn(conn,
+                "SELECT r.block FROM rpsl_mntby m"
+                + " JOIN rpsl r ON r.value = m.value AND r.key = 'role'"
+                + " WHERE m.key = 'role' AND m.mntby = ?", this.mntner, "block")) {
+            sb.append(block).append("\n");
         }
     }
 
