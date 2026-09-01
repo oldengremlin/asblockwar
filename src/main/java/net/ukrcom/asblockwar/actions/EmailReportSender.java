@@ -149,6 +149,7 @@ public class EmailReportSender {
                 .append(dryBanner)
                 .append(buildAsnSection())
                 .append(buildSuspiciousSection())
+                .append(buildMaskedSection(aggressorAsnResources))
                 .append(buildRouteSection(false, aggressorAsnResources))
                 .append(buildRouteSection(true,  aggressorAsnResources))
                 .append("<div class=\"footer\">Згенеровано ASBlockWar</div>")
@@ -205,6 +206,75 @@ public class EmailReportSender {
               .append("<td valign=\"top\">").append(actHtml).append("</td>")
               .append("<td valign=\"top\">").append(countryHtml).append("</td>")
               .append("<td valign=\"top\">").append(orgHtml).append("</td>")
+              .append("</tr>");
+        }
+
+        sb.append("</tbody></table></div>");
+        return sb.toString();
+    }
+
+    /**
+     * Таблиця маршрутів, замаскованих під ASN «чистої» країни.
+     * <p>
+     * RPSL не несе country на {@code route:} — країна резолвиться лише через
+     * {@code origin:}. Тож мережу переоформлюють під ASN легітимного хостера,
+     * а фактичний власник лишається в ланцюжку {@code inetnum:} → {@code org:},
+     * якого перевірка за origin не торкається. Такі маршрути лишаються
+     * заблокованими, а не знімаються — тому окремої «дії» в таблиці немає.
+     *
+     * @param aggressorAsnResources для пошуку опису ASN
+     */
+    private static String buildMaskedSection(Map<String, String> aggressorAsnResources) {
+        BlackbgpChanges bgp = ASBlockWar.lastBlackbgpChanges;
+        if (bgp == null || bgp.maskedPrefixes().isEmpty()) {
+            return "";
+        }
+
+        List<String> sorted = bgp.maskedPrefixes().keySet().stream()
+                .sorted(NetworkUtils.NETWORK_ADDR_ORDER)
+                .collect(Collectors.toList());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"section\"><h2>")
+          .append("&#1052;&#1072;&#1089;&#1082;&#1086;&#1074;&#1072;&#1085;&#1110; "
+                  + "&#1084;&#1072;&#1088;&#1096;&#1088;&#1091;&#1090;&#1080; "
+                  + "&#8212; origin &#1087;&#1110;&#1076; &#1095;&#1080;&#1089;&#1090;&#1086;&#1102; "
+                  + "&#1082;&#1088;&#1072;&#1111;&#1085;&#1086;&#1102;, inetnum &#1087;&#1110;&#1076; "
+                  + "&#1073;&#1083;&#1086;&#1082;&#1086;&#1074;&#1072;&#1085;&#1086;&#1102; ")
+          .append(badge(String.valueOf(sorted.size()), "badge-masked")).append("</h2>")
+          .append("<p class=\"no-changes\">&#1041;&#1083;&#1086;&#1082;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103; "
+                  + "&#1079;&#1073;&#1077;&#1088;&#1077;&#1078;&#1077;&#1085;&#1086;</p>")
+          .append("<table cellspacing=\"0\" cellpadding=\"5\" border=\"1\" class=\"shadow-table\">"
+                + "<thead><tr>"
+                + "<th valign=\"top\" style=\"width:30%\">IPv4/IPv6</th>"
+                + "<th valign=\"top\" style=\"width:10%\">ASN</th>"
+                + "<th valign=\"top\" style=\"width:12%\">&#1050;&#1088;&#1072;&#1111;&#1085;&#1072;</th>"
+                + "<th valign=\"top\" style=\"width:48%\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
+                + "</tr></thead><tbody>");
+
+        Map<String, List<String>> liveOrigins = ASBlockWar.lastRouteOrigins;
+        for (String prefix : sorted) {
+            List<String> asnList = liveOrigins != null
+                    ? liveOrigins.getOrDefault(prefix, Collections.emptyList())
+                    : Collections.emptyList();
+            if (asnList.isEmpty()) {
+                asnList = readOriginsFromStoreNet(prefix);
+            }
+
+            String asn = asnList.isEmpty() ? "" : asnList.get(0);
+            String rpsl = asn.isEmpty() ? "" : lookupRpsl(asn, aggressorAsnResources);
+            String descr = esc(RpslUtils.rpslField(rpsl, "org-name"));
+            if (descr.isEmpty()) {
+                descr = esc(RpslUtils.rpslField(rpsl, "descr"));
+            }
+
+            sb.append("<tr class=\"row-masked\">")
+              .append("<td valign=\"top\">").append(esc(prefix)).append("</td>")
+              .append("<td valign=\"top\"><span class=\"asn\">")
+              .append(asn.isEmpty() ? "" : asnHtml(asn)).append("</span></td>")
+              .append("<td valign=\"top\"><b>")
+              .append(esc(bgp.maskedPrefixes().get(prefix))).append("</b></td>")
+              .append("<td valign=\"top\">").append(descr).append("</td>")
               .append("</tr>");
         }
 
@@ -663,5 +733,7 @@ public class EmailReportSender {
             + "code{font-family:monospace;font-size:11px;background:#f5f5f5;padding:1px 3px}"
             + ".val-old{color:#b71c1c}"
             + ".val-new{color:#1b5e20}"
-            + ".was-label{color:#888;font-style:italic}";
+            + ".was-label{color:#888;font-style:italic}"
+            + ".badge-masked{background:#00695c}"
+            + ".row-masked td{background:#e0f2f1}";
 }

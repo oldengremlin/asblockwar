@@ -18,11 +18,23 @@ package net.ukrcom.asblockwar.actions;
 import java.util.Map;
 import java.util.Set;
 
-/** Обчислені зміни для blackbgp та нові ворожі ASN, виявлені під час перевірки маршрутів. */
+/**
+ * Обчислені зміни для blackbgp та нові ворожі ASN, виявлені під час перевірки маршрутів.
+ *
+ * @param toDelete          префікси на зняття з blackbgp
+ * @param toReplace         префікси на додавання/оновлення
+ * @param newEnemies        ASN → RPSL-блок для ворожих AS, виявлених під час звірки
+ * @param effectivePrefixes стан blackbgp після застосування змін
+ * @param maskedPrefixes    префікс → {@code "DE (RU)"}: маршрут переоформлено під
+ *                          ASN «чистої» країни, але покривний inetnum/inet6num
+ *                          належить блокованій. Такі лишаються заблокованими,
+ *                          а не знімаються
+ */
 public record BlackbgpChanges(
         Set<String> toDelete,
         Set<String> toReplace,
         Map<String, String> newEnemies,
-        Set<String> effectivePrefixes) {
+        Set<String> effectivePrefixes,
+        Map<String, String> maskedPrefixes) {
 
 }
