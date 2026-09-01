@@ -17,6 +17,7 @@ package net.ukrcom.asblockwar.actions;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveBlackbgpPrefixes;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveAsSetMembers;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveImportExportAsSets;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveInetnumCountry;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOriginPrefixes;
 import net.ukrcom.asblockwar.retrieveretrieve.retrieveRouteOrigins;
@@ -50,6 +52,29 @@ public class DiscoverAggressor {
     }
 
     public static final Pattern SERVICE_MNT = Pattern.compile("^RIPE-.+", Pattern.CASE_INSENSITIVE);
+
+
+    /**
+     * Країна, яку заявляє origin-ASN маршруту — та сама, через яку маршрут
+     * і пройшов повз блокування. Потрібна лише для читабельного «DE (RU)» у звіті.
+     *
+     * @param origins               origin-ASN маршруту
+     * @param aggressorAsnResources поточна карта ворогів (може містити блок ASN)
+     * @return код країни або {@code "?"}, якщо визначити не вдалося
+     */
+    private static String originCountry(List<String> origins, Map<String, String> aggressorAsnResources) {
+        for (String origin : origins) {
+            String block = aggressorAsnResources.get(origin);
+            if (block == null || block.isBlank()) {
+                block = new retrieveOrganisation(origin).get();
+            }
+            String country = RpslUtils.rpslField(block, "country");
+            if (!country.isEmpty()) {
+                return country.toUpperCase();
+            }
+        }
+        return "?";
+    }
 
     private static void addMntBy(String block, Set<String> target) {
         block.lines()
@@ -280,6 +305,9 @@ public class DiscoverAggressor {
         // 4. Перевірка маршрутів на видалення: чи не належать вони ворогу?
         Set<String> blocked = FilterAggressor.blockedCountries();
         Map<String, String> newEnemies = new ConcurrentHashMap<>();
+        // префікс → "FI, RU, DE": повний ланцюг країн (inetnum → його organisation
+        // → origin-ASN); origin чистий, але покривний inetnum блокований
+        Map<String, String> maskedPrefixes = new ConcurrentHashMap<>();
         if (!toDelete.isEmpty()) {
             try (ExecutorService executor = VirtualExecutor.create("discover")) {
                 Semaphore dbLimit = ASBlockWar.DB_LIMIT;
@@ -320,6 +348,37 @@ public class DiscoverAggressor {
                                 return;
                             }
                         }
+
+                        // Перевірка 3: маршрут переоформлено під ASN «чистої» країни,
+                        // але покривний inetnum/inet6num належить блокованій?
+                        // RPSL не несе country на route:, тож origin-перевірка вище
+                        // цього не бачить — власник живе в окремому ланцюжку
+                        // inetnum: → org: → organisation:
+                        dbLimit.acquire();
+                        List<String> inetnumCountries;
+                        try {
+                            inetnumCountries = new retrieveInetnumCountry(prefix).get();
+                        } finally {
+                            dbLimit.release();
+                        }
+                        if (inetnumCountries.stream().anyMatch(blocked::contains)) {
+                            // Перелік у тому ж порядку, в якому країни дає whois:
+                            // country: покривного inetnum, потім country: його
+                            // organisation, і наостанок країна origin-ASN.
+                            // Для 5.231.231.0/24 це «FI, RU, DE».
+                            Set<String> chain = new LinkedHashSet<>(inetnumCountries);
+                            String originCountry = originCountry(origins, aggressorAsnResources);
+                            if (!"?".equals(originCountry)) {
+                                chain.add(originCountry);
+                            }
+                            String countryChain = String.join(", ", chain);
+                            log.warn("discoverBlackbgpChanges: {} замасковано — origin {} ({}), "
+                                    + "покривний inetnum дає [{}] — видалення скасовано",
+                                    prefix, origins, originCountry, countryChain);
+                            maskedPrefixes.put(prefix, countryChain);
+                            toDelete.remove(prefix);
+                            return;
+                        }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
@@ -337,6 +396,11 @@ public class DiscoverAggressor {
                 toDelete.size(), toReplace.size(),
                 currentPrefixes.size(), targetPrefixes.size(), newEnemies.size());
 
-        return new BlackbgpChanges(toDelete, toReplace, newEnemies, effectivePrefixes);
+        if (!maskedPrefixes.isEmpty()) {
+            log.warn("discoverBlackbgpChanges: {} маршрутів замасковано під «чисті» ASN — блокування збережено",
+                    maskedPrefixes.size());
+        }
+
+        return new BlackbgpChanges(toDelete, toReplace, newEnemies, effectivePrefixes, maskedPrefixes);
     }
 }
