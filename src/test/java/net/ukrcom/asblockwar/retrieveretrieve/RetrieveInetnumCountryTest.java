@@ -40,6 +40,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Дані відтворюють реальний випадок {@code 5.231.231.0/24}: маршрут
  * переоформили під ASN німецького хостера, сам {@code inetnum} заявляє
  * {@code country: FI}, а організація, на яку він посилається — {@code country: RU}.
+ * <p>
+ * Схема {@code rpsl_net} — актуальна, без {@code masklen}: довжина маски
+ * належить окремому CIDR-блоку, а не об'єкту, тож whois-lite-local її прибрав,
+ * а пошук ведеться точним збігом за обома межами блоку.
  */
 class RetrieveInetnumCountryTest {
 
@@ -56,12 +60,12 @@ class RetrieveInetnumCountryTest {
             st.execute("CREATE TABLE rpsl (id INTEGER PRIMARY KEY, key TEXT,"
                     + " value TEXT COLLATE NOCASE, block TEXT)");
             st.execute("CREATE TABLE rpsl_net (id INTEGER PRIMARY KEY, key TEXT,"
-                    + " value TEXT COLLATE NOCASE, version INTEGER, masklen INTEGER,"
+                    + " value TEXT COLLATE NOCASE, version INTEGER,"
                     + " firstip TEXT, lastip TEXT)");
 
             // Замаскована мережа: inetnum каже FI, організація — RU
-            insertNet(st, "inetnum", "5.231.231.0 - 5.231.231.255", 4, 24,
-                    ipv4("5.231.231.0"), ipv4("5.231.231.255"));
+            insertNet(st, "inetnum", "5.231.231.0 - 5.231.231.255", 4,
+                    "5.231.231.0", "5.231.231.255");
             insertRpsl(st, "inetnum", "5.231.231.0 - 5.231.231.255",
                     "inetnum:        5.231.231.0 - 5.231.231.255\n"
                     + "netname:        Morni-Network\n"
@@ -73,8 +77,8 @@ class RetrieveInetnumCountryTest {
                     + "country:        RU\n");
 
             // Ширший покривний блок хостера — чесний DE
-            insertNet(st, "inetnum", "5.230.0.0 - 5.231.255.255", 4, 15,
-                    ipv4("5.230.0.0"), ipv4("5.231.255.255"));
+            insertNet(st, "inetnum", "5.230.0.0 - 5.231.255.255", 4,
+                    "5.230.0.0", "5.231.255.255");
             insertRpsl(st, "inetnum", "5.230.0.0 - 5.231.255.255",
                     "inetnum:        5.230.0.0 - 5.231.255.255\n"
                     + "country:        DE\n"
@@ -83,6 +87,14 @@ class RetrieveInetnumCountryTest {
                     "organisation:   ORG-GG3-RIPE\n"
                     + "org-name:       GHOSTnet GmbH\n"
                     + "country:        DE\n");
+
+            // Заглушка RIPE на весь адресний простір — покриває будь-яку адресу
+            insertNet(st, "inetnum", "0.0.0.0 - 255.255.255.255", 4,
+                    "0.0.0.0", "255.255.255.255");
+            insertRpsl(st, "inetnum", "0.0.0.0 - 255.255.255.255",
+                    "inetnum:        0.0.0.0 - 255.255.255.255\n"
+                    + "netname:        IANA-BLK\n"
+                    + "country:        EU\n");
         }
 
         ASBlockWar.config = new Config(new String[]{"--whois-uri", url});
@@ -95,11 +107,11 @@ class RetrieveInetnumCountryTest {
     }
 
     private static void insertNet(Statement st, String key, String value, int version,
-            int masklen, String firstip, String lastip) throws SQLException {
+            String firstip, String lastip) throws SQLException {
         st.execute(String.format(
-                "INSERT INTO rpsl_net (key,value,version,masklen,firstip,lastip)"
-                + " VALUES ('%s','%s',%d,%d,'%s','%s')",
-                key, value, version, masklen, firstip, lastip));
+                "INSERT INTO rpsl_net (key,value,version,firstip,lastip)"
+                + " VALUES ('%s','%s',%d,'%s','%s')",
+                key, value, version, ipv4(firstip), ipv4(lastip)));
     }
 
     private static void insertRpsl(Statement st, String key, String value, String block)
@@ -124,24 +136,35 @@ class RetrieveInetnumCountryTest {
     void maskedNetworkExposesRealCountry() {
         List<String> countries = new retrieveInetnumCountry("5.231.231.0/24").get();
 
-        // Найточніший покривний об'єкт першим: його country, потім країна його org,
-        // далі — ширший блок хостера
-        assertEquals(List.of("FI", "RU", "DE"), countries);
+        // Найточніший покривний об'єкт: його country, потім країна його org
+        assertEquals(List.of("FI", "RU"), countries);
         assertTrue(countries.contains("RU"),
                 "RU має знайтися через organisation, на яку посилається inetnum");
     }
 
     @Test
+    @DisplayName("Береться лише найточніший покривний об'єкт — DE ширшого блоку не домішується")
+    void onlyMostSpecificObjectIsUsed() {
+        assertFalse(new retrieveInetnumCountry("5.231.231.0/24").get().contains("DE"),
+                "країна ширшого покривного inetnum не має потрапляти до результату");
+
+        RpslCache.clearAll();
+        // Адреса поза точнішим блоком — тепер найточнішим стає сам блок хостера
+        assertEquals(List.of("DE"), new retrieveInetnumCountry("5.230.7.0/24").get());
+    }
+
+    @Test
     @DisplayName("Перевірка спрацьовує і для окремої адреси всередині мережі")
     void singleAddressInsideNetwork() {
-        assertEquals(List.of("FI", "RU", "DE"),
+        assertEquals(List.of("FI", "RU"),
                 new retrieveInetnumCountry("5.231.231.7/32").get());
     }
 
     @Test
-    @DisplayName("Мережа без покривного inetnum не дає жодної країни — логіка лишається як була")
-    void noCoveringInetnum() {
-        assertEquals(List.of(), new retrieveInetnumCountry("8.8.8.0/24").get());
+    @DisplayName("Адреса, яку покриває лише заглушка 0.0.0.0/0 — результат порожній")
+    void wholeAddressSpacePlaceholderIsIgnored() {
+        assertEquals(List.of(), new retrieveInetnumCountry("8.8.8.0/24").get(),
+                "«весь інтернет» не є відповіддю про приналежність мережі");
     }
 
     @Test
@@ -153,8 +176,8 @@ class RetrieveInetnumCountryTest {
                 .anyMatch(blocked::contains), "замаскована мережа має лишитися заблокованою");
 
         RpslCache.clearAll();
-        assertFalse(new retrieveInetnumCountry("8.8.8.0/24").get().stream()
-                .anyMatch(blocked::contains), "мережа без покривного inetnum не блокується");
+        assertFalse(new retrieveInetnumCountry("5.230.7.0/24").get().stream()
+                .anyMatch(blocked::contains), "чесна мережа хостера не блокується");
     }
 
     @Test

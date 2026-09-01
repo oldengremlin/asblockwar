@@ -17,6 +17,7 @@ package net.ukrcom.asblockwar.actions;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -304,7 +305,8 @@ public class DiscoverAggressor {
         // 4. Перевірка маршрутів на видалення: чи не належать вони ворогу?
         Set<String> blocked = FilterAggressor.blockedCountries();
         Map<String, String> newEnemies = new ConcurrentHashMap<>();
-        // префікс → "DE (RU)": origin-ASN чистий, але покривний inetnum блокований
+        // префікс → "FI, RU, DE": повний ланцюг країн (inetnum → його organisation
+        // → origin-ASN); origin чистий, але покривний inetnum блокований
         Map<String, String> maskedPrefixes = new ConcurrentHashMap<>();
         if (!toDelete.isEmpty()) {
             try (ExecutorService executor = VirtualExecutor.create("discover")) {
@@ -359,16 +361,23 @@ public class DiscoverAggressor {
                         } finally {
                             dbLimit.release();
                         }
-                        for (String country : inetnumCountries) {
-                            if (blocked.contains(country)) {
-                                String originCountry = originCountry(origins, aggressorAsnResources);
-                                log.warn("discoverBlackbgpChanges: {} замасковано — origin {} ({}), "
-                                        + "але покривний inetnum належить {} — видалення скасовано",
-                                        prefix, origins, originCountry, country);
-                                maskedPrefixes.put(prefix, originCountry + " (" + country + ")");
-                                toDelete.remove(prefix);
-                                return;
+                        if (inetnumCountries.stream().anyMatch(blocked::contains)) {
+                            // Перелік у тому ж порядку, в якому країни дає whois:
+                            // country: покривного inetnum, потім country: його
+                            // organisation, і наостанок країна origin-ASN.
+                            // Для 5.231.231.0/24 це «FI, RU, DE».
+                            Set<String> chain = new LinkedHashSet<>(inetnumCountries);
+                            String originCountry = originCountry(origins, aggressorAsnResources);
+                            if (!"?".equals(originCountry)) {
+                                chain.add(originCountry);
                             }
+                            String countryChain = String.join(", ", chain);
+                            log.warn("discoverBlackbgpChanges: {} замасковано — origin {} ({}), "
+                                    + "покривний inetnum дає [{}] — видалення скасовано",
+                                    prefix, origins, originCountry, countryChain);
+                            maskedPrefixes.put(prefix, countryChain);
+                            toDelete.remove(prefix);
+                            return;
                         }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();

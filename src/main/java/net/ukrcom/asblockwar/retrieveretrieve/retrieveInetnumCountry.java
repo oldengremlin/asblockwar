@@ -45,11 +45,22 @@ import lombok.extern.slf4j.Slf4j;
  * ({@code 5.231.231.0/24}) inetnum заявляв {@code country: FI}, а організація,
  * на яку він посилався — {@code country: RU}.
  * <p>
- * Пошук покривних об'єктів повторює підхід whois-lite-local: адресу маскують
- * до кожної можливої довжини префікса й шукають точний збіг за
- * {@code (version, masklen, firstip)}. inetnum-об'єкти щільно вкладені один
- * в одного, тож діапазонний предикат вироджувався б у скан більшої частини
- * таблиці.
+ * Пошук повторює підхід whois-lite-local (після
+ * «return the most specific covering object, and drop masklen from rpsl_net»):
+ * кожен рядок {@code rpsl_net} — це CIDR-блок, тож обидві його межі виводяться
+ * з адреси й довжини префікса. Довжини перебираються від найточнішої до нуля,
+ * і на кожній робиться точний збіг за {@code (version, key, firstip, lastip)} —
+ * щонайбільше 33 (або 129) звернень до індексу, із зупинкою на першому влучанні.
+ * Діапазонний предикат тут вироджувався б у зворотний скан індексу аж до рядка
+ * {@code 0.0.0.0/0}, а стовпця {@code masklen} у схемі більше немає: довжина
+ * маски належить окремому CIDR-блоку, а не об'єкту — діапазон на кшталт
+ * {@code 20.33.0.0 - 20.128.255.255} розкладається на сім блоків шести різних
+ * розмірів.
+ * <p>
+ * Береться <b>лише найточніший</b> покривний об'єкт, як і відповідає whois:
+ * RIPE тримає inetnum-заглушку на весь адресний простір, тож «усі покривні»
+ * означало б домішувати країну заглушки до кожного префікса. Якщо адресу
+ * покриває лише ця заглушка — мережа нікому не призначена, і результат порожній.
  */
 @Slf4j
 public class retrieveInetnumCountry {
@@ -85,8 +96,9 @@ public class retrieveInetnumCountry {
     }
 
     /**
-     * @return коди країн у верхньому регістрі, від найточнішого покривного
-     *         об'єкта до найширшого; порожній список, якщо покривних немає
+     * @return коди країн найточнішого покривного об'єкта у верхньому регістрі —
+     *         спершу його власний {@code country:}, далі країни організацій
+     *         з його {@code org:}; порожній список, якщо покривних об'єктів немає
      */
     public List<String> get() {
         return List.copyOf(countries);
@@ -109,30 +121,7 @@ public class retrieveInetnumCountry {
         int version = bits == 32 ? 4 : 6;
         String key = version == 4 ? "inetnum" : "inet6num";
 
-        // Кандидати: адреса, замаскована до кожної довжини префікса
-        List<String> candidates = new ArrayList<>(bits + 1);
-        for (int masklen = 0; masklen <= bits; masklen++) {
-            candidates.add(padIpDecimal(networkAddress(address, bits, masklen)));
-        }
-
-        // Найточніші першими — вони описують фактичне призначення мережі
-        List<String> values = new ArrayList<>();
-        String sql = "SELECT value FROM rpsl_net WHERE version = ? AND key = ? AND firstip IN ("
-                + String.join(",", Collections.nCopies(candidates.size(), "?"))
-                + ") ORDER BY masklen DESC";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, version);
-            stmt.setString(2, key);
-            int i = 3;
-            for (String c : candidates) {
-                stmt.setString(i++, c);
-            }
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    values.add(rs.getString("value"));
-                }
-            }
-        }
+        List<String> values = findMostSpecific(conn, address, bits, version, key);
 
         Set<String> seen = new LinkedHashSet<>();
         for (String value : values) {
@@ -168,6 +157,46 @@ public class retrieveInetnumCountry {
             }
         }
         return out;
+    }
+
+    /**
+     * Знаходить найточніший покривний {@code inetnum}/{@code inet6num}.
+     *
+     * @return значення знайдених об'єктів або порожній список, якщо покривних
+     *         немає чи адресу покриває лише заглушка на весь адресний простір
+     */
+    private List<String> findMostSpecific(Connection conn, BigInteger address, int bits,
+            int version, String key) throws SQLException {
+        List<String> values = new ArrayList<>();
+        String sql = "SELECT value FROM rpsl_net"
+                + " WHERE version = ? AND key = ? AND firstip = ? AND lastip = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, version);
+            stmt.setString(2, key);
+            for (int masklen = bits; masklen >= 0; masklen--) {
+                BigInteger network = networkAddress(address, bits, masklen);
+                BigInteger last = network.add(BigInteger.ONE.shiftLeft(bits - masklen))
+                        .subtract(BigInteger.ONE);
+                stmt.setString(3, padIpDecimal(network));
+                stmt.setString(4, padIpDecimal(last));
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        values.add(rs.getString("value"));
+                    }
+                }
+                if (!values.isEmpty()) {
+                    // Заглушка на весь адресний простір не свідчить ні про що:
+                    // вона покриває будь-яку невидану нікому адресу
+                    if (masklen == 0) {
+                        log.debug("retrieveInetnumCountry: {} покриває лише заглушка {} — "
+                                + "мережа нікому не призначена", prefix, values);
+                        return List.of();
+                    }
+                    return values;
+                }
+            }
+        }
+        return values;
     }
 
     /** Маскує адресу до {@code maskLength} біт. */

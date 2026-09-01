@@ -41,6 +41,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -272,13 +273,41 @@ public class EmailReportSender {
               .append("<td valign=\"top\">").append(esc(prefix)).append("</td>")
               .append("<td valign=\"top\"><span class=\"asn\">")
               .append(asn.isEmpty() ? "" : asnHtml(asn)).append("</span></td>")
-              .append("<td valign=\"top\"><b>")
-              .append(esc(bgp.maskedPrefixes().get(prefix))).append("</b></td>")
+              .append("<td valign=\"top\">")
+              .append(countryChainHtml(bgp.maskedPrefixes().get(prefix))).append("</td>")
               .append("<td valign=\"top\">").append(descr).append("</td>")
               .append("</tr>");
         }
 
         sb.append("</tbody></table></div>");
+        return sb.toString();
+    }
+
+    /**
+     * Ланцюг країн замаскованого маршруту, наприклад {@code FI, RU, DE}.
+     * <p>
+     * Порядок той самий, у якому країни віддає whois: {@code country:} покривного
+     * inetnum, потім {@code country:} його {@code organisation}, наостанок країна
+     * origin-ASN. Виділяється саме та, через яку блокування збережено — інакше
+     * з переліку не видно, що спрацювало.
+     */
+    private static String countryChainHtml(String chain) {
+        if (chain == null || chain.isBlank()) {
+            return "";
+        }
+        Set<String> blocked = FilterAggressor.blockedCountries();
+        StringBuilder sb = new StringBuilder();
+        for (String country : chain.split(",")) {
+            String code = country.trim();
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            if (blocked.contains(code.toUpperCase())) {
+                sb.append("<b class=\"country-blocked\">").append(esc(code)).append("</b>");
+            } else {
+                sb.append(esc(code));
+            }
+        }
         return sb.toString();
     }
 
@@ -735,5 +764,6 @@ public class EmailReportSender {
             + ".val-new{color:#1b5e20}"
             + ".was-label{color:#888;font-style:italic}"
             + ".badge-masked{background:#00695c}"
-            + ".row-masked td{background:#e0f2f1}";
+            + ".row-masked td{background:#e0f2f1}"
+            + ".country-blocked{color:#b71c1c}";
 }

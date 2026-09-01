@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.20.0**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.20.1**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.20.0-<buildNumber>.jar
+target/ASBlockWar-3.20.1-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.20.0-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.20.1-00000001.jar [параметри]
 ```
 
 ### Тести
@@ -204,7 +204,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.20.0-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.20.1-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -258,7 +258,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.20.0-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.20.1-00000001.jar [параметри]
 ```
 
 Код виходу: `0` — успіх, `1` — помилка обробки. Раніше процес завжди завершувався
@@ -309,7 +309,7 @@ java -jar target/ASBlockWar-3.20.0-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.20.0-00000001.jar --gui
+java -jar target/ASBlockWar-3.20.1-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -433,10 +433,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.20.0-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.20.1-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.20.0-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.20.1-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -535,9 +535,10 @@ java -jar ASBlockWar-3.20.0-00000001.jar -dg /tmp/asblockwar-graph.html
   не поточне, а те, яким воно було до видалення ASN;
 - **Підозрілі AS поза BlockCountry** — AS, що збіглись з AggressorPattern, але не підпадають під блокування за країною;
 - **Замасковані маршрути** — маршрути, зняття яких скасовано Перевіркою 3
-  (див. «Замасковані маршрути»). У колонці «Країна» — `DE (RU)`: origin чесно DE,
-  але покривний `inetnum` належить RU. Секція показується лише за наявності
-  таких маршрутів;
+  (див. «Замасковані маршрути»). У колонці «Країна» — повний ланцюг
+  `FI, RU, DE`: `country:` покривного inetnum, `country:` його `organisation`
+  і країна origin-ASN; заблокована виділяється кольором. Секція показується
+  лише за наявності таких маршрутів;
 - **Маршрути вилучені з blackbgp** (`ip r d`) — prefix / origin ASN / country / descr.
   Origin-ASN для цієї таблиці береться з історичного запису `STORE/NET/<prefix>.txt`
   (хто фактично блокувався, поки маршрут ще був у blackbgp), а не зі свіжого запиту
@@ -570,11 +571,11 @@ java -jar ASBlockWar-3.20.0-00000001.jar -dg /tmp/asblockwar-graph.html
 
 ```bash
 # Запуск із відправленням звіту через sendmail
-java -jar ASBlockWar-3.20.0-00000001.jar --send-report \
+java -jar ASBlockWar-3.20.1-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com
 
 # Через SMTP з автентифікацією
-java -jar ASBlockWar-3.20.0-00000001.jar --send-report \
+java -jar ASBlockWar-3.20.1-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com \
      --email-smtp-host=mail.example.com --email-smtp-port=587 \
      --email-smtp-user=user --email-smtp-password=secret
@@ -617,8 +618,8 @@ flowchart TD
     WR["[9a] storeWarResources\ntrie-оптимізований regex\nset policy-options as-path WAR1/WAR2"]
     BG["[9b] storeBlackbgpResources\nSSH: поточний стан blackbgp\nDB: цільові prefixes ворожих ASN\n+ ForceNETBlock (тільки blackbgp)\ndiff → war.blackbgp.txt"]
 
-    BG --> BC["discoverBlackbgpChanges: кандидати на зняття\n① вже відома ворожа AS?\n② нова AS, country ∈ BlockCountry?\n③ покривний inetnum/inet6num (country: або org: → organisation:)\n∈ BlockCountry → замасковано, зняття скасовано"]
-    BC --> NE
+    BG --> BCH["discoverBlackbgpChanges: кандидати на зняття\n① вже відома ворожа AS?\n② нова AS, country ∈ BlockCountry?\n③ найточніший покривний inetnum/inet6num\n(country: + org: → organisation:)\n∈ BlockCountry → замасковано, зняття скасовано"]
+    BCH --> NE
 
     WR --> NE
 
@@ -884,21 +885,36 @@ RPSL **не несе `country:` на самому `route:`** — країна м
 До 30.08.2026 маршрут мав `origin: AS219123` (RU) і був заблокований; після появи
 точнішого `route:` з німецьким origin він пішов на зняття з blackbgp.
 
-Тому для кожного маршруту, що йде на зняття, шукаються **покривні**
+Тому для кожного маршруту, що йде на зняття, шукається **покривний**
 `inetnum`/`inet6num` і перевіряються **обидва** джерела країни — поле `country:`
 самого об'єкта і країна організації з його `org:`. Якщо будь-яке з них у
 `BlockCountry`, зняття скасовується: маршрут лишається заблокованим незалежно
 від «чистого» origin.
 
-Пошук покривних об'єктів повторює підхід `whois-lite-local`: адреса маскується
-до кожної можливої довжини префікса (0..32 або 0..128), і збіг шукається за точним
-`(version, masklen, firstip)` у таблиці `rpsl_net`. Ці об'єкти щільно вкладені
-один в одного, тож діапазонний предикат вироджувався б у скан більшої частини
-таблиці. Результат кешується за префіксом.
+У колонці «Країна» звіту виводиться повний ланцюг у тому ж порядку, у якому
+країни віддає whois — `country:` покривного inetnum, потім `country:` його
+`organisation`, наостанок країна origin-ASN. Для `5.231.231.0/24` це
+**`FI, RU, DE`**; та з них, через яку блокування збережено, виділяється кольором.
+
+Пошук повторює підхід `whois-lite-local`. Кожен рядок `rpsl_net` — це CIDR-блок,
+тож обидві його межі виводяться з адреси й довжини префікса: довжини перебираються
+від найточнішої до нуля, і на кожній робиться точний збіг за
+`(version, key, firstip, lastip)` — щонайбільше 33 (або 129) звернень до індексу,
+із зупинкою на першому влучанні. Діапазонний предикат тут вироджувався б у
+зворотний скан індексу аж до рядка `0.0.0.0/0`. Результат кешується за префіксом.
+
+Береться **лише найточніший** покривний об'єкт — так само, як відповідає whois.
+RIPE тримає inetnum-заглушку на весь адресний простір (`0.0.0.0 - 255.255.255.255`),
+тож «усі покривні» означало б домішувати країну заглушки до кожного префікса.
+Якщо адресу покриває лише ця заглушка — мережа нікому не призначена, і результат
+порожній.
 
 Потребує `whois-lite-local` зі збереженням `inetnum`/`inet6num` (таблиця
-`rpsl_net`). Якщо покривних об'єктів немає — поведінка не змінюється:
-`route`/`route6` лишаються первинним джерелом істини.
+`rpsl_net`) **у схемі без `masklen`** — довжина маски належить окремому CIDR-блоку,
+а не об'єкту: діапазон на кшталт `20.33.0.0 - 20.128.255.255` розкладається на сім
+блоків шести різних розмірів, тож `whois-lite-local` цей стовпець прибрав.
+Якщо покривних об'єктів немає — поведінка не змінюється: `route`/`route6`
+лишаються первинним джерелом істини.
 
 > **Обмеження.** Перевірка застосовується до маршрутів, які **вже є** в blackbgp
 > і йдуть на зняття. Мережі, що ніколи не блокувалися й одразу з'явилися під
@@ -911,7 +927,7 @@ RPSL **не несе `country:` на самому `route:`** — країна м
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.20.0-00000001.jar --batch
+java -jar target/ASBlockWar-3.20.1-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -1009,7 +1025,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.20.0-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.20.1-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD
