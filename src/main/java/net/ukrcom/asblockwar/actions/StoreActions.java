@@ -18,10 +18,8 @@ package net.ukrcom.asblockwar.actions;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -187,14 +185,7 @@ public class StoreActions {
                 }
 
                 // Записуємо відсортований список (тільки числа, по одному на рядок)
-                Path tmp = source.resolveSibling(source.getFileName() + ".tmp");
-                Files.writeString(tmp, newContent);
-                try {
-                    Files.move(tmp, source, StandardCopyOption.ATOMIC_MOVE,
-                            StandardCopyOption.REPLACE_EXISTING);
-                } catch (AtomicMoveNotSupportedException e) {
-                    Files.move(tmp, source, StandardCopyOption.REPLACE_EXISTING);
-                }
+                FileUtils.replaceAtomically(source, newContent);
                 log.info("Збережено {} AS у {}", aggressorAsnResources.size(), ASBlockWar.config.getListFile());
             }
         } finally {

@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,9 @@ public class FileUtils {
 
     private FileUtils() {
     }
+
+    /** Лічильник для унікальних імен тимчасових файлів у межах процесу. */
+    private static final AtomicLong TMP_SEQ = new AtomicLong();
 
     /**
      * Читає непорожні рядки файлу, пропускаючи коментарі ({@code #}, {@code ;}).
@@ -115,7 +119,37 @@ public class FileUtils {
             log.debug("DRY-RUN: skip write → {}", file);
             return;
         }
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        replaceAtomically(file, content);
+    }
+
+    /**
+     * Замінює вміст файлу атомарно: запис у тимчасовий файл поруч, потім
+     * {@code ATOMIC_MOVE} на місце цільового.
+     * <p>
+     * Ім'я тимчасового файлу містить PID і власний лічильник, тож у двох
+     * одночасних записів у той самий шлях воно ніколи не збігається. Фіксоване
+     * {@code <файл>.tmp} цього не давало: другий записувач перетирав чужий
+     * тимчасовий файл, перший переносив його на місце, а другий отримував
+     * {@code NoSuchFileException: …tmp -> …txt}. Гірше за сам виняток те, що
+     * перенесений файл при цьому міг містити вміст іншого записувача, а
+     * прибирання в {@code finally} видаляло щойно створений чужий файл.
+     * <p>
+     * Записувачами можуть бути і два процеси ASBlockWar над спільним
+     * {@code STORE/} — жодного блокування там немає, і покладатися на те, що
+     * кожен шлях пише рівно одна задача, не можна.
+     * <p>
+     * Права доступу лишаються звичайними ({@code 0666 &amp; ~umask}), бо файл
+     * створює {@code Files.writeString}, а не {@code Files.createTempFile} —
+     * останній дав би {@code 0600}, і після перенесення цільовий файл став би
+     * недоступним для читання іншим користувачам.
+     *
+     * @param file    цільовий файл
+     * @param content вміст, який має опинитися у файлі
+     * @throws IOException якщо запис або перенесення не вдалися
+     */
+    public static void replaceAtomically(Path file, String content) throws IOException {
+        Path tmp = file.resolveSibling(file.getFileName() + "."
+                + ProcessHandle.current().pid() + "-" + TMP_SEQ.incrementAndGet() + ".tmp");
         try {
             Files.writeString(tmp, content);
             try {

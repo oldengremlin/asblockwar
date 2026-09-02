@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.20.1**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.20.2**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.20.1-<buildNumber>.jar
+target/ASBlockWar-3.20.2-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.20.1-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.20.2-00000001.jar [параметри]
 ```
 
 ### Тести
@@ -70,6 +70,9 @@ mvn test
 - `RetrieveInetnumCountryTest` — пошук країни через покривні `inetnum`/`inet6num`
   на даних реального випадку `5.231.231.0/24`, включно з контрольною «чесною»
   мережею та мережею без покривного об'єкта.
+- `FileUtilsAtomicWriteTest` — атомарний запис: паралельні записувачі в один шлях
+  не повинні красти один в одного тимчасовий файл, після запису не лишається
+  сміття, а цільовий файл лишається читабельним для інших користувачів.
 
 ### Варіант 2: native app image (`mvn clean verify`)
 
@@ -204,7 +207,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.20.1-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.20.2-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -258,7 +261,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.20.1-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.20.2-00000001.jar [параметри]
 ```
 
 Код виходу: `0` — успіх, `1` — помилка обробки. Раніше процес завжди завершувався
@@ -309,7 +312,7 @@ java -jar target/ASBlockWar-3.20.1-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.20.1-00000001.jar --gui
+java -jar target/ASBlockWar-3.20.2-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -433,10 +436,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.20.1-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.20.2-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.20.1-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.20.2-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -571,11 +574,11 @@ java -jar ASBlockWar-3.20.1-00000001.jar -dg /tmp/asblockwar-graph.html
 
 ```bash
 # Запуск із відправленням звіту через sendmail
-java -jar ASBlockWar-3.20.1-00000001.jar --send-report \
+java -jar ASBlockWar-3.20.2-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com
 
 # Через SMTP з автентифікацією
-java -jar ASBlockWar-3.20.1-00000001.jar --send-report \
+java -jar ASBlockWar-3.20.2-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com \
      --email-smtp-host=mail.example.com --email-smtp-port=587 \
      --email-smtp-user=user --email-smtp-password=secret
@@ -927,7 +930,7 @@ RIPE тримає inetnum-заглушку на весь адресний про
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.20.1-00000001.jar --batch
+java -jar target/ASBlockWar-3.20.2-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -1025,7 +1028,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.20.1-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.20.2-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD
@@ -1111,7 +1114,7 @@ AS9999 │ CZ     │ org-name: Qrator Labs CZ
 - `expandAsSetMap()` (BFS-розгортання AS-SET) повторно використовує **один** executor для всіх хвиль BFS; синхронізація між ітераціями через `Future.get()`.
 - `storeDetails()`: пари DB-запитів (AS + AS-NET, MNT + MNT-SET-AS) захоплюють семафор **один раз** на пару замість двох окремих acquire/release.
 - `storeNetworkFiles()`: запис 60 K+ файлів NET/ **паралелізовано** — virtual thread executor замість послідовного `for`-циклу.
-- `FileUtils.writeStoreFile()`: **FileLock** видалено — кожен STORE/ файл записується рівно одним потоком; атомарний запис через `.tmp` + `Files.move()` збережено.
+- `FileUtils.writeStoreFile()`: **FileLock** видалено; атомарний запис через тимчасовий файл + `Files.move()` збережено. Ім'я тимчасового файлу містить PID і лічильник (`<файл>.<pid>-<n>.tmp`), тож у двох одночасних записувачів воно ніколи не збігається — зокрема у двох запусків ASBlockWar над спільним `STORE/`, між якими жодного блокування немає.
 
 Незалежні етапи виводу (`storeWarResources` / `storeBlackbgpResources`, а також
 `storeDetails` / `storeAsList` / `storeMaintainersList` / `storeNetworkFiles`)
