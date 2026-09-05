@@ -255,18 +255,30 @@ public class EmailReportSender {
 
         Map<String, List<String>> liveOrigins = ASBlockWar.lastRouteOrigins;
         for (String prefix : sorted) {
-            List<String> asnList = liveOrigins != null
-                    ? liveOrigins.getOrDefault(prefix, Collections.emptyList())
-                    : Collections.emptyList();
-            if (asnList.isEmpty()) {
-                asnList = readOriginsFromStoreNet(prefix);
+            MaskedRoute masked = bgp.maskedPrefixes().get(prefix);
+
+            // origin замаскованого маршруту за побудовою не ворожий, тож у
+            // aggressorAsnResources і в кеші STORE/AS/ його немає — беремо те,
+            // що прочитала сама перевірка; решта джерел лишається для
+            // сценарію, коли route: прибрано і origin невідомий
+            String asn = masked.origin();
+            if (asn.isEmpty()) {
+                List<String> asnList = liveOrigins != null
+                        ? liveOrigins.getOrDefault(prefix, Collections.emptyList())
+                        : Collections.emptyList();
+                if (asnList.isEmpty()) {
+                    asnList = readOriginsFromStoreNet(prefix);
+                }
+                asn = asnList.isEmpty() ? "" : asnList.get(0);
             }
 
-            String asn = asnList.isEmpty() ? "" : asnList.get(0);
-            String rpsl = asn.isEmpty() ? "" : lookupRpsl(asn, aggressorAsnResources);
-            String descr = esc(RpslUtils.rpslField(rpsl, "org-name"));
-            if (descr.isEmpty()) {
-                descr = esc(RpslUtils.rpslField(rpsl, "descr"));
+            String descr = esc(masked.orgName());
+            if (descr.isEmpty() && !asn.isEmpty()) {
+                String rpsl = lookupRpsl(asn, aggressorAsnResources);
+                descr = esc(RpslUtils.rpslField(rpsl, "org-name"));
+                if (descr.isEmpty()) {
+                    descr = esc(RpslUtils.rpslField(rpsl, "descr"));
+                }
             }
 
             sb.append("<tr class=\"row-masked\">")
@@ -274,7 +286,7 @@ public class EmailReportSender {
               .append("<td valign=\"top\"><span class=\"asn\">")
               .append(asn.isEmpty() ? "" : asnHtml(asn)).append("</span></td>")
               .append("<td valign=\"top\">")
-              .append(countryChainHtml(bgp.maskedPrefixes().get(prefix))).append("</td>")
+              .append(countryChainHtml(masked.countryChain())).append("</td>")
               .append("<td valign=\"top\">").append(descr).append("</td>")
               .append("</tr>");
         }

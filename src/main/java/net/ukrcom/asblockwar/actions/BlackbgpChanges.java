@@ -25,16 +25,16 @@ import java.util.Set;
  * @param toReplace         префікси на додавання/оновлення
  * @param newEnemies        ASN → RPSL-блок для ворожих AS, виявлених під час звірки
  * @param effectivePrefixes стан blackbgp після застосування змін
- * @param maskedPrefixes    префікс → {@code "DE (RU)"}: маршрут переоформлено під
- *                          ASN «чистої» країни, але покривний inetnum/inet6num
- *                          належить блокованій. Такі лишаються заблокованими,
- *                          а не знімаються
+ * @param maskedPrefixes    префікс → {@link MaskedRoute}: покривний
+ *                          inetnum/inet6num належить блокованій країні, попри
+ *                          «чистий» або взагалі відсутній {@code route:}.
+ *                          Такі лишаються заблокованими, а не знімаються
  */
 public record BlackbgpChanges(
         Set<String> toDelete,
         Set<String> toReplace,
         Map<String, String> newEnemies,
         Set<String> effectivePrefixes,
-        Map<String, String> maskedPrefixes) {
+        Map<String, MaskedRoute> maskedPrefixes) {
 
 }

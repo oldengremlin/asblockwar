@@ -181,6 +181,27 @@ class RetrieveInetnumCountryTest {
     }
 
     @Test
+    @DisplayName("Блоки, з яких узято країни, доступні для STORE/AS/")
+    void blocksExposeWhereTheCountryCameFrom() {
+        String blocks = new retrieveInetnumCountry("5.231.231.0/24").getBlocks();
+
+        assertTrue(blocks.contains("inetnum:        5.231.231.0 - 5.231.231.255"),
+                "має бути сам покривний inetnum");
+        assertTrue(blocks.contains("organisation:   ORG-MN228-RIPE"),
+                "має бути organisation, через яку знайшлася RU");
+        assertTrue(blocks.indexOf("organisation:") > blocks.indexOf("inetnum:"),
+                "порядок як у whois: спершу inetnum, потім його organisation");
+        assertFalse(blocks.contains("GHOSTnet"),
+                "ширший покривний блок не береться — лише найточніший");
+    }
+
+    @Test
+    @DisplayName("Без покривних об'єктів блоки порожні")
+    void noBlocksWithoutCoveringObject() {
+        assertEquals("", new retrieveInetnumCountry("8.8.8.0/24").getBlocks());
+    }
+
+    @Test
     @DisplayName("Некоректний префікс не кидає виняток")
     void malformedPrefixIsTolerated() {
         assertEquals(List.of(), new retrieveInetnumCountry("не-адреса/24").get());

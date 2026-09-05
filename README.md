@@ -4,7 +4,7 @@
 
 Зчитує поточний перелік ASN, звіряє їх з локальною копією бази RPSL ([whois-lite-local](https://github.com/oldengremlin/whois-lite-local)), знаходить нові ASN через mnt-by/as-set зв'язки та AS-SET-и з import/export-політик, фільтрує за патерном агресора й оновлює список на диску. Додатково звіряє поточний стан blackhole-маршрутизації (blackbgp) через SSH і генерує diff-команди. Після виконання виводить звіт про зміни.
 
-Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.20.3**.
+Починаючи з версії 3.0.0 доступний повноцінний **графічний інтерфейс** (`-g` / `--gui`) з живим відображенням процесу обробки, з 3.3.0 — **пакетний режим** (`-b` / `--batch`) для автоматичного запуску зовнішнього скрипту, а з 3.5.0 — **граф залежностей** (`-dg` / `--dependency-graph`) у вигляді інтерактивного HTML/SVG+D3.js з опціональним sfdp pre-computed layout, а з 3.10.0 — **HTML email-звіт** (`--send-report`) із зведеною таблицею змін ASN, підозрілих AS і blackbgp-маршрутів. Поточна версія — **3.21.0**.
 
 📋 [Changelog](docs/CHANGELOG.md) · 🛠 [Contributing / внутрішня архітектура](docs/CONTRIBUTING.md)
 
@@ -37,13 +37,13 @@ mvn clean package
 Збирається fat-JAR з усіма залежностями (через maven-shade-plugin):
 
 ```
-target/ASBlockWar-3.20.3-<buildNumber>.jar
+target/ASBlockWar-3.21.0-<buildNumber>.jar
 ```
 
 Запуск потребує встановленої JRE 25+ на цільовій машині:
 
 ```bash
-java -jar target/ASBlockWar-3.20.3-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.21.0-00000001.jar [параметри]
 ```
 
 ### Тести
@@ -207,7 +207,7 @@ PrimaryEnemyResources=AS-MAILRU,AS-VKONTAKTE,AS-VK,AS-YANDEX,AS-M100
 Альтернативно — зовнішній конфіг через аргумент `--config=`:
 
 ```bash
-java -jar ASBlockWar-3.20.3-00000001.jar --config=/etc/asblockwar/asblockwar.properties
+java -jar ASBlockWar-3.21.0-00000001.jar --config=/etc/asblockwar/asblockwar.properties
 ```
 
 ---
@@ -261,7 +261,7 @@ AS-VK
 ## Запуск
 
 ```bash
-java -jar target/ASBlockWar-3.20.3-00000001.jar [параметри]
+java -jar target/ASBlockWar-3.21.0-00000001.jar [параметри]
 ```
 
 Код виходу: `0` — успіх, `1` — помилка обробки. Раніше процес завжди завершувався
@@ -312,7 +312,7 @@ java -jar target/ASBlockWar-3.20.3-00000001.jar [параметри]
 ## Графічний інтерфейс (GUI)
 
 ```bash
-java -jar target/ASBlockWar-3.20.3-00000001.jar --gui
+java -jar target/ASBlockWar-3.21.0-00000001.jar --gui
 ```
 
 ### Головне вікно
@@ -436,10 +436,10 @@ SVG-графом зв'язків між RPSL-об'єктами, побудова
 
 ```bash
 # Вивести у файл за замовчуванням (dependency-graph.html)
-java -jar ASBlockWar-3.20.3-00000001.jar --dependency-graph
+java -jar ASBlockWar-3.21.0-00000001.jar --dependency-graph
 
 # Задати власний шлях
-java -jar ASBlockWar-3.20.3-00000001.jar -dg /tmp/asblockwar-graph.html
+java -jar ASBlockWar-3.21.0-00000001.jar -dg /tmp/asblockwar-graph.html
 ```
 
 У GUI: кнопка **Dependency** стає активною після виконання *Run* і відкриває граф
@@ -540,8 +540,11 @@ java -jar ASBlockWar-3.20.3-00000001.jar -dg /tmp/asblockwar-graph.html
 - **Замасковані маршрути** — маршрути, зняття яких скасовано Перевіркою 3
   (див. «Замасковані маршрути»). У колонці «Країна» — повний ланцюг
   `FI, RU, DE`: `country:` покривного inetnum, `country:` його `organisation`
-  і країна origin-ASN; заблокована виділяється кольором. Секція показується
-  лише за наявності таких маршрутів;
+  і країна origin-ASN; заблокована виділяється кольором. ASN і назва організації
+  беруться з того, що прочитала сама перевірка: origin такого маршруту за
+  побудовою не ворожий, тож ні в `aggressorAsnResources`, ні в кеші `STORE/AS/`
+  його немає, і колонка «Організація» інакше лишалася б порожньою саме там, де
+  вона найпотрібніша. Секція показується лише за наявності таких маршрутів;
 - **Маршрути вилучені з blackbgp** (`ip r d`) — prefix / origin ASN / country / descr.
   Origin-ASN для цієї таблиці береться з історичного запису `STORE/NET/<prefix>.txt`
   (хто фактично блокувався, поки маршрут ще був у blackbgp), а не зі свіжого запиту
@@ -574,11 +577,11 @@ java -jar ASBlockWar-3.20.3-00000001.jar -dg /tmp/asblockwar-graph.html
 
 ```bash
 # Запуск із відправленням звіту через sendmail
-java -jar ASBlockWar-3.20.3-00000001.jar --send-report \
+java -jar ASBlockWar-3.21.0-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com
 
 # Через SMTP з автентифікацією
-java -jar ASBlockWar-3.20.3-00000001.jar --send-report \
+java -jar ASBlockWar-3.21.0-00000001.jar --send-report \
      --email-from=asblockwar@example.com --email-to=noc@example.com \
      --email-smtp-host=mail.example.com --email-smtp-port=587 \
      --email-smtp-user=user --email-smtp-password=secret
@@ -638,7 +641,7 @@ flowchart TD
     ST --> ML
     ST --> NF
 
-    SD["[12a] storeDetails\nSTORE/AS, STORE/MNT, STORE/MNT-SET-AS\nSTORE/AS-SET, STORE/AS-NET"]
+    SD["[12a] storeDetails\nSTORE/AS, STORE/MNT, STORE/MNT-SET-AS\nSTORE/AS-SET, STORE/AS-NET\n+ STORE/AS для origin замаскованих\n(aut-num + покривний inetnum)"]
     AL["[12b] storeAsList\nSTORE/AS.list"]
     ML["[12c] storeMaintainersList\nSTORE/maintainers.list"]
     NF["[12d] storeNetworkFiles\nSTORE/networks.list + STORE/NET/"]
@@ -788,7 +791,7 @@ STORE/
 
 | Директорія/файл | Еквівалент wll | Опис |
 |---|---|---|
-| `STORE/AS/` | `-ran {as}` | aut-num + org |
+| `STORE/AS/` | `-ran {as}` | aut-num + org (для замаскованих — плюс покривний inetnum, див. нижче) |
 | `STORE/MNT/` | `-rm {mnt}` | mntner + role |
 | `STORE/MNT-SET-AS/` | `-rmb {mnt}` | aut-num/as-set під мантейнером |
 | `STORE/AS-SET/` | `-ras {asset}` | as-set |
@@ -799,6 +802,38 @@ STORE/
 | `STORE/networks.list` | — | компактна таблиця prefix → список origin-ASN (лише effectivePrefixes) |
 
 `AS.list`, `maintainers.list` і `networks.list` формуються паралельно зі `STORE/*`. Усі файли записуються атомарно (lock-файл + тимчасовий файл + перейменування) і не перезаписуються, якщо вміст порожній.
+
+`STORE/AS/` пишеться і для origin **замаскованих** маршрутів — попри те, що такий
+ASN не входить до `list.txt`. Без цього незрозуміло, за що AS заблоковано: у самому
+`aut-num` ворожої країни немає, вона є лише в покривному `inetnum`. Тому в кінець
+файлу додається секція з тими об'єктами, з яких країну взято, — рядки пояснення
+починаються з `%`, як коментарі whois, тож розбір RPSL їх не зачіпає:
+
+```
+aut-num:        AS203273
+as-name:        NetCraftersOU
+org:            ORG-NO63-RIPE
+...
+organisation:   ORG-NO63-RIPE
+org-name:       NetCrafters OU
+country:        EE
+source:         RIPE
+
+% ASBlockWar: блокування за покривним inetnum, а не за country: цієї AS.
+% Нижче — об'єкти, з яких узято країну.
+
+% 94.228.167.0/24 — RU, EE
+inetnum:        94.228.167.0 - 94.228.167.255
+netname:        NetCrafters
+country:        RU
+source:         RIPE
+```
+
+Якщо один ASN тримає кілька замаскованих маршрутів, кожен іде окремою секцією зі
+своїм `inetnum`. Для маршрутів, у яких `route:` прибрано (сценарій 2), origin
+невідомий — писати нема для кого, і файл не створюється. Якщо ASN усе ж потрапив
+до `list.txt` як ворожий, його пише звичайний цикл — двох записувачів в один шлях
+не буває.
 
 `networks.list` і `STORE/NET/` відображають `effectivePrefixes` — фактичний стан таблиці `blackbgp` після застосування `war.blackbgp.txt` (поточні маршрути мінус видалення плюс додавання). Якщо SSH-команда отримання blackbgp не виконалась або таблиця порожня, ці файли не записуються.
 
@@ -965,7 +1000,7 @@ RIPE тримає inetnum-заглушку на весь адресний про
 ## Пакетний режим
 
 ```bash
-java -jar target/ASBlockWar-3.20.3-00000001.jar --batch
+java -jar target/ASBlockWar-3.21.0-00000001.jar --batch
 ```
 
 Прапорець `-b` / `--batch` активує автоматичний запуск зовнішнього скрипту після завершення повного циклу обробки. Скрипт задається параметром `AfterCommand` (або `--after-command=<шлях>`).
@@ -1063,7 +1098,7 @@ source ~/asblockwar.txt
 sudo /usr/local/bin/routeStore
 ```
 
-Повний ланцюг після одного запуску `java -jar ASBlockWar-3.20.3-00000001.jar --batch`:
+Повний ланцюг після одного запуску `java -jar ASBlockWar-3.21.0-00000001.jar --batch`:
 
 ```mermaid
 flowchart TD
