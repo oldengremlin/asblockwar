@@ -23,7 +23,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -72,6 +71,7 @@ public class retrieveInetnumCountry {
 
     private final String prefix;
     private final List<String> countries = new ArrayList<>();
+    private final String blocks;
 
     /**
      * @param prefix CIDR-префікс маршруту, наприклад {@code "5.231.231.0/24"}
@@ -80,19 +80,24 @@ public class retrieveInetnumCountry {
         this.prefix = prefix;
 
         String cached = cache.get(prefix);
-        if (cached != null) {
-            if (!cached.isEmpty()) {
-                Collections.addAll(this.countries, cached.split(","));
+        if (cached == null) {
+            cached = "";
+            try (Connection conn = RpslDb.open()) {
+                cached = collect(conn);
+                cache.put(prefix, cached);
+            } catch (SQLException ex) {
+                log.error("Помилка при отриманні inetnum для {}", prefix, ex);
             }
-            return;
         }
+        this.blocks = cached;
 
-        try (Connection conn = RpslDb.open()) {
-            collect(conn);
-            cache.put(prefix, String.join(",", this.countries));
-        } catch (SQLException ex) {
-            log.error("Помилка при отриманні inetnum для {}", prefix, ex);
+        // Країни виводяться з тих самих блоків, тож кешувати їх окремо не треба:
+        // порядок рядків country: у зібраному тексті — це і є потрібний порядок
+        Set<String> seen = new LinkedHashSet<>();
+        for (String country : fieldValues(cached, "country:")) {
+            seen.add(country.toUpperCase());
         }
+        this.countries.addAll(seen);
     }
 
     /**
@@ -104,7 +109,21 @@ public class retrieveInetnumCountry {
         return List.copyOf(countries);
     }
 
-    private void collect(Connection conn) throws SQLException {
+    /**
+     * RPSL-блоки, з яких узято країни — сам покривний {@code inetnum} і
+     * {@code organisation}, на які він посилається через {@code org:}.
+     * <p>
+     * Потрібні, щоб у {@code STORE/AS/} було видно, звідки взялася ворожа
+     * країна: сам {@code aut-num} замаскованого маршруту її не містить.
+     *
+     * @return блоки, розділені порожнім рядком, або порожній рядок
+     */
+    public String getBlocks() {
+        return blocks;
+    }
+
+    /** @return зібрані RPSL-блоки, розділені порожнім рядком */
+    private String collect(Connection conn) throws SQLException {
         int slash = prefix.indexOf('/');
         String host = slash < 0 ? prefix : prefix.substring(0, slash);
 
@@ -116,33 +135,30 @@ public class retrieveInetnumCountry {
             bits = raw.length * 8;
         } catch (UnknownHostException | SecurityException e) {
             log.debug("retrieveInetnumCountry: не вдалося розібрати «{}»", prefix);
-            return;
+            return "";
         }
         int version = bits == 32 ? 4 : 6;
         String key = version == 4 ? "inetnum" : "inet6num";
 
         List<String> values = findMostSpecific(conn, address, bits, version, key);
 
-        Set<String> seen = new LinkedHashSet<>();
+        List<String> collected = new ArrayList<>();
         for (String value : values) {
             String block = RpslDb.fetchBlocks(conn, value, key);
             if (block.isEmpty()) {
                 continue;
             }
-            addCountries(block, seen);
+            collected.add(block);
             // Країна організації, на яку посилається inetnum: у спостереженому
             // випадку саме тут була RU, тоді як сам inetnum заявляв FI
             for (String org : fieldValues(block, "org:")) {
-                addCountries(RpslDb.fetchBlocks(conn, org, "organisation"), seen);
+                String orgBlock = RpslDb.fetchBlocks(conn, org, "organisation");
+                if (!orgBlock.isEmpty()) {
+                    collected.add(orgBlock);
+                }
             }
         }
-        countries.addAll(seen);
-    }
-
-    private static void addCountries(String block, Set<String> target) {
-        for (String value : fieldValues(block, "country:")) {
-            target.add(value.toUpperCase());
-        }
+        return String.join("\n", collected);
     }
 
     private static List<String> fieldValues(String block, String field) {

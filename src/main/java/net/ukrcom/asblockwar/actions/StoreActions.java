@@ -24,10 +24,12 @@ import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -580,9 +582,94 @@ public class StoreActions {
                     log.error("storeDetails: помилка запису для AS-SET {}", asSet, e);
                 }
             }));
+
+            // STORE/AS/{asn}.txt для origin замаскованих маршрутів.
+            // Такий ASN за побудовою не ворожий, тож головний цикл вище його
+            // не пише — а без файлу незрозуміло, звідки взялася ворожа країна:
+            // сам aut-num її не містить, вона живе в покривному inetnum
+            maskedByOrigin(aggressorAsnResources).forEach((asn, routes) -> executor.execute(() -> {
+                try {
+                    dbLimit.acquire();
+                    String autNum;
+                    try {
+                        autNum = new retrieveAutNumFull(asn).get();
+                    } finally {
+                        dbLimit.release();
+                    }
+                    FileUtils.writeStoreFile(dirAS.resolve(asn.substring(2) + ".txt"),
+                            withMaskedEvidence(autNum, routes));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException e) {
+                    log.error("storeDetails: помилка запису для замаскованого origin {}", asn, e);
+                }
+            }));
         }
 
         log.info("storeDetails: завершено (AS={}, MNT={}, AS-SET={})",
                 aggressorAsnResources.size(), allMntBy.size(), allAsSets.size());
+    }
+
+    /**
+     * Замасковані маршрути, згруповані за origin-ASN.
+     * <p>
+     * Береться з {@link ASBlockWar#lastBlackbgpChanges} — тим самим каналом,
+     * яким ці дані вже отримує {@code EmailReportSender}. Крок звірки blackbgp
+     * виконується раніше за {@code storeDetails}, тож на цей момент поле заповнене.
+     *
+     * @param aggressorAsnResources щоб не писати вдруге те, що вже пише головний цикл
+     * @return {@code ASN → (префікс → маршрут)}; префікси впорядковані за адресою
+     */
+    static Map<String, Map<String, MaskedRoute>> maskedByOrigin(
+            Map<String, String> aggressorAsnResources) {
+        BlackbgpChanges bgp = ASBlockWar.lastBlackbgpChanges;
+        if (bgp == null || bgp.maskedPrefixes().isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Map<String, MaskedRoute>> byOrigin = new HashMap<>();
+        bgp.maskedPrefixes().forEach((prefix, masked) -> {
+            // origin невідомий — route: прибрано з RIPE, писати нема для кого;
+            // ворожий origin уже пише головний цикл, двох записувачів в один
+            // шлях не треба
+            if (masked.origin().isEmpty() || aggressorAsnResources.containsKey(masked.origin())) {
+                return;
+            }
+            byOrigin.computeIfAbsent(masked.origin(),
+                    k -> new TreeMap<>(NetworkUtils.NETWORK_ADDR_ORDER)).put(prefix, masked);
+        });
+        return byOrigin;
+    }
+
+    /**
+     * Додає до {@code aut-num} блоку секцію з покривними {@code inetnum} —
+     * тими, через які цей ASN і потрапив під блокування.
+     * <p>
+     * Без неї файл у {@code STORE/AS/} виглядає як опис цілком легітимної AS:
+     * у самому {@code aut-num} ворожої країни немає (у {@code AS203273} це
+     * {@code NetCrafters OU}, {@code country: EE}), вона є лише в
+     * {@code inetnum} його мереж. Секція йде в кінець і кожен рядок пояснення
+     * починається з {@code %}, як і коментарі whois, — щоб розбір RPSL її не зачепив.
+     *
+     * @param autNum повний {@code aut-num} блок
+     * @param routes замасковані маршрути цього ASN
+     * @return вміст файлу {@code STORE/AS/{номер}.txt}
+     */
+    static String withMaskedEvidence(String autNum, Map<String, MaskedRoute> routes) {
+        StringBuilder sb = new StringBuilder(autNum == null ? "" : autNum);
+        if (sb.length() > 0 && sb.charAt(sb.length() - 1) != '\n') {
+            sb.append('\n');
+        }
+        sb.append("\n% ASBlockWar: блокування за покривним inetnum, а не за country: цієї AS.\n")
+          .append("% Нижче — об'єкти, з яких узято країну.\n");
+        routes.forEach((prefix, masked) -> {
+            sb.append("\n% ").append(prefix).append(" — ").append(masked.countryChain()).append('\n');
+            if (!masked.evidence().isBlank()) {
+                sb.append(masked.evidence());
+                if (masked.evidence().charAt(masked.evidence().length() - 1) != '\n') {
+                    sb.append('\n');
+                }
+            }
+        });
+        return sb.toString();
     }
 }
