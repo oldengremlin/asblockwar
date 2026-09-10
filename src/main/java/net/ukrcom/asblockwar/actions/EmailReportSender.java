@@ -48,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.ukrcom.asblockwar.ASBlockWar;
 import net.ukrcom.asblockwar.serviceStructures.Action;
 import net.ukrcom.asblockwar.serviceStructures.ASN;
+import net.ukrcom.asblockwar.retrieveretrieve.retrieveOrganisation;
 import net.ukrcom.asblockwar.serviceStructures.SuspiciousAS;
 
 /**
@@ -367,7 +368,7 @@ public class EmailReportSender {
      * @param forReplace {@code true} = ip r r (додані/оновлені); {@code false} = ip r d (видалені)
      * @param aggressorAsnResources для пошуку опису ASN
      */
-    private static String buildRouteSection(boolean forReplace, Map<String, String> aggressorAsnResources) {
+    static String buildRouteSection(boolean forReplace, Map<String, String> aggressorAsnResources) {
         BlackbgpChanges bgp = ASBlockWar.lastBlackbgpChanges;
         if (bgp == null) {
             return "";
@@ -394,12 +395,20 @@ public class EmailReportSender {
                 .sorted(NetworkUtils.NETWORK_ADDR_ORDER)
                 .collect(Collectors.toList());
 
-        sb.append("<table cellspacing=\"0\" cellpadding=\"5\" border=\"1\" class=\"shadow-table\">"
+        sb.append("<p class=\"legend\">"
+                + "<span class=\"mark-yes\">&#10004;</span> &#8212; AS &#1091; &#1089;&#1087;&#1080;&#1089;&#1082;&#1091; "
+                + "&#1073;&#1083;&#1086;&#1082;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;; "
+                + "<span class=\"mark-no\">&#10006;</span> &#8212; AS &#1085;&#1077; &#1073;&#1083;&#1086;&#1082;&#1091;&#1108;&#1084;&#1086;, "
+                + "&#1074;&#1086;&#1085;&#1072; &#1083;&#1080;&#1096;&#1077; &#1089;&#1087;&#1110;&#1074;&#1072;&#1085;&#1086;&#1085;&#1089;&#1091;&#1108; "
+                + "&#1094;&#1102; &#1084;&#1077;&#1088;&#1077;&#1078;&#1091; &#8212; &#1089;&#1072;&#1084;&#1072; &#1084;&#1077;&#1088;&#1077;&#1078;&#1072; "
+                + "&#1073;&#1083;&#1086;&#1082;&#1091;&#1108;&#1090;&#1100;&#1089;&#1103;</p>")
+          .append("<table cellspacing=\"0\" cellpadding=\"5\" border=\"1\" class=\"shadow-table\">"
                 + "<thead><tr>"
-                + "<th valign=\"top\" style=\"width:30%\">IPv4/IPv6</th>"
+                + "<th valign=\"top\" style=\"width:4%\"></th>"
+                + "<th valign=\"top\" style=\"width:28%\">IPv4/IPv6</th>"
                 + "<th valign=\"top\" style=\"width:10%\">ASN</th>"
                 + "<th valign=\"top\" style=\"width:10%\">&#1050;&#1088;&#1072;&#1111;&#1085;&#1072;</th>"
-                + "<th valign=\"top\" style=\"width:50%\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
+                + "<th valign=\"top\" style=\"width:48%\">&#1054;&#1088;&#1075;&#1072;&#1085;&#1110;&#1079;&#1072;&#1094;&#1110;&#1103;</th>"
                 + "</tr></thead><tbody>");
 
         Map<String, List<String>> liveOrigins = ASBlockWar.lastRouteOrigins;
@@ -427,6 +436,7 @@ public class EmailReportSender {
 
             if (asnList.isEmpty()) {
                 sb.append("<tr class=\"").append(rowCls).append("\">")
+                  .append("<td valign=\"top\"></td>")
                   .append("<td valign=\"top\">").append(esc(prefix)).append("</td>")
                   .append("<td valign=\"top\"></td>")
                   .append("<td valign=\"top\"></td>")
@@ -435,9 +445,17 @@ public class EmailReportSender {
                 continue;
             }
 
-            boolean firstRow = true;
             for (String asn : asnList) {
-                String rpsl    = lookupRpsl(asn, aggressorAsnResources);
+                // Мережа блокується цілком; ознака стосується саме цієї AS —
+                // чи входить вона до списку блокування, чи лише співанонсує
+                boolean blockedAsn = aggressorAsnResources.containsKey(asn);
+                String rpsl = lookupRpsl(asn, aggressorAsnResources);
+                if (rpsl.isBlank()) {
+                    // Співанонсувальної AS немає ні в списку ворогів, ні в кеші
+                    // STORE/AS/ — там лежать лише ворожі. Без цього запиту
+                    // країна й організація лишалися б порожні (AS216039)
+                    rpsl = new retrieveOrganisation(asn).get();
+                }
                 String country = esc(RpslUtils.rpslField(rpsl, "country"));
                 String descr   = esc(RpslUtils.rpslField(rpsl, "org-name"));
                 if (descr.isEmpty()) {
@@ -450,15 +468,23 @@ public class EmailReportSender {
                     country = withWasLabel(country);
                     descr   = withWasLabel(descr);
                 }
-                sb.append("<tr class=\"").append(rowCls).append("\">");
-                sb.append(firstRow
-                        ? "<td valign=\"top\">" + esc(prefix) + "</td>"
-                        : "<td valign=\"top\"></td>");
-                sb.append("<td valign=\"top\"><span class=\"asn\">").append(asnHtml(asn)).append("</span></td>")
+                // Префікс повторюється в кожному рядку: порожня комірка читалася
+                // як «маршрут без адреси». Для не-блокованої AS він виділений
+                // кольором — щоб не сплутати з рядком, через який мережа блокується
+                String prefixHtml = blockedAsn
+                        ? esc(prefix)
+                        : "<span class=\"prefix-excluded\">" + esc(prefix) + "</span>";
+                sb.append("<tr class=\"").append(rowCls).append("\">")
+                  .append("<td valign=\"top\" align=\"center\">")
+                  .append(blockedAsn
+                        ? "<span class=\"mark-yes\">&#10004;</span>"
+                        : "<span class=\"mark-no\">&#10006;</span>")
+                  .append("</td>")
+                  .append("<td valign=\"top\">").append(prefixHtml).append("</td>")
+                  .append("<td valign=\"top\"><span class=\"asn\">").append(asnHtml(asn)).append("</span></td>")
                   .append("<td valign=\"top\">").append(country).append("</td>")
                   .append("<td valign=\"top\">").append(descr).append("</td>")
                   .append("</tr>");
-                firstRow = false;
             }
         }
 
@@ -777,5 +803,9 @@ public class EmailReportSender {
             + ".was-label{color:#888;font-style:italic}"
             + ".badge-masked{background:#00695c}"
             + ".row-masked td{background:#e0f2f1}"
-            + ".country-blocked{color:#b71c1c}";
+            + ".country-blocked{color:#b71c1c}"
+            + ".mark-yes{color:#2e7d32;font-weight:bold}"
+            + ".mark-no{color:#c62828;font-weight:bold}"
+            + ".prefix-excluded{color:#c62828}"
+            + ".legend{font-size:11px;color:#666;margin:4px 0 6px}";
 }

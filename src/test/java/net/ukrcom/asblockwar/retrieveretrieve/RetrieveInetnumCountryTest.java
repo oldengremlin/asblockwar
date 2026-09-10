@@ -50,10 +50,14 @@ class RetrieveInetnumCountryTest {
     @TempDir
     static Path tempDir;
 
+    /** Ставиться перед кожним тестом: {@code ASBlockWar.config} глобальний,
+     * і сусідній тестовий клас у тій самій JVM перебив би його своєю БД. */
+    private static String url;
+
     @BeforeAll
     static void setUpDatabase() throws SQLException, java.io.IOException {
         Path db = tempDir.resolve("inetnum-test.db");
-        String url = "jdbc:sqlite:" + db;
+        url = "jdbc:sqlite:" + db;
 
         try (Connection conn = DriverManager.getConnection(url);
              Statement st = conn.createStatement()) {
@@ -96,12 +100,13 @@ class RetrieveInetnumCountryTest {
                     + "netname:        IANA-BLK\n"
                     + "country:        EU\n");
         }
-
-        ASBlockWar.config = new Config(new String[]{"--whois-uri", url});
     }
 
     @BeforeEach
-    void clearCache() {
+    void clearCache() throws java.io.IOException {
+        ASBlockWar.config = new Config(new String[]{"--whois-uri", url});
+        // Пул тримає з'єднання до БД попереднього тестового класу
+        RpslDb.closeAll();
         // Клас кешує за префіксом, а тести звертаються до тих самих
         RpslCache.clearAll();
     }
